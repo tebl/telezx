@@ -1,3 +1,5 @@
+const BASE_URL = "https://raw.githubusercontent.com/tebl/telezx-pages/main/pages/";
+
 const BLACK = 0;
 const BLUE = 1;
 const RED = 2;
@@ -9,6 +11,9 @@ const WHITE = 7;
 const FLASH = 0b10000000;
 const BRIGHT = 0b01000000;
 
+const PAGE_DEFAULT = 1000;
+const PAGE_MINIMUM = 1;
+const PAGE_MAXIMUM = 9999;
 const SCREEN_REFRESH = 50;
 const SCREEN_WIDTH_CHARS = 32;
 const SCREEN_HEIGHT_CHARS = 24;
@@ -65,6 +70,57 @@ const font_default = [
     0x00, 0x00, 0x7c, 0x08, 0x10, 0x20, 0x7c, 0x00, 0x00, 0x0e, 0x08, 0x30, 0x08, 0x08, 0x0e, 0x00, 
     0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x00, 0x00, 0x70, 0x10, 0x0c, 0x10, 0x10, 0x70, 0x00, 
     0x00, 0x14, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x42, 0x99, 0xa1, 0xa1, 0x99, 0x42, 0x3c
+];
+
+const font_computer = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x78, 0x78, 0x30, 0x30, 0x00, 0x30, 0x00, 
+    0x6c, 0x6c, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6c, 0x6c, 0xfe, 0x6c, 0xfe, 0x6c, 0x6c, 0x00, 
+    0x30, 0x7c, 0xc0, 0x78, 0x0c, 0xf8, 0x30, 0x00, 0x00, 0xc6, 0xcc, 0x18, 0x30, 0x66, 0xc6, 0x00, 
+    0x38, 0x6c, 0x38, 0x76, 0xdc, 0xcc, 0x76, 0x00, 0x60, 0x60, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x18, 0x30, 0x60, 0x60, 0x60, 0x30, 0x18, 0x00, 0x60, 0x30, 0x18, 0x18, 0x18, 0x30, 0x60, 0x00, 
+    0x00, 0x66, 0x3c, 0xff, 0x3c, 0x66, 0x00, 0x00, 0x00, 0x30, 0x30, 0xfc, 0x30, 0x30, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x30, 0x60, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x30, 0x00, 0x06, 0x0c, 0x18, 0x30, 0x60, 0xc0, 0x80, 0x00, 
+    0xfe, 0x86, 0x8e, 0xd2, 0xe2, 0xc2, 0xfe, 0x00, 0x10, 0x10, 0x10, 0x30, 0x30, 0x30, 0x30, 0x00, 
+    0x3c, 0x46, 0x06, 0x0c, 0x30, 0x60, 0x7e, 0x00, 0x3c, 0x46, 0x06, 0x1c, 0x02, 0x62, 0x7c, 0x00, 
+    0x4c, 0x4c, 0x44, 0x44, 0x7c, 0x0c, 0x0c, 0x00, 0x7e, 0x40, 0x7c, 0x02, 0x02, 0x62, 0x7c, 0x00, 
+    0x3c, 0x66, 0x40, 0x7c, 0x62, 0x62, 0x3c, 0x00, 0x7c, 0x0c, 0x04, 0x04, 0x0c, 0x0c, 0x0c, 0x00, 
+    0x3c, 0x46, 0x46, 0x3c, 0x62, 0x62, 0x3c, 0x00, 0x3c, 0x46, 0x46, 0x3e, 0x02, 0x62, 0x3c, 0x00, 
+    0x00, 0x30, 0x30, 0x00, 0x00, 0x30, 0x30, 0x00, 0x00, 0x30, 0x30, 0x00, 0x00, 0x30, 0x30, 0x60, 
+    0x18, 0x30, 0x60, 0xc0, 0x60, 0x30, 0x18, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x00, 0xfc, 0x00, 0x00, 
+    0x60, 0x30, 0x18, 0x0c, 0x18, 0x30, 0x60, 0x00, 0x78, 0xcc, 0x0c, 0x18, 0x30, 0x00, 0x30, 0x00, 
+    0x7c, 0xc6, 0xde, 0xde, 0xde, 0xc0, 0x78, 0x00, 0x7e, 0x46, 0x42, 0x42, 0x7e, 0x62, 0x62, 0x00, 
+    0x7c, 0x4c, 0x44, 0x7e, 0x62, 0x62, 0x7e, 0x00, 0x7e, 0x46, 0x40, 0x60, 0x60, 0x62, 0x7e, 0x00, 
+    0x7c, 0x46, 0x46, 0x42, 0x62, 0x62, 0x7c, 0x00, 0x7e, 0x46, 0x40, 0x78, 0x60, 0x62, 0x7e, 0x00, 
+    0x7e, 0x46, 0x40, 0x78, 0x60, 0x60, 0x60, 0x00, 0x7e, 0x46, 0x40, 0x4e, 0x62, 0x62, 0x7e, 0x00, 
+    0x4c, 0x4c, 0x44, 0x7c, 0x64, 0x64, 0x64, 0x00, 0x10, 0x10, 0x10, 0x18, 0x18, 0x18, 0x18, 0x00, 
+    0x06, 0x06, 0x02, 0x02, 0x62, 0x62, 0x7e, 0x00, 0x46, 0x46, 0x4c, 0x78, 0x64, 0x62, 0x62, 0x00, 
+    0x40, 0x40, 0x40, 0x60, 0x60, 0x60, 0x7e, 0x00, 0xc6, 0xee, 0xbe, 0x92, 0xd2, 0xc2, 0xc2, 0x00, 
+    0x46, 0x46, 0x62, 0x52, 0x6a, 0x66, 0x62, 0x00, 0x7e, 0x46, 0x46, 0x62, 0x62, 0x62, 0x7e, 0x00, 
+    0x7e, 0x46, 0x46, 0x7e, 0x60, 0x60, 0x60, 0x00, 0x7e, 0x46, 0x46, 0x62, 0x62, 0x7e, 0x1c, 0x04, 
+    0x7e, 0x46, 0x46, 0x7c, 0x68, 0x64, 0x62, 0x00, 0x7e, 0x46, 0x60, 0x18, 0x06, 0x62, 0x7e, 0x00, 
+    0x7e, 0x16, 0x10, 0x18, 0x18, 0x18, 0x18, 0x00, 0x46, 0x46, 0x42, 0x62, 0x62, 0x62, 0x7e, 0x00, 
+    0x46, 0x46, 0x46, 0x42, 0x64, 0x38, 0x10, 0x00, 0x86, 0x86, 0x82, 0xd2, 0xfa, 0xee, 0xc6, 0x00, 
+    0x86, 0x86, 0x4c, 0x30, 0x68, 0xe4, 0xc2, 0x00, 0x46, 0x46, 0x42, 0x3c, 0x18, 0x18, 0x18, 0x00, 
+    0xfe, 0x06, 0x08, 0x10, 0x20, 0xc0, 0xfe, 0x00, 0x78, 0x60, 0x60, 0x60, 0x60, 0x60, 0x78, 0x00, 
+    0xc0, 0x60, 0x30, 0x18, 0x0c, 0x06, 0x02, 0x00, 0x78, 0x18, 0x18, 0x18, 0x18, 0x18, 0x78, 0x00, 
+    0x10, 0x38, 0x6c, 0xc6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 
+    0x30, 0x30, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e, 0x06, 0x7e, 0x62, 0x7e, 0x00, 
+    0x40, 0x40, 0x40, 0x7e, 0x62, 0x62, 0x7e, 0x00, 0x00, 0x00, 0x7e, 0x46, 0x60, 0x60, 0x7e, 0x00, 
+    0x06, 0x06, 0x02, 0x7e, 0x62, 0x62, 0x7e, 0x00, 0x00, 0x00, 0x7e, 0x46, 0x7e, 0x60, 0x7e, 0x00, 
+    0x0c, 0x1c, 0x20, 0x78, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x7e, 0x46, 0x42, 0x7e, 0x06, 0x78, 
+    0x40, 0x40, 0x40, 0x7e, 0x62, 0x62, 0x62, 0x00, 0x10, 0x00, 0x10, 0x10, 0x18, 0x18, 0x18, 0x00, 
+    0x0c, 0x00, 0x0c, 0x04, 0x04, 0x64, 0x64, 0x7c, 0x40, 0x40, 0x46, 0x4c, 0x78, 0x64, 0x62, 0x00, 
+    0x10, 0x10, 0x10, 0x10, 0x18, 0x18, 0x18, 0x00, 0x00, 0x00, 0xfe, 0x96, 0x96, 0xd2, 0xd2, 0x00, 
+    0x00, 0x00, 0x7e, 0x46, 0x62, 0x62, 0x62, 0x00, 0x00, 0x00, 0x7e, 0x46, 0x62, 0x62, 0x7e, 0x00, 
+    0x00, 0x00, 0x7e, 0x46, 0x42, 0x7e, 0x60, 0x60, 0x00, 0x00, 0x7e, 0x46, 0x42, 0x7e, 0x02, 0x02, 
+    0x00, 0x00, 0x7e, 0x46, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x7c, 0x40, 0x7c, 0x04, 0x7c, 0x00, 
+    0x10, 0x10, 0x3c, 0x10, 0x10, 0x18, 0x1c, 0x00, 0x00, 0x00, 0x46, 0x46, 0x62, 0x62, 0x7e, 0x00, 
+    0x00, 0x00, 0x46, 0x46, 0x66, 0x34, 0x18, 0x00, 0x00, 0x00, 0x86, 0x96, 0xd2, 0xfe, 0x6c, 0x00, 
+    0x00, 0x00, 0x46, 0x2c, 0x18, 0x34, 0x62, 0x00, 0x00, 0x00, 0x46, 0x46, 0x62, 0x7e, 0x02, 0x7c, 
+    0x00, 0x00, 0x7e, 0x0c, 0x18, 0x30, 0x7e, 0x00, 0x1c, 0x30, 0x30, 0xe0, 0x30, 0x30, 0x1c, 0x00, 
+    0x18, 0x18, 0x18, 0x00, 0x18, 0x18, 0x18, 0x00, 0xe0, 0x30, 0x30, 0x1c, 0x30, 0x30, 0xe0, 0x00, 
+    0x76, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x38, 0x6c, 0xc6, 0xc6, 0xfe, 0x00
 ];
 
 const font_cp850 = [
@@ -176,7 +232,9 @@ const screen_map = calculateScreenMap();
 var cursor_x = 0;
 var cursor_y = 0;
 var current_font = font_default;
-var current_page = 100;
+var current_page = PAGE_DEFAULT;
+var current_subpage = 0;
+var current_subpage_max = 1;
 var current_input = ""
 
 // Get the canvas and context
@@ -200,7 +258,7 @@ function calculateScreenMap() {
     return lookup;
 }
 
-function incrementCursor() {
+function zx_incrementCursor() {
     cursor_x++;
     if (cursor_x >= SCREEN_WIDTH_CHARS) {
         cursor_x = 0;
@@ -211,64 +269,74 @@ function incrementCursor() {
     }
 }
 
-function setCursor(pos_x, pos_y) {
+function zx_setCursor(pos_x, pos_y) {
     cursor_x = pos_x % SCREEN_WIDTH_CHARS;
     cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
 }
 
-function clearMemory(data, attribute) {
+function zx_clearMemory(data, attribute) {
     for (var address = 0; address < SIZE_MEMORY; address++) {
         memory[address] = (address < SIZE_DATA) ? data : attribute;
     } 
 }
 
-function printASCII(character) {
-    setDataAt(cursor_x, cursor_y, getFontData(character - 32))
-    incrementCursor();
+function zx_setResponse(description, attribute) {
+    zx_clearMemory(0, zx_toAttribute(false, true, BLACK, WHITE));
+    zx_setCursor(0, 23);
+    zx_printString(description, attribute);
 }
 
-function printString(string, attribute) {
+function zx_setError(description) {
+    zx_setResponse(description, zx_toAttribute(false, false, BLACK, RED));
+}
+
+function zx_printASCII(character) {
+    zx_setDataAt(cursor_x, cursor_y, zx_getFontData(character - 32))
+    zx_incrementCursor();
+}
+
+function zx_printString(string, attribute) {
     for (var i = 0; i < string.length; i++) {
-        if (attribute >= 0) setAttribute(attribute);
-        printASCII(string.charCodeAt(i));
+        if (attribute >= 0) zx_setAttribute(attribute);
+        zx_printASCII(string.charCodeAt(i));
     }
 }
 
-function setDataAt(pos_x, pos_y, values) {
+function zx_setDataAt(pos_x, pos_y, values) {
     var address = screen_map[pos_x][pos_y];
     for (var i = 0; i < 8 && i < values.length; i++) {
         memory[address + i*0x100] = values[i];
     }
 }
 
-function setData(values) {
-    setDataAt(cursor_x, cursor_y, values);
+function zx_setData(values) {
+    zx_setDataAt(cursor_x, cursor_y, values);
 }
 
-function getFontData(charCode) {
+function zx_getFontData(charCode) {
     var offset = charCode*8;
     if (charCode < 0 || charCode >= 96) offset = 0;
     return current_font.slice(offset, offset + 7);
 }
 
-function setFont(font) {
+function zx_setFont(font) {
     current_font = font;
 }
 
-function setAttributeAt(pos_x, pos_y, value) {
+function zx_setAttributeAt(pos_x, pos_y, value) {
     var index = (pos_y * SCREEN_WIDTH_CHARS) + pos_x;
     memory[SIZE_DATA + index] = value;
 }
 
-function setAttribute(value) {
-    setAttributeAt(cursor_x, cursor_y, value);
+function zx_setAttribute(value) {
+    zx_setAttributeAt(cursor_x, cursor_y, value);
 }
 
-function toAttribute(is_flashing, is_bright, paper, ink) {
+function zx_toAttribute(is_flashing, is_bright, paper, ink) {
     return ((is_flashing ? FLASH : 0x00) | (is_bright ? BRIGHT : 0x00) | (paper << 3) | ink);
 }
 
-function parseAttribute(attribute) {
+function zx_parseAttribute(attribute) {
     return {
         flash: (attribute & FLASH) == FLASH,
         bright: (attribute & BRIGHT) == BRIGHT,
@@ -322,7 +390,7 @@ function renderMemory() {
                     var data_string = data_value.toString(2).padStart(8, '0');
 
                     var attr_idx = lot * 256 + row * SCREEN_WIDTH_CHARS + col;
-                    var attr_value = parseAttribute(memory[SIZE_DATA + attr_idx]);
+                    var attr_value = zx_parseAttribute(memory[SIZE_DATA + attr_idx]);
 
                     for (var bit = 0; bit < 8; bit++) {
                         var x = col * 8 + bit;
@@ -348,40 +416,33 @@ function getDateString() {
 }
 
 function overlayHeader() {
-    setFont(font_default);
+    zx_setFont(font_default);
     for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
-        setAttributeAt(i, 0, toAttribute(false, true, BLACK, WHITE));
+        zx_setAttributeAt(i, 0, zx_toAttribute(false, true, BLACK, WHITE));
     }
-    setCursor(0, 0);
-    printString(String(current_page).padStart(4), -1);
-    incrementCursor();
-    printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : toAttribute(false, false, BLACK, GREEN)));
-    printString("    ", -1);
-    printString("T", toAttribute(false, true, BLACK, RED));
-    printString("e", toAttribute(false, true, BLACK, YELLOW));
-    printString("l", toAttribute(false, true, BLACK, GREEN));
-    printString("e", toAttribute(false, true, BLACK, BLUE));
-    printString("ZX  ", -1);
-    printString(getDateString(), toAttribute(false, false, BLACK, YELLOW));
+    zx_setCursor(0, 0);
+    zx_printString(String(current_page).padStart(4), -1);
+    zx_printASCII(" ");
+    zx_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : zx_toAttribute(false, false, BLACK, GREEN)));
+    zx_printASCII(" ");
+    zx_printASCII(" ");
+    zx_printASCII(" ");
+    zx_setFont(font_cp850);
+    zx_printString("T", zx_toAttribute(false, true, BLACK, RED));
+    zx_printString("e", zx_toAttribute(false, true, BLACK, YELLOW));
+    zx_printString("l", zx_toAttribute(false, true, BLACK, GREEN));
+    zx_printString("e", zx_toAttribute(false, true, BLACK, BLUE));
+    zx_printString("ZX", -1);
+    zx_setFont(font_default);
+    zx_printASCII(" ");
+    zx_printASCII(" ");
+    zx_printASCII(" ");
+    zx_printString(getDateString(), zx_toAttribute(false, false, BLACK, YELLOW));
+    zx_setFont(font_default);
 }
 
 function renderScreen(timestamp) {
-    // clearMemory(0, toAttribute(false, true, BLACK, WHITE));
     overlayHeader();
-    // printString("Testing some things out while figuring out how the screen works", toAttribute(false, true, RED, BLACK));
-    // setCursor(0, 23);
-    // printString("0 OK, 0:1");
-
-    // setAttributeAt(20, 23, toAttribute(false, true, BLACK, WHITE));
-    // for (var cursor_x = 0; cursor_x < screen_width_chars; cursor_x++) {
-    //     for (var cursor_y = 0; cursor_y < screen_height_chars; cursor_y++) {
-    // setCharacterAt(19, 23, 0xaa);
-    // setCharacterAt(20, 21, 0x55);
-    // setCharacterAt(21, 23, 0xaa);
-    //     }
-    // }
-
-    // Create the image
     renderMemory();
 
     // Draw the image data to the canvas
@@ -392,44 +453,93 @@ function refreshCanvas() {
     window.requestAnimationFrame(renderScreen);
 }
 
-async function fetchResource() {
+function getBaseUrl(page, subpage) {
+    var index_url = BASE_URL + String(page).padStart(4, "0");
+    if (subpage > 0) {
+        return index_url + "." + String(subpage).padStart(2, "0");
+    }
+    return index_url;
+}
+
+function getIndexUrl() {
+    return getBaseUrl(current_page, -1) + ".idx";
+}
+
+function getScreenUrl(page, subpage) {
+    return getBaseUrl(page, subpage) + ".scr";
+}
+
+async function fetchIndex() {
     try {
         // Fetch the JSON file  
-        const response = await fetch('https://zxart.ee/file/id:576299/filename:Unknown_Artist_-_13_Slime_%25282025%2529_%2528zxgfxtober_2025%2529.scr');
+        const response = await fetch(getIndexUrl());
 
         // Check for HTTP errors  
         if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        // Parse JSON data  
+        const content = await response.text();
+        if (content.length >= 3) {
+            parseIndex(content);
+        } else {
+            zx_setError("Empty index");
+        }
+    } catch (error) {
+        zx_setError(error.message);
+        console.error("Failed to fetch data:", error);
+    }
+
+    refreshCanvas();
+}
+
+function parseIndex(content) {
+    var type = content.slice(0, 3);
+    switch (type) {
+        case "SCR":
+            zx_setResponse(content.slice(0, 3), -1);
+            return parseSCR(content);
+    }
+    zx_setError("Unknown type");
+}
+
+function parseSCR(content) {
+    fetchScreen(current_page, -1);
+    current_subpage_max = 1;
+    return true;
+}
+
+async function fetchScreen(page, subpage) {
+    try {
+        // Fetch the JSON file  
+        const response = await fetch(getScreenUrl(page, subpage));
+
+        // Check for HTTP errors  
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
         }
 
         // Parse JSON data  
         const data = await response.bytes();
-
-        // Work with the data
         if (data.length == memory.length) {
-            console.log("Parsed JSON data (async/await):", data.length);
             for (var i = 0; i < memory.length; i++) {
                 memory[i] = data[i];
             }
         } else {
+            zx_setError("Not SCR");
             console.error("Data not consistent with SCR:", data.length);
         }
-
-        refreshCanvas();
     } catch (error) {
-        // Handle errors  
+        zx_setError(error.message);
         console.error("Failed to fetch data:", error);
-        document.getElementById("book-container").innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
     }
+
+    refreshCanvas();
 }
 
 // The function gets called when the window is fully loaded
 window.onload = function () {
-    cursor_x = 0;
-    cursor_y = 0;
-    current_page = 100;
-    current_input = ""
-
     // Get the canvas and context
     canvas = document.getElementById("viewport");
     context = canvas.getContext("2d");
@@ -454,17 +564,57 @@ window.onload = function () {
                 current_input = (current_input + event.key).slice(-4);
                 break;
             case "Enter":
+                var next_page = Number(current_input);
+                if (next_page == 0) {
+                    next_page = 1000;
+                }
+                current_page = next_page;
+                current_subpage = 0;
                 current_input = "";
-                fetchResource();
+                fetchIndex();
                 break;
             case "Escape":
                 current_input = "";
                 break;
-        }
+
+            case "PageUp":
+            case "ArrowUp":
+            case "p":
+                if (current_subpage > 0) {
+                    current_subpage--;
+                    fetchIndex();
+                }
+                break;
+
+            case "PageDown":
+            case "ArrowDown":
+            case "n":
+                if (current_subpage < (current_subpage_max - 1)) {
+                    current_subpage++;
+                    fetchIndex();
+                }
+                break;
+
+            case "ArrowLeft":
+                current_page--;
+                if (current_page < PAGE_MINIMUM) current_page = PAGE_MINIMUM;
+                current_subpage = 0;
+                fetchIndex();
+                break;
+
+            case "ArrowRight":
+                current_page++;
+                if (current_page > PAGE_MAXIMUM) current_page = PAGE_MAXIMUM;
+                current_subpage = 0;
+                fetchIndex();
+                break;
+
+            }
 
         refreshCanvas();
     }
 
-    clearMemory(0, toAttribute(false, true, BLACK, WHITE));
+    zx_clearMemory(0, zx_toAttribute(false, true, BLACK, WHITE));
     refreshCanvas();
+    fetchIndex();
 };
