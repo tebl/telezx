@@ -10,6 +10,7 @@ const YELLOW = 6;
 const WHITE = 7;
 const FLASH = 0b10000000;
 const BRIGHT = 0b01000000;
+const ASCII_SPACE = 32;
 
 const PAGE_DEFAULT = 1000;
 const PAGE_MINIMUM = 1;
@@ -20,6 +21,12 @@ const SCREEN_HEIGHT_CHARS = 24;
 const SIZE_DATA = 6144;
 const SIZE_ATTR = 768;
 const SIZE_MEMORY = SIZE_DATA + SIZE_ATTR;
+
+const STATUS_TYPES = {
+    NONE: -1,
+    OK: 0,
+    ERROR: 1
+};
 
 const font_default = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x00, 
@@ -235,7 +242,10 @@ var current_font = font_default;
 var current_page = PAGE_DEFAULT;
 var current_subpage = 0;
 var current_subpage_max = 1;
+var current_page_type;
 var current_input = ""
+var current_status = "";
+var current_status_type = STATUS_TYPES.NONE;
 
 // Get the canvas and context
 var canvas;
@@ -280,18 +290,8 @@ function zx_clearMemory(data, attribute) {
     } 
 }
 
-function zx_setResponse(description, attribute) {
-    zx_clearMemory(0, zx_toAttribute(false, true, BLACK, WHITE));
-    zx_setCursor(0, 23);
-    zx_printString(description, attribute);
-}
-
-function zx_setError(description) {
-    zx_setResponse(description, zx_toAttribute(false, false, BLACK, RED));
-}
-
 function zx_printASCII(character) {
-    zx_setDataAt(cursor_x, cursor_y, zx_getFontData(character - 32))
+    zx_setDataAt(cursor_x, cursor_y, zx_getFontData(character - ASCII_SPACE))
     zx_incrementCursor();
 }
 
@@ -316,7 +316,7 @@ function zx_setData(values) {
 function zx_getFontData(charCode) {
     var offset = charCode*8;
     if (charCode < 0 || charCode >= 96) offset = 0;
-    return current_font.slice(offset, offset + 7);
+    return current_font.slice(offset, offset + 8);
 }
 
 function zx_setFont(font) {
@@ -415,18 +415,44 @@ function getDateString() {
     )
 }
 
-function overlayHeader() {
+
+function setResponse(description, status_type) {
+    current_status = description;
+    current_status_type = status_type;
+    // zx_clearMemory(0, zx_toAttribute(false, true, BLACK, WHITE));
+    // zx_setCursor(0, 23);
+    // zx_printString(description, attribute);
+}
+
+function setError(description) {
+    setResponse(description, STATUS_TYPES.ERROR);
+    // setResponse(description, zx_toAttribute(false, false, BLACK, RED));
+}
+
+function haveStatus() {
+    return current_status_type != STATUS_TYPES.NONE;
+}
+
+function haveSubpages() {
+    return current_subpage_max > 1;
+}
+
+function haveSecondaryHeader() {
+    return haveStatus() || haveSubpages();
+}
+
+function zx_overlayHeaders() {
     zx_setFont(font_default);
     for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
         zx_setAttributeAt(i, 0, zx_toAttribute(false, true, BLACK, WHITE));
     }
     zx_setCursor(0, 0);
     zx_printString(String(current_page).padStart(4), -1);
-    zx_printASCII(" ");
+    zx_printASCII(ASCII_SPACE);
     zx_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : zx_toAttribute(false, false, BLACK, GREEN)));
-    zx_printASCII(" ");
-    zx_printASCII(" ");
-    zx_printASCII(" ");
+    zx_printASCII(ASCII_SPACE);
+    zx_printASCII(ASCII_SPACE);
+    zx_printASCII(ASCII_SPACE);
     zx_setFont(font_cp850);
     zx_printString("T", zx_toAttribute(false, true, BLACK, RED));
     zx_printString("e", zx_toAttribute(false, true, BLACK, YELLOW));
@@ -434,15 +460,33 @@ function overlayHeader() {
     zx_printString("e", zx_toAttribute(false, true, BLACK, BLUE));
     zx_printString("ZX", -1);
     zx_setFont(font_default);
-    zx_printASCII(" ");
-    zx_printASCII(" ");
-    zx_printASCII(" ");
+    zx_printASCII(ASCII_SPACE);
+    zx_printASCII(ASCII_SPACE);
+    zx_printASCII(ASCII_SPACE);
     zx_printString(getDateString(), zx_toAttribute(false, false, BLACK, YELLOW));
     zx_setFont(font_default);
+
+    if (haveSecondaryHeader()) {
+        zx_setCursor(0, 23);
+        var max_chars = haveSubpages() ? (SCREEN_WIDTH_CHARS - 6) : SCREEN_WIDTH_CHARS;
+        for (var i = 0; i < max_chars; i++) {
+            zx_setAttributeAt(i, 23, zx_toAttribute(false, true, BLACK, (current_status_type == STATUS_TYPES.ERROR ? RED : WHITE)));
+            if (i < current_status.length) {
+                zx_printASCII(current_status.charCodeAt(i));
+            } else {
+                zx_printASCII(ASCII_SPACE);
+            }
+        }
+
+        if (haveSubpages()) {
+            zx_printString(' ' + String(current_subpage + 1).padStart(2, '0') + '/' + String(current_subpage_max).padStart(2, '0'), 
+            zx_toAttribute(false, true, BLACK, GREEN));
+        }
+    }
 }
 
 function renderScreen(timestamp) {
-    overlayHeader();
+    zx_overlayHeaders();
     renderMemory();
 
     // Draw the image data to the canvas
@@ -453,9 +497,14 @@ function refreshCanvas() {
     window.requestAnimationFrame(renderScreen);
 }
 
+function clearStatus() {
+    current_status = "";
+    current_status_type = STATUS_TYPES.NONE;
+}
+
 function getBaseUrl(page, subpage) {
     var index_url = BASE_URL + String(page).padStart(4, "0");
-    if (subpage > 0) {
+    if (subpage > -1 && current_subpage_max > 1) {
         return index_url + "." + String(subpage).padStart(2, "0");
     }
     return index_url;
@@ -484,10 +533,10 @@ async function fetchIndex() {
         if (content.length >= 3) {
             parseIndex(content);
         } else {
-            zx_setError("Empty index");
+            setError("Empty index");
         }
     } catch (error) {
-        zx_setError(error.message);
+        setError(error.message);
         console.error("Failed to fetch data:", error);
     }
 
@@ -497,23 +546,41 @@ async function fetchIndex() {
 function parseIndex(content) {
     var type = content.slice(0, 3);
     switch (type) {
+        /* Gallery */
+        case "GAL":
+            if (content.length < 5) {
+                throw new Error("GAL malformed");
+            }
+            setResponse(content.slice(0, 3) + " " + content.slice(3, 5), STATUS_TYPES.OK);
+            return parseGAL(content);
+
+        /* Single screen */
         case "SCR":
-            zx_setResponse(content.slice(0, 3), -1);
+            setResponse(content.slice(0, 3), STATUS_TYPES.OK);
             return parseSCR(content);
     }
-    zx_setError("Unknown type");
+    setError("Unknown type");
+}
+
+function parseGAL(content) {
+    current_subpage_max = Number("0x" + content.slice(3, 5));
+    console.log(current_subpage, current_subpage_max);
+    fetchScreen(current_page, current_subpage);
+    return true;
 }
 
 function parseSCR(content) {
-    fetchScreen(current_page, -1);
     current_subpage_max = 1;
+    fetchScreen(current_page, -1);
     return true;
 }
 
 async function fetchScreen(page, subpage) {
     try {
         // Fetch the JSON file  
-        const response = await fetch(getScreenUrl(page, subpage));
+        const fetch_url = getScreenUrl(page, subpage);
+        console.log(fetch_url);
+        const response = await fetch(fetch_url);
 
         // Check for HTTP errors  
         if (!response.ok) {
@@ -527,14 +594,15 @@ async function fetchScreen(page, subpage) {
                 memory[i] = data[i];
             }
         } else {
-            zx_setError("Not SCR");
+            setError("Not SCR");
             console.error("Data not consistent with SCR:", data.length);
         }
     } catch (error) {
-        zx_setError(error.message);
+        setError(error.message);
         console.error("Failed to fetch data:", error);
     }
 
+    clearStatus();
     refreshCanvas();
 }
 
