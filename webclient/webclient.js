@@ -237,9 +237,10 @@ var cursor_x = 0;
 var cursor_y = 0;
 var current_font = font_default;
 var current_page = PAGE_DEFAULT;
+var current_page_attribute = zx_toAttribute(false, false, BLACK, WHITE);
+var current_page_type;
 var current_subpage = 0;
 var current_subpage_max = 1;
-var current_page_type;
 var current_input = ""
 var current_status = "";
 var current_status_type = STATUS_TYPES.NONE;
@@ -279,6 +280,12 @@ function zx_incrementCursor() {
 function zx_setCursor(pos_x, pos_y) {
     cursor_x = pos_x % SCREEN_WIDTH_CHARS;
     cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
+}
+
+function zx_clearAttributes(attribute) {
+    for (var address = SIZE_DATA; address < SIZE_MEMORY; address++) {
+        memory[address] = attribute;
+    } 
 }
 
 function zx_clearMemory(data, attribute) {
@@ -418,14 +425,14 @@ function setResponse(description, status_type) {
     current_status_type = status_type;
 }
 
-function clearIndex() {
-    current_subpage = 0;
-    current_subpage_max = 1;
-}
-
 function setError(description, clear_index = true) {
     setResponse(description, STATUS_TYPES.ERROR);
     if (clear_index) clearIndex();
+}
+
+function clearIndex() {
+    current_subpage = 0;
+    current_subpage_max = 1;
 }
 
 function haveStatus() {
@@ -519,6 +526,10 @@ function getScreenUrl(page, subpage) {
     return getBaseUrl(page, subpage) + ".scr";
 }
 
+function getTokenUrl(page, subpage) {
+    return getBaseUrl(page, subpage) + ".tkn";
+}
+
 async function fetchIndex() {
     try {
         // Fetch the JSON file  
@@ -550,6 +561,10 @@ function fetchCurrent() {
             fetchScreen(current_page, current_subpage);
             break;
         
+        case PAGE_TYPES.SPECSCII:
+            fetchTokens(current_page, current_subpage, current_page_attribute);
+            break;
+
         case PAGE_TYPES.SCREEN:
             fetchScreen(current_page, -1);
             break;
@@ -568,40 +583,6 @@ function fetchPrevious() {
         current_subpage--;
         fetchCurrent();
     }
-}
-
-function parseIndex(content) {
-    current_subpage = 0;
-    current_subpage_max = 1;
-    var type = content.slice(0, 3);
-    switch (type) {
-        /* Gallery */
-        case PAGE_TYPES.GALLERY:
-            if (content.length < 5) {
-                throw new Error("GAL malformed");
-            }
-            setResponse(content.slice(0, 3) + " " + content.slice(3, 5), STATUS_TYPES.OK);
-            return parseGAL(content);
-
-        /* Single screen */
-        case PAGE_TYPES.SCREEN:
-            setResponse(content.slice(0, 3), STATUS_TYPES.OK);
-            return parseSCR(content);
-    }
-    setError("Unknown type");
-}
-
-function parseGAL(content) {
-    current_page_type = PAGE_TYPES.GALLERY;
-    current_subpage_max = Number("0x" + content.slice(3, 5));
-    fetchCurrent();
-    return true;
-}
-
-function parseSCR(content) {
-    current_page_type = PAGE_TYPES.SCREEN;
-    fetchCurrent();
-    return true;
 }
 
 async function fetchScreen(page, subpage) {
@@ -625,13 +606,180 @@ async function fetchScreen(page, subpage) {
             setError("Not SCR");
             console.error("Data not consistent with SCR:", data.length);
         }
+
+        clearStatus();
     } catch (error) {
-        setError(error.message);
         console.error("Failed to fetch data:", error);
+        setError(error.message);
     }
 
-    clearStatus();
     refreshCanvas();
+}
+
+async function fetchTokens(page, subpage, default_attribute) {
+    try {
+        // Fetch the JSON file  
+        const fetch_url = getTokenUrl(page, subpage);
+        const response = await fetch(fetch_url);
+
+        // Check for HTTP errors  
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+
+        // Parse JSON data  
+        const data = await response.bytes();
+        processTokens(data, default_attribute);
+    
+        clearStatus();
+    } catch (error) {
+        console.error("Failed to fetch data:", error);
+        setError(error.message, false);
+        return;
+    }
+
+    refreshCanvas();
+}
+
+
+const SPECSCII = {
+    ENTER: 0x0d,
+    INK: 0x10,
+    PAPER: 0x11,
+    FLASH: 0x12,
+    BRIGHT: 0x13,
+    CURSOR: 0x16
+};
+
+function processTokens(data, default_attribute) {
+    if (default_attribute >= 0) {
+        zx_clearAttributes(default_attribute);
+    }
+
+    zx_setCursor(0, 0);
+    let position = 0;
+    while (position < data.length) {
+        // SPECSCII format constants
+        // Stream format with embedded escape codes (ZX Spectrum BASIC control codes):
+        // - 0x0D = Enter (CR+LF) - move to start of next line
+        // - 0x10 XX = INK color (0-7)
+        // - 0x11 XX = PAPER color (0-7)
+        // - 0x12 XX = FLASH (0 or 1)
+        // - 0x13 XX = BRIGHT (0 or 1)
+        // - 0x14 XX = INVERSE (0 or 1) - swaps ink/paper
+        // - 0x15 XX = OVER (0 or 1) - XOR mode
+        // - 0x16 YY XX = AT row, col - position cursor
+        // - 0x17 XX = TAB to column
+        // - Other bytes = character codes (0x20-0x7F printable, 0x80-0xFF block graphics)
+
+        const current_byte = data[position];
+        switch (current_byte) {
+            case SPECSCII.BRIGHT:
+                position++;
+                current_page_attribute = (current_page_attribute & 0xbf) | (data[position] << 6);
+                position++;
+                continue;
+            
+            case SPECSCII.CURSOR:
+                position++;
+                const set_x = data[position];
+                position++;
+                const set_y = data[position];
+                position++;
+                zx_setCursor(set_x, set_y);
+                continue;
+
+            case SPECSCII.ENTER:
+                zx_setCursor(0, cursor_y + 1);
+                position++;
+                continue;
+            
+            case SPECSCII.INK:
+                position++;
+                current_page_attribute = (current_page_attribute & 0xf8) | data[position];
+                position++;
+                continue;
+
+            case SPECSCII.FLASH:
+                position++;
+                current_page_attribute = (current_page_attribute & 0x7f) | (data[position] << 7);
+                position++;
+                continue;
+
+            case SPECSCII.PAPER:
+                position++;
+                current_page_attribute = (current_page_attribute & 0xc7) | (data[position] << 3);
+                position++;
+                continue;
+        }
+
+        if (current_byte >= 0x20 && current_byte <= 0x7f) {
+            zx_setAttribute(current_page_attribute);
+            zx_printASCII(current_byte);
+            position++;
+            continue;
+        }
+
+        if (current_byte >= 0x80) {
+            // not implemented
+            position++;
+            continue;
+        }
+
+        console.log("Unhandled sequence: ", "0x" + current_byte.toString(16));
+        position++;
+    }
+}
+
+function parseIndex(content) {
+    current_subpage = 0;
+    current_subpage_max = 1;
+    var type = content.slice(0, 3);
+    switch (type) {
+        /* Gallery */
+        case PAGE_TYPES.GALLERY:
+            if (content.length < 5) {
+                throw new Error("GAL malformed");
+            }
+            setResponse(content.slice(0, 3) + " " + content.slice(3, 5), STATUS_TYPES.OK);
+            return parseGAL(content);
+
+        /* Single screen */
+        case PAGE_TYPES.SCREEN:
+            setResponse(content.slice(0, 3), STATUS_TYPES.OK);
+            return parseSCR(content);
+        
+        /* SPECSCII tokens */
+        case PAGE_TYPES.SPECSCII:
+            if (content.length < 7) {
+                throw new Error("TKN malformed");
+            }
+            setResponse(content.slice(0, 3), STATUS_TYPES.OK);
+            return parseTKN(content);
+
+    }
+    setError("Unknown type");
+}
+
+function parseGAL(content) {
+    current_page_type = PAGE_TYPES.GALLERY;
+    current_subpage_max = Number("0x" + content.slice(3, 5));
+    fetchCurrent();
+    return true;
+}
+
+function parseSCR(content) {
+    current_page_type = PAGE_TYPES.SCREEN;
+    fetchCurrent();
+    return true;
+}
+
+function parseTKN(content) {
+    current_page_type = PAGE_TYPES.SPECSCII;
+    current_subpage_max = Number("0x" + content.slice(3, 5));
+    current_page_attribute = Number("0x" + content.slice(5, 7));
+    fetchCurrent();
+    return true;
 }
 
 // The function gets called when the window is fully loaded
