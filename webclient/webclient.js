@@ -23,7 +23,7 @@ const SIZE_ATTR = 768;
 const SIZE_MEMORY = SIZE_DATA + SIZE_ATTR;
 
 const STATUS_TYPES = { NONE: -1, OK: 0, ERROR: 1 };
-const PAGE_TYPES = { NONE: '', GALLERY: 'GAL', SCREEN: 'SCR' };
+const PAGE_TYPES = { NONE: '', GALLERY: 'GAL', SCREEN: 'SCR', SPECSCII: 'TKN' };
 
 const font_default = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x00, 
@@ -662,10 +662,9 @@ window.onload = function () {
             case "Enter":
                 var next_page = Number(current_input);
                 if (next_page == 0) {
-                    next_page = 1000;
+                    next_page = PAGE_DEFAULT;
                 }
                 current_page = next_page;
-                current_subpage = 0;
                 current_input = "";
                 fetchIndex();
                 break;
@@ -688,14 +687,12 @@ window.onload = function () {
             case "ArrowLeft":
                 current_page--;
                 if (current_page < PAGE_MINIMUM) current_page = PAGE_MINIMUM;
-                current_subpage = 0;
                 fetchIndex();
                 break;
 
             case "ArrowRight":
                 current_page++;
                 if (current_page > PAGE_MAXIMUM) current_page = PAGE_MAXIMUM;
-                current_subpage = 0;
                 fetchIndex();
                 break;
 
