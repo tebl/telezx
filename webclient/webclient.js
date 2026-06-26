@@ -22,11 +22,8 @@ const SIZE_DATA = 6144;
 const SIZE_ATTR = 768;
 const SIZE_MEMORY = SIZE_DATA + SIZE_ATTR;
 
-const STATUS_TYPES = {
-    NONE: -1,
-    OK: 0,
-    ERROR: 1
-};
+const STATUS_TYPES = { NONE: -1, OK: 0, ERROR: 1 };
+const PAGE_TYPES = { NONE: '', GALLERY: 'GAL', SCREEN: 'SCR' };
 
 const font_default = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x00, 
@@ -419,14 +416,16 @@ function getDateString() {
 function setResponse(description, status_type) {
     current_status = description;
     current_status_type = status_type;
-    // zx_clearMemory(0, zx_toAttribute(false, true, BLACK, WHITE));
-    // zx_setCursor(0, 23);
-    // zx_printString(description, attribute);
 }
 
-function setError(description) {
+function clearIndex() {
+    current_subpage = 0;
+    current_subpage_max = 1;
+}
+
+function setError(description, clear_index = true) {
     setResponse(description, STATUS_TYPES.ERROR);
-    // setResponse(description, zx_toAttribute(false, false, BLACK, RED));
+    if (clear_index) clearIndex();
 }
 
 function haveStatus() {
@@ -479,8 +478,10 @@ function zx_overlayHeaders() {
         }
 
         if (haveSubpages()) {
-            zx_printString(' ' + String(current_subpage + 1).padStart(2, '0') + '/' + String(current_subpage_max).padStart(2, '0'), 
-            zx_toAttribute(false, true, BLACK, GREEN));
+            zx_printString(
+                ' ' + String(current_subpage + 1).padStart(2, '0') + '/' + String(current_subpage_max).padStart(2, '0'), 
+                zx_toAttribute(false, true, BLACK, GREEN)
+            );
         }
     }
 }
@@ -543,11 +544,39 @@ async function fetchIndex() {
     refreshCanvas();
 }
 
+function fetchCurrent() {
+    switch (current_page_type) {
+        case PAGE_TYPES.GALLERY:
+            fetchScreen(current_page, current_subpage);
+            break;
+        
+        case PAGE_TYPES.SCREEN:
+            fetchScreen(current_page, -1);
+            break;
+    }
+}
+
+function fetchNext() {
+    if (current_subpage < (current_subpage_max - 1)) {
+        current_subpage++;
+        fetchCurrent();
+    }
+}
+
+function fetchPrevious() {
+    if (current_subpage > 0) {
+        current_subpage--;
+        fetchCurrent();
+    }
+}
+
 function parseIndex(content) {
+    current_subpage = 0;
+    current_subpage_max = 1;
     var type = content.slice(0, 3);
     switch (type) {
         /* Gallery */
-        case "GAL":
+        case PAGE_TYPES.GALLERY:
             if (content.length < 5) {
                 throw new Error("GAL malformed");
             }
@@ -555,7 +584,7 @@ function parseIndex(content) {
             return parseGAL(content);
 
         /* Single screen */
-        case "SCR":
+        case PAGE_TYPES.SCREEN:
             setResponse(content.slice(0, 3), STATUS_TYPES.OK);
             return parseSCR(content);
     }
@@ -563,15 +592,15 @@ function parseIndex(content) {
 }
 
 function parseGAL(content) {
+    current_page_type = PAGE_TYPES.GALLERY;
     current_subpage_max = Number("0x" + content.slice(3, 5));
-    console.log(current_subpage, current_subpage_max);
-    fetchScreen(current_page, current_subpage);
+    fetchCurrent();
     return true;
 }
 
 function parseSCR(content) {
-    current_subpage_max = 1;
-    fetchScreen(current_page, -1);
+    current_page_type = PAGE_TYPES.SCREEN;
+    fetchCurrent();
     return true;
 }
 
@@ -579,7 +608,6 @@ async function fetchScreen(page, subpage) {
     try {
         // Fetch the JSON file  
         const fetch_url = getScreenUrl(page, subpage);
-        console.log(fetch_url);
         const response = await fetch(fetch_url);
 
         // Check for HTTP errors  
@@ -648,19 +676,13 @@ window.onload = function () {
             case "PageUp":
             case "ArrowUp":
             case "p":
-                if (current_subpage > 0) {
-                    current_subpage--;
-                    fetchIndex();
-                }
+                fetchPrevious();
                 break;
 
             case "PageDown":
             case "ArrowDown":
             case "n":
-                if (current_subpage < (current_subpage_max - 1)) {
-                    current_subpage++;
-                    fetchIndex();
-                }
+                fetchNext();
                 break;
 
             case "ArrowLeft":
