@@ -228,6 +228,24 @@ const font_tiny = [
     0x08, 0x08, 0x08, 0x00, 0x08, 0x08, 0x08, 0x00, 0xe0, 0x10, 0x10, 0x08, 0x10, 0x10, 0xe0, 0x00, 
     0x00, 0x00, 0x60, 0x92, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x24, 0x42, 0xff, 0x00, 0x00
 ];
+const font_glyphs = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x0f, 0x0f, 0x0f, 0x0f, 0x00, 0x00, 0x00, 0x00,
+    0xf0, 0xf0, 0xf0, 0xf0, 0x00, 0x00, 0x00, 0x00,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x0f, 0x0f, 0x0f, 0x0f,
+    0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f,
+    0xf0, 0xf0, 0xf0, 0xf0, 0x0f, 0x0f, 0x0f, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0x0f, 0x0f, 0x0f, 0x0f,
+    0x00, 0x00, 0x00, 0x00, 0xf0, 0xf0, 0xf0, 0xf0,
+    0x0f, 0x0f, 0x0f, 0x0f, 0xf0, 0xf0, 0xf0, 0xf0,
+    0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0,
+    0xff, 0xff, 0xff, 0xff, 0xf0, 0xf0, 0xf0, 0xf0,
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x0f, 0x0f, 0x0f, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xf0, 0xf0, 0xf0, 0xf0, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+];
 
 const buffer = new ArrayBuffer(SIZE_MEMORY);
 const memory = new Uint8Array(buffer);
@@ -294,9 +312,29 @@ function zx_clearMemory(data, attribute) {
     } 
 }
 
-function zx_printASCII(character) {
-    zx_setDataAt(cursor_x, cursor_y, zx_getFontData(character - ASCII_SPACE))
+function zx_printBytes(data) {
+    zx_setDataAt(cursor_x, cursor_y, data)
     zx_incrementCursor();
+}
+
+function zx_printASCII(character) {
+    zx_printBytes(zx_getFontData(character - ASCII_SPACE));
+}
+
+function zx_getFontData(character) {
+    var offset = character*8;
+    if (character < 0 || character >= 96) offset = 0;
+    return current_font.slice(offset, offset + 8);
+}
+
+function zx_printGlyph(character) {
+    zx_printBytes(zx_getGlyphData(character - 0x80));
+}
+
+function zx_getGlyphData(character) {
+    var offset = character*8;
+    if (character < 0 || character >= 16) offset = 0;
+    return font_glyphs.slice(offset, offset + 8);
 }
 
 function zx_printString(string, attribute) {
@@ -315,12 +353,6 @@ function zx_setDataAt(pos_x, pos_y, values) {
 
 function zx_setData(values) {
     zx_setDataAt(cursor_x, cursor_y, values);
-}
-
-function zx_getFontData(charCode) {
-    var offset = charCode*8;
-    if (charCode < 0 || charCode >= 96) offset = 0;
-    return current_font.slice(offset, offset + 8);
 }
 
 function zx_setFont(font) {
@@ -682,8 +714,10 @@ function processTokens(data, default_attribute) {
             
             case SPECSCII.CURSOR:
                 position++;
+                console.log("Cursor X:", data[position]);
                 const set_x = data[position];
                 position++;
+                console.log("Cursor Y:", data[position]);
                 const set_y = data[position];
                 position++;
                 zx_setCursor(set_x, set_y);
@@ -702,6 +736,7 @@ function processTokens(data, default_attribute) {
 
             case SPECSCII.FLASH:
                 position++;
+                console.log("Flash:", data[position]);
                 current_page_attribute = (current_page_attribute & 0x7f) | (data[position] << 7);
                 position++;
                 continue;
@@ -720,8 +755,10 @@ function processTokens(data, default_attribute) {
             continue;
         }
 
+        // not implemented
         if (current_byte >= 0x80) {
-            // not implemented
+            zx_setAttribute(current_page_attribute);
+            zx_printGlyph(data[position]);
             position++;
             continue;
         }
