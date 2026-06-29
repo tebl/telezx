@@ -1,16 +1,18 @@
 const BASE_URL = "https://raw.githubusercontent.com/tebl/telezx-pages/main/pages/";
 
-const BLACK = 0;
-const BLUE = 1;
-const RED = 2;
-const MAGENTA = 3;
-const GREEN = 4;
-const CYAN = 5;
-const YELLOW = 6;
-const WHITE = 7;
-const FLASH = 0b10000000;
-const BRIGHT = 0b01000000;
 const ASCII_SPACE = 32;
+const ATTRIBUTES = {
+    BLACK:   0b00000000,
+    BLUE:    0b00000001,
+    RED:     0b00000010,
+    MAGENTA: 0b00000011,
+    GREEN:   0b00000100,
+    CYAN:    0b00000101,
+    YELLOW:  0b00000110,
+    WHITE:   0b00000111,
+    FLASH:   0b10000000,
+    BRIGHT:  0b01000000
+};
 
 const PAGE_DEFAULT = 1000;
 const PAGE_MINIMUM = 1;
@@ -23,7 +25,7 @@ const SIZE_ATTR = 768;
 const SIZE_MEMORY = SIZE_DATA + SIZE_ATTR;
 
 const STATUS_TYPES = { NONE: -1, OK: 0, ERROR: 1 };
-const PAGE_TYPES = { NONE: '', GALLERY: 'GAL', SCREEN: 'SCR', SPECSCII: 'TKN' };
+const PAGE_TYPES = { NONE: '', GALLERY: 'GAL', SCREEN: 'SCR', SPECSCII: 'TKN', DEBUG: 'DEV' };
 
 const font_default = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x00, 
@@ -256,7 +258,7 @@ var cursor_x = 0;
 var cursor_y = 0;
 var current_font = font_default;
 var current_page = PAGE_DEFAULT;
-var current_page_attribute = zx_toAttribute(false, false, BLACK, WHITE);
+var current_page_attribute = zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE);
 var current_page_type;
 var current_subpage = 0;
 var current_subpage_max = 1;
@@ -372,13 +374,13 @@ function zx_setAttribute(value) {
 }
 
 function zx_toAttribute(is_flashing, is_bright, paper, ink) {
-    return ((is_flashing ? FLASH : 0x00) | (is_bright ? BRIGHT : 0x00) | (paper << 3) | ink);
+    return ((is_flashing ? ATTRIBUTES.FLASH : 0x00) | (is_bright ? ATTRIBUTES.BRIGHT : 0x00) | (paper << 3) | ink);
 }
 
 function zx_parseAttribute(attribute) {
     return {
-        flash: (attribute & FLASH) == FLASH,
-        bright: (attribute & BRIGHT) == BRIGHT,
+        flash: (attribute & ATTRIBUTES.FLASH) == ATTRIBUTES.FLASH,
+        bright: (attribute & ATTRIBUTES.BRIGHT) == ATTRIBUTES.BRIGHT,
         paper: (attribute & 0b00111000) >>> 3,
         ink: attribute & 0b00000111
     }
@@ -492,33 +494,33 @@ function haveSecondaryHeader() {
 function zx_overlayHeaders() {
     zx_setFont(font_default);
     for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
-        zx_setAttributeAt(i, 0, zx_toAttribute(false, true, BLACK, WHITE));
+        zx_setAttributeAt(i, 0, zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE));
     }
     zx_setCursor(0, 0);
     zx_printString(String(current_page).padStart(4), -1);
     zx_printASCII(ASCII_SPACE);
-    zx_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : zx_toAttribute(false, false, BLACK, GREEN)));
+    zx_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.GREEN)));
     zx_printASCII(ASCII_SPACE);
     zx_printASCII(ASCII_SPACE);
     zx_printASCII(ASCII_SPACE);
     zx_setFont(font_cp850);
-    zx_printString("T", zx_toAttribute(false, true, BLACK, RED));
-    zx_printString("e", zx_toAttribute(false, true, BLACK, YELLOW));
-    zx_printString("l", zx_toAttribute(false, true, BLACK, GREEN));
-    zx_printString("e", zx_toAttribute(false, true, BLACK, BLUE));
+    zx_printString("T", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.RED));
+    zx_printString("e", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.YELLOW));
+    zx_printString("l", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.GREEN));
+    zx_printString("e", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.BLUE));
     zx_printString("ZX", -1);
     zx_setFont(font_default);
     zx_printASCII(ASCII_SPACE);
     zx_printASCII(ASCII_SPACE);
     zx_printASCII(ASCII_SPACE);
-    zx_printString(getDateString(), zx_toAttribute(false, false, BLACK, YELLOW));
+    zx_printString(getDateString(), zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.YELLOW));
     zx_setFont(font_default);
 
     if (haveSecondaryHeader()) {
         zx_setCursor(0, 23);
         var max_chars = haveSubpages() ? (SCREEN_WIDTH_CHARS - 6) : SCREEN_WIDTH_CHARS;
         for (var i = 0; i < max_chars; i++) {
-            zx_setAttributeAt(i, 23, zx_toAttribute(false, true, BLACK, (current_status_type == STATUS_TYPES.ERROR ? RED : WHITE)));
+            zx_setAttributeAt(i, 23, zx_toAttribute(false, true, ATTRIBUTES.BLACK, (current_status_type == STATUS_TYPES.ERROR ? ATTRIBUTES.RED : ATTRIBUTES.WHITE)));
             if (i < current_status.length) {
                 zx_printASCII(current_status.charCodeAt(i));
             } else {
@@ -529,7 +531,7 @@ function zx_overlayHeaders() {
         if (haveSubpages()) {
             zx_printString(
                 ' ' + String(current_subpage + 1).padStart(2, '0') + '/' + String(current_subpage_max).padStart(2, '0'), 
-                zx_toAttribute(false, true, BLACK, GREEN)
+                zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.GREEN)
             );
         }
     }
@@ -585,7 +587,17 @@ function getTokenUrl(page, subpage) {
     return getBaseUrl(page, subpage) + ".tkn";
 }
 
-async function fetchIndex() {
+function fetchIndex() {
+    switch (current_page) {
+        case 9999:
+            setDebugIndex();
+            return;
+    }
+
+    fetchRemoteIndex();
+}
+
+async function fetchRemoteIndex() {
     try {
         // Fetch the JSON file  
         const response = await fetch(getIndexUrl());
@@ -612,6 +624,10 @@ async function fetchIndex() {
 
 function fetchCurrent() {
     switch (current_page_type) {
+        case PAGE_TYPES.DEBUG:
+            generatePage(current_page, current_subpage);
+            break;
+
         case PAGE_TYPES.GALLERY:
             fetchScreen(current_page, current_subpage);
             break;
@@ -624,6 +640,58 @@ function fetchCurrent() {
             fetchScreen(current_page, -1);
             break;
     }
+}
+
+function setDebugIndex() {
+    current_subpage = 0;
+    current_subpage_max = 3;
+    current_page_type = PAGE_TYPES.DEBUG;
+    fetchCurrent();
+}
+
+function generatePage(page, subpage) {
+    zx_clearMemory(0x00, zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE))
+
+    switch (subpage) {
+        case 0:
+            zx_setCursor(0, 2);
+            zx_setFont(font_default);
+            zx_printString("Default:", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.YELLOW));
+            zx_setCursor(0, 3);
+            zx_setFont(font_default);
+            for (let i = 0; i < (font_default.length / 8); i++) {
+                zx_printBytes(zx_getFontData(i));
+            }
+
+            zx_setCursor(0, 7);
+            zx_setFont(font_default);
+            zx_printString("Computer:", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.YELLOW));
+            zx_setCursor(0, 8);
+            zx_setFont(font_computer);
+            for (let i = 0; i < (font_default.length / 8); i++) {
+                zx_printBytes(zx_getFontData(i));
+            }
+            break;
+        case 1:
+        case 2:
+            let x = 1;
+            let y = 2;
+            let start = (subpage == 1 ? 0 : 0xc8);
+            let end = (subpage == 1 ? 0xc7 : 0xff);
+            for (let i = start; i <= end; i++) {
+                zx_setCursor(x, y);
+                zx_printString(i.toString(16).padStart(2, '0'), i);
+                y++;
+                if (y >= (SCREEN_HEIGHT_CHARS - 2)) {
+                    y = 2;
+                    x += 3;
+                }
+            }
+            break;
+    }
+
+    setResponse(String(page), STATUS_TYPES.OK);
+    refreshCanvas();
 }
 
 function fetchNext() {
@@ -813,7 +881,6 @@ function parseIndex(content) {
             }
             setResponse(content.slice(0, 3), STATUS_TYPES.OK);
             return parseTKN(content);
-
     }
     setError("Unknown type");
 }
@@ -906,7 +973,7 @@ window.onload = function () {
         refreshCanvas();
     }
 
-    zx_clearMemory(0, zx_toAttribute(false, true, BLACK, WHITE));
+    zx_clearMemory(0, zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE));
     refreshCanvas();
     fetchIndex();
 };
