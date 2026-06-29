@@ -228,6 +228,7 @@ const font_tiny = [
     0x08, 0x08, 0x08, 0x00, 0x08, 0x08, 0x08, 0x00, 0xe0, 0x10, 0x10, 0x08, 0x10, 0x10, 0xe0, 0x00, 
     0x00, 0x00, 0x60, 0x92, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x24, 0x42, 0xff, 0x00, 0x00
 ];
+
 const font_glyphs = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x0f, 0x0f, 0x0f, 0x0f, 0x00, 0x00, 0x00, 0x00,
@@ -270,6 +271,8 @@ var canvas_width;
 var canvas_height;
 var canvas_image;
 var canvas_interval;
+var canvas_flash_timer = 0;
+var canvas_flash_value = false;
 
 function calculateScreenMap() {
     var lookup = Array();
@@ -404,6 +407,9 @@ function setCanvasPixel(x, y, red, green, blue, alpha) {
 
 function getCanvasColour(is_on, attr_value) {
     var colour = (is_on ? attr_value.ink : attr_value.paper);
+    if (attr_value.flash && canvas_flash_value) {
+        colour = (is_on ? attr_value.paper : attr_value.ink);
+    }
     var blue = colour & 1;
     var red = (colour >>> 1) & 1;
     var green = (colour >>> 2) & 1;
@@ -416,6 +422,11 @@ function getCanvasColour(is_on, attr_value) {
     ];
 }
 
+function check_bit(number, bit) {
+    var bit_mask = (1 << (7 - bit));
+    return (number & bit_mask) != 0;
+}
+
 function renderMemory() {
     for (var lot = 0; lot < 3; lot++) {
         for (var line = 0; line < 8; line++) {
@@ -423,7 +434,6 @@ function renderMemory() {
                 for (var col = 0; col < SCREEN_WIDTH_CHARS; col++) {
                     var data_idx = lot * 2048 + (line * 8 + row) * SCREEN_WIDTH_CHARS + col;
                     var data_value = memory[data_idx];
-                    var data_string = data_value.toString(2).padStart(8, '0');
 
                     var attr_idx = lot * 256 + row * SCREEN_WIDTH_CHARS + col;
                     var attr_value = zx_parseAttribute(memory[SIZE_DATA + attr_idx]);
@@ -432,7 +442,7 @@ function renderMemory() {
                         var x = col * 8 + bit;
                         var y = lot * 64 + row * 8 + line;
 
-                        [red, green, blue] = getCanvasColour(data_string[bit] == '1', attr_value);
+                        [red, green, blue] = getCanvasColour(check_bit(data_value, bit), attr_value);
                         setCanvasPixel(x, y, red, green, blue, 255);
                     }
                 }
@@ -535,6 +545,19 @@ function renderScreen(timestamp) {
 
 function refreshCanvas() {
     window.requestAnimationFrame(renderScreen);
+}
+
+/* Flashing is performed by ZX Spectrum ULA, and should be performed every 32
+   frames according to some sites. As we're not aiming for cycle-correct, I
+   randomly picked 8 and stuck with it.
+*/
+function periodicRefresh() {
+    canvas_flash_timer++;
+    if (canvas_flash_timer > 8) {
+        canvas_flash_timer = 0;
+        canvas_flash_value = !canvas_flash_value;
+    }
+    refreshCanvas();
 }
 
 function clearStatus() {
@@ -713,11 +736,10 @@ function processTokens(data, default_attribute) {
                 continue;
             
             case SPECSCII.CURSOR:
+                // implementation untested
                 position++;
-                console.log("Cursor X:", data[position]);
                 const set_x = data[position];
                 position++;
-                console.log("Cursor Y:", data[position]);
                 const set_y = data[position];
                 position++;
                 zx_setCursor(set_x, set_y);
@@ -736,7 +758,6 @@ function processTokens(data, default_attribute) {
 
             case SPECSCII.FLASH:
                 position++;
-                console.log("Flash:", data[position]);
                 current_page_attribute = (current_page_attribute & 0x7f) | (data[position] << 7);
                 position++;
                 continue;
@@ -755,7 +776,6 @@ function processTokens(data, default_attribute) {
             continue;
         }
 
-        // not implemented
         if (current_byte >= 0x80) {
             zx_setAttribute(current_page_attribute);
             zx_printGlyph(data[position]);
@@ -827,7 +847,7 @@ window.onload = function () {
     canvas_width = canvas.width;
     canvas_height = canvas.height;
     canvas_image = context.createImageData(canvas_width, canvas_height);
-    canvas_interval = setInterval(refreshCanvas, SCREEN_REFRESH);
+    canvas_interval = setInterval(periodicRefresh, SCREEN_REFRESH);
 
     document.addEventListener('keyup', handleInput);
     function handleInput(event) {
