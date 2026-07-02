@@ -1,18 +1,61 @@
 import numpy
 import tkinter
+from tkinter import messagebox, filedialog
+from PIL import Image
+from PIL import ImageTk
+from pprint import pprint
 
 class Editor(tkinter.Tk):
     def __init__(self):
         super().__init__()
         self.title("Editor")
-        self.createMenu()
+        self.create_menu()
+        self.zx = ZXScreen()
+        self.create_canvas()
 
 
-    def createMenu(self):
+    def create_canvas(self):
+        # self.image = Image.new('RGB', (32*16, 24*16), (0,255,0))
+        # self.image_tk = tkinter.PhotoImage(self.image)
+        # self.label = tkinter.Label(self, image=self.image_tk)
+        # self.label.pack()
+        # self.canvas = tkinter.Canvas(self, width=self.zx.SCREEN_WIDTH_CHARS*8, height=self.zx.SCREEN_HEIGHT_CHARS*8, background='white')
+        # self.canvas = tkinter.Canvas(self, width=1024, height=768, background='green')
+        # self.canvas.pack(anchor=tkinter.CENTER, expand=True)
+        # self.canvas.create_rectangle(10,10,20,20, fill='#00ff00', outline=False)
+        # img = tkinter.PhotoImage(width=1024, height=768)
+        # self.label = tkinter.Label(self, image=img)
+        # self.label.pack()
+
+        self.label = tkinter.Label(self, text='Image')
+        self.label.pack(expand=True)
+
+        # self.data = self.generate_data()
+        self.data = numpy.zeros(shape=(self.zx.SCREEN_HEIGHT_CHARS*8, self.zx.SCREEN_WIDTH_CHARS*8, 3), dtype=numpy.uint8)
+        # img = Image.fromarray(self.data, 'RGB')
+        # img.show()
+        self.update_canvas()
+
+        # self.image_data = self.render_data()
+        # self.image = tkinter.PhotoImage(data=self.image_data)
+
+    def update_canvas(self):
+        pil_img = Image.fromarray(self.data, 'RGB')
+        tk_img = tkinter.PhotoImage(pil_img)
+        self.label.config(text='', image=tk_img)
+        self.image = tk_img
+
+
+    def generate_data(self):
+        pass
+
+
+    def create_menu(self):
         self.menu = tkinter.Menu(self)
 
         file_menu = tkinter.Menu(self.menu, tearoff=0)
         file_menu.add_command(label="New", command=self.new_file)
+        file_menu.add_command(label="Open SCR...", command=self.open_SCR)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit)
         self.menu.add_cascade(label="File", menu=file_menu)
@@ -21,6 +64,17 @@ class Editor(tkinter.Tk):
 
 
     def new_file(self):
+        if messagebox.askokcancel(title='New', message='Clear memory?'):
+            self.zx.clear_memory()
+
+
+    def open_SCR(self):
+        try:
+            filename = filedialog.askopenfilename(filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
+            if filename:
+                self.zx.flip_memory(numpy.fromfile(filename, dtype='uint8'))
+        except Exception as e:
+            messagebox.showerror(title='Failed to open file', message=f'Failed with error:\n{e}')
         pass
 
 
@@ -45,7 +99,8 @@ class ZXScreen:
     SIZE_MEMORY = SIZE_DATA + SIZE_ATTR
 
     def __init__(self):
-        self.memory = [0] * self.SIZE_MEMORY
+        # self.memory = [0] * self.SIZE_MEMORY
+        self.memory = numpy.zeros(shape=self.SIZE_MEMORY, dtype=numpy.uint8)
         self.cursor_x = 0
         self.cursor_y = 0
         self.__calculate_lookup()
@@ -60,26 +115,15 @@ class ZXScreen:
 
 
     def clear_memory(self, byte=0, attribute=BLACK):
-        for index in range(0, self.SIZE_DATA):
-            self.poke(index, byte)
-        self.clear_attributes(attribute)
+        self.memory[:self.SIZE_DATA] = byte
+        self.memory[self.SIZE_DATA:] = attribute
 
 
-    def clear_attributes(self, attribute=BLACK):
-        for index in range(self.SIZE_DATA, self.SIZE_MEMORY):
-            self.poke(index, attribute)
-
-
-    def poke(self, index, value):
-        if index >= self.SIZE_MEMORY:
-            raise OverflowError(f'index({index}) >= {self.SIZE_MEMORY}')
-        self.memory[index] = value
-
-    
-    def peek(self, index):
-        if index >= self.SIZE_MEMORY:
-            raise OverflowError(f'index({index}) >= {self.SIZE_MEMORY}')
-        return self.memory[index]
+    def flip_memory(self, numpy_array):
+        if not isinstance(numpy_array, numpy.ndarray) or numpy_array.size != self.SIZE_MEMORY:
+            raise ValueError('does not look like a numpy array of expected size')
+        self.memory[:] = numpy_array[:]
+        print("flipped memory")
 
 
     def to_attribute(self, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE):
@@ -115,16 +159,13 @@ class ZXScreen:
             raise ValueError(f'values ({values}) not array of 8 bytes')
         index = self.start_at[pos_x][pos_y]
         for byte_idx, byte_value in enumerate(values):
-            self.poke(index + byte_idx*0x100, byte_value)
+            self.memory[index + byte_idx*0x100] = byte_value
         if attribute >= self.BLACK:
             self.write_attribute(pos_x, pos_y, attribute)
 
 
     def write_attribute(self, pos_x, pos_y, attribute=0):
-        self.poke(
-            (pos_y * self.SCREEN_WIDTH_CHARS) + pos_x,
-            attribute
-        )
+        self.memory[(pos_y * self.SCREEN_WIDTH_CHARS) + pos_x] = attribute
 
 
 def main():
