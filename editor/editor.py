@@ -7,10 +7,11 @@ from pprint import pprint
 class Editor(tkinter.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Editor")
+        self.title("ZX Editor")
         self.create_menu()
         self.zx = ZXScreen()
         self.zx.flip_memory(numpy.fromfile("test.scr", dtype='uint8'))
+        self.scale = 3
         self.create_canvas()
 
 
@@ -21,7 +22,7 @@ class Editor(tkinter.Tk):
         self.label.bind('<Button-1>', self.mouse_clicked)
         self.canvas_width = self.zx.SCREEN_WIDTH_PIXELS
         self.canvas_height = self.zx.SCREEN_HEIGHT_PIXELS
-        self.pixel_data = numpy.full(shape=(self.canvas_height, self.canvas_width, 3), fill_value=0xc0, dtype=numpy.uint8)
+        self.pixel_data = numpy.full(shape=(self.canvas_height*self.scale, self.canvas_width*self.scale, 3), fill_value=0xc0, dtype=numpy.uint8)
         self.update_canvas(auto_refresh=True)
 
 
@@ -38,9 +39,7 @@ class Editor(tkinter.Tk):
 
     def render_canvas(self):
         rgb_data = self.zx.to_rgb()
-
-        # should probably do things here
-
+        rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.scale, axis=0), self.scale, axis=1)
         self.pixel_data[:] = rgb_data
 
 
@@ -53,6 +52,14 @@ class Editor(tkinter.Tk):
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit)
         self.menu.add_cascade(label="File", menu=file_menu)
+
+        view_menu = tkinter.Menu(self.menu, tearoff=0)
+        scale_menu = tkinter.Menu(view_menu, tearoff=0)
+        scale_menu.add_command(label="1x", command=self.set_scale_1x)
+        scale_menu.add_command(label="2x", command=self.set_scale_2x)
+        scale_menu.add_command(label="3x", command=self.set_scale_3x)
+        view_menu.add_cascade(label="Scale", menu=scale_menu)
+        self.menu.add_cascade(label="View", menu=view_menu)
 
         self.config(menu=self.menu)
 
@@ -79,11 +86,24 @@ class Editor(tkinter.Tk):
             self.pixel_data[y, x] = [0,0,0]
             self.update_canvas(auto_refresh=False)
 
-
     def mouse_clicked(self, event):
         x, y = event.x, event.y
         print('Mouse clicked: (%s %s)' % (x, y))
 
+
+    def set_scale(self, value):
+        self.scale = value
+        self.pixel_data = numpy.full(shape=(self.canvas_height*self.scale, self.canvas_width*self.scale, 3), fill_value=0xc0, dtype=numpy.uint8)
+        self.update_canvas(auto_refresh=False)
+
+    def set_scale_1x(self):
+        self.set_scale(1)
+
+    def set_scale_2x(self):
+        self.set_scale(2)
+
+    def set_scale_3x(self):
+        self.set_scale(3)
 
 
 class ZXScreen:
