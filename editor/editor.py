@@ -10,6 +10,7 @@ class Editor(tkinter.Tk):
         self.title("Editor")
         self.create_menu()
         self.zx = ZXScreen()
+        self.zx.flip_memory(numpy.fromfile("test.scr", dtype='uint8'))
         self.create_canvas()
 
 
@@ -18,13 +19,14 @@ class Editor(tkinter.Tk):
         self.label.pack(expand=True)
         self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
-        self.canvas_width = self.zx.SCREEN_WIDTH_CHARS*8
-        self.canvas_height = self.zx.SCREEN_HEIGHT_CHARS*8
+        self.canvas_width = self.zx.SCREEN_WIDTH_PIXELS
+        self.canvas_height = self.zx.SCREEN_HEIGHT_PIXELS
         self.pixel_data = numpy.full(shape=(self.canvas_height, self.canvas_width, 3), fill_value=0xc0, dtype=numpy.uint8)
         self.update_canvas(auto_refresh=True)
 
 
     def update_canvas(self, auto_refresh=True):
+        self.render_canvas()
         pil_img = Image.fromarray(self.pixel_data)
         tk_img = ImageTk.PhotoImage(pil_img)
         self.label.config(image=tk_img)
@@ -32,8 +34,14 @@ class Editor(tkinter.Tk):
 
         if auto_refresh:
             self.after(100, self.update_canvas)
-        else:
-            print("Manually refreshed")
+
+
+    def render_canvas(self):
+        rgb_data = self.zx.to_rgb()
+
+        # should probably do things here
+
+        self.pixel_data[:] = rgb_data
 
 
     def create_menu(self):
@@ -67,7 +75,7 @@ class Editor(tkinter.Tk):
     def mouse_moved(self, event):
         if event.x < self.canvas_width and event.y < self.canvas_height:
             x, y = event.x, event.y
-            print('Mouse position: (%s %s)' % (x, y))
+            #print('Mouse position: (%s %s)' % (x, y))
             self.pixel_data[y, x] = [0,0,0]
             self.update_canvas(auto_refresh=False)
 
@@ -93,13 +101,14 @@ class ZXScreen:
 
     # Screen dimensions
     SCREEN_WIDTH_CHARS = 32
+    SCREEN_WIDTH_PIXELS = SCREEN_WIDTH_CHARS*8
     SCREEN_HEIGHT_CHARS = 24
+    SCREEN_HEIGHT_PIXELS = SCREEN_HEIGHT_CHARS*8
     SIZE_DATA = 6144
     SIZE_ATTR = 768
     SIZE_MEMORY = SIZE_DATA + SIZE_ATTR
 
     def __init__(self):
-        # self.memory = [0] * self.SIZE_MEMORY
         self.memory = numpy.zeros(shape=self.SIZE_MEMORY, dtype=numpy.uint8)
         self.cursor_x = 0
         self.cursor_y = 0
@@ -110,29 +119,13 @@ class ZXScreen:
         self.start_at = [[0]*self.SCREEN_HEIGHT_CHARS for x in range(self.SCREEN_WIDTH_CHARS)]
         for pos_x in range(0, self.SCREEN_WIDTH_CHARS):
             for pos_y in range(0, self.SCREEN_HEIGHT_CHARS):
-                lot = int(pos_y / 2)
+                lot = pos_y // 8
                 self.start_at[pos_x][pos_y] = (lot * 0x800) + (pos_y - lot*8)*self.SCREEN_WIDTH_CHARS + pos_x
 
 
     def clear_memory(self, byte=0, attribute=BLACK):
         self.memory[:self.SIZE_DATA] = byte
         self.memory[self.SIZE_DATA:] = attribute
-
-
-    def flip_memory(self, numpy_array):
-        if not isinstance(numpy_array, numpy.ndarray) or numpy_array.size != self.SIZE_MEMORY:
-            raise ValueError('does not look like a numpy array of expected size')
-        self.memory[:] = numpy_array[:]
-        print("flipped memory")
-
-
-    def to_attribute(self, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE):
-        return (
-            (self.FLASH if is_flashing else 0x00) | 
-            (self.BRIGHT if is_bright else 0x00) | 
-            (paper << 3) |
-            ink
-        )
 
 
     def cursor_next(self):
@@ -153,6 +146,65 @@ class ZXScreen:
         self.write_cell(self.cursor_x, self.cursor_y, values, attribute)
         self.cursor_next()
     
+
+    def flip_memory(self, numpy_array):
+        if not isinstance(numpy_array, numpy.ndarray) or numpy_array.size != self.SIZE_MEMORY:
+            raise ValueError('does not look like a numpy array of expected size')
+        self.memory[:] = numpy_array[:]
+        print("flipped memory")
+
+
+    def to_attribute(self, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE):
+        return (
+            (self.FLASH if is_flashing else 0x00) | 
+            (self.BRIGHT if is_bright else 0x00) | 
+            (paper << 3) |
+            ink
+        )
+
+
+    def to_rgb(self):
+        pixels = numpy.zeros(shape=(self.SCREEN_HEIGHT_PIXELS, self.SCREEN_WIDTH_PIXELS, 3), dtype=numpy.uint8)
+        for pos_x in range(self.SCREEN_WIDTH_CHARS):
+            for pos_y in range(self.SCREEN_HEIGHT_CHARS):
+                attr_idx = self.SIZE_DATA + (self.SCREEN_WIDTH_CHARS*pos_y + pos_x)
+                attr_value = self.__parse_attribute(self.memory[attr_idx])
+
+                data_start = self.start_at[pos_x][pos_y]
+                for line in range(8):
+                    data_idx = data_start + (line * 0x100)
+                    data_value = self.memory[data_idx]
+                    for bit_idx in range(8):
+                        pixels[pos_y*8 + line, pos_x*8 + bit_idx] = self.__map_to_rgb(
+                            self.__check_bits(data_value, bit_idx),
+                            attr_value
+                        )
+        return pixels
+
+
+    def __parse_attribute(self, attribute):
+        return {
+            'flash': (attribute & self.FLASH) == self.FLASH,
+            'bright': (attribute & self.BRIGHT) == self.BRIGHT,
+            'paper': (attribute & 0b00111000) >> 3,
+            'ink': attribute & 0b00000111
+        }
+
+
+    def __map_to_rgb(self, is_on, attr_value):
+        colour = attr_value['ink'] if is_on else attr_value['paper']
+        value = 255 if attr_value['bright'] else 224
+        return [
+            ((colour >> 1) & 1)*value,  # red
+            ((colour >> 2) & 1)*value,  # green
+            (colour & 1)*value          # blue
+        ]
+
+
+    def __check_bits(self, value, bit_idx):
+        mask = (1 << (7 - bit_idx))
+        return (value & mask) != 0
+
 
     def write_cell(self, pos_x, pos_y, values, attribute=-1):
         if len(values) != 8:
