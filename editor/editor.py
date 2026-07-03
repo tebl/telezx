@@ -1,8 +1,7 @@
 import numpy
 import tkinter
 from tkinter import messagebox, filedialog
-from PIL import Image
-from PIL import ImageTk
+from PIL import Image, ImageTk
 from pprint import pprint
 
 class Editor(tkinter.Tk):
@@ -15,47 +14,34 @@ class Editor(tkinter.Tk):
 
 
     def create_canvas(self):
-        # self.image = Image.new('RGB', (32*16, 24*16), (0,255,0))
-        # self.image_tk = tkinter.PhotoImage(self.image)
-        # self.label = tkinter.Label(self, image=self.image_tk)
-        # self.label.pack()
-        # self.canvas = tkinter.Canvas(self, width=self.zx.SCREEN_WIDTH_CHARS*8, height=self.zx.SCREEN_HEIGHT_CHARS*8, background='white')
-        # self.canvas = tkinter.Canvas(self, width=1024, height=768, background='green')
-        # self.canvas.pack(anchor=tkinter.CENTER, expand=True)
-        # self.canvas.create_rectangle(10,10,20,20, fill='#00ff00', outline=False)
-        # img = tkinter.PhotoImage(width=1024, height=768)
-        # self.label = tkinter.Label(self, image=img)
-        # self.label.pack()
-
-        self.label = tkinter.Label(self, text='Image')
+        self.label = tkinter.Label(self)
         self.label.pack(expand=True)
+        self.label.bind('<Motion>', self.mouse_moved)
+        self.label.bind('<Button-1>', self.mouse_clicked)
+        self.canvas_width = self.zx.SCREEN_WIDTH_CHARS*8
+        self.canvas_height = self.zx.SCREEN_HEIGHT_CHARS*8
+        self.pixel_data = numpy.full(shape=(self.canvas_height, self.canvas_width, 3), fill_value=0xc0, dtype=numpy.uint8)
+        self.update_canvas(auto_refresh=True)
 
-        # self.data = self.generate_data()
-        self.data = numpy.zeros(shape=(self.zx.SCREEN_HEIGHT_CHARS*8, self.zx.SCREEN_WIDTH_CHARS*8, 3), dtype=numpy.uint8)
-        # img = Image.fromarray(self.data, 'RGB')
-        # img.show()
-        self.update_canvas()
 
-        # self.image_data = self.render_data()
-        # self.image = tkinter.PhotoImage(data=self.image_data)
-
-    def update_canvas(self):
-        pil_img = Image.fromarray(self.data, 'RGB')
-        tk_img = tkinter.PhotoImage(pil_img)
-        self.label.config(text='', image=tk_img)
+    def update_canvas(self, auto_refresh=True):
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.label.config(image=tk_img)
         self.image = tk_img
 
-
-    def generate_data(self):
-        pass
+        if auto_refresh:
+            self.after(100, self.update_canvas)
+        else:
+            print("Manually refreshed")
 
 
     def create_menu(self):
         self.menu = tkinter.Menu(self)
 
         file_menu = tkinter.Menu(self.menu, tearoff=0)
-        file_menu.add_command(label="New", command=self.new_file)
-        file_menu.add_command(label="Open SCR...", command=self.open_SCR)
+        file_menu.add_command(label="New", command=self.file_new)
+        file_menu.add_command(label="Open SCR...", command=self.file_open_SCR)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit)
         self.menu.add_cascade(label="File", menu=file_menu)
@@ -63,19 +49,33 @@ class Editor(tkinter.Tk):
         self.config(menu=self.menu)
 
 
-    def new_file(self):
+    def file_new(self):
         if messagebox.askokcancel(title='New', message='Clear memory?'):
+            self.pixel_data[:] = 0xc0
             self.zx.clear_memory()
 
 
-    def open_SCR(self):
+    def file_open_SCR(self):
         try:
             filename = filedialog.askopenfilename(filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
             if filename:
                 self.zx.flip_memory(numpy.fromfile(filename, dtype='uint8'))
         except Exception as e:
             messagebox.showerror(title='Failed to open file', message=f'Failed with error:\n{e}')
-        pass
+
+
+    def mouse_moved(self, event):
+        if event.x < self.canvas_width and event.y < self.canvas_height:
+            x, y = event.x, event.y
+            print('Mouse position: (%s %s)' % (x, y))
+            self.pixel_data[y, x] = [0,0,0]
+            self.update_canvas(auto_refresh=False)
+
+
+    def mouse_clicked(self, event):
+        x, y = event.x, event.y
+        print('Mouse clicked: (%s %s)' % (x, y))
+
 
 
 class ZXScreen:
