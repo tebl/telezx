@@ -9,40 +9,16 @@ class Editor(tkinter.Tk):
         super().__init__()
         self.title("ZX Editor")
         self.scale = 3
-        self.highlight = (0, 0)
         self.font_default = ZXFont.from_file("font_default.bin")
         self.create_menu()
         self.zx = ZXScreen()
         self.zx.flip_memory(numpy.fromfile("test.scr", dtype='uint8'))
-        self.create_canvas()
 
+        self.view = EditorView(self, self.zx)
+        self.highlight = EditorHighlight(self)
 
-    def create_canvas(self):
-        self.label = tkinter.Label(self)
-        self.label.pack(expand=True)
-        self.label.bind('<Motion>', self.mouse_moved)
-        self.label.bind('<Button-1>', self.mouse_clicked)
-        self.canvas_width = self.zx.SCREEN_WIDTH_PIXELS
-        self.canvas_height = self.zx.SCREEN_HEIGHT_PIXELS
-        self.pixel_data = numpy.full(shape=(self.canvas_height*self.scale, self.canvas_width*self.scale, 3), fill_value=0xc0, dtype=numpy.uint8)
-        self.update_canvas(auto_refresh=True)
-
-
-    def update_canvas(self, auto_refresh=True):
-        self.render_canvas()
-        pil_img = Image.fromarray(self.pixel_data)
-        tk_img = ImageTk.PhotoImage(pil_img)
-        self.label.config(image=tk_img)
-        self.image = tk_img
-
-        if auto_refresh:
-            self.after(100, self.update_canvas)
-
-
-    def render_canvas(self):
-        rgb_data = self.zx.to_rgb()
-        rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.scale, axis=0), self.scale, axis=1)
-        self.pixel_data[:] = rgb_data
+        self.view.grid(row=0, column=0)
+        self.highlight.grid(row=0, column=1, padx=10, sticky="n")
 
 
     def create_menu(self):
@@ -68,7 +44,7 @@ class Editor(tkinter.Tk):
 
     def file_new(self):
         if messagebox.askokcancel(title='New', message='Clear memory?'):
-            self.pixel_data[:] = 0xc0
+            self.view.clear()
             self.zx.clear_memory()
 
 
@@ -81,22 +57,11 @@ class Editor(tkinter.Tk):
             messagebox.showerror(title='Failed to open file', message=f'Failed with error:\n{e}')
 
 
-    def mouse_moved(self, event):
-        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-            char_x = (event.x // self.scale) // 8
-            char_y = (event.y // self.scale) // 8
-            self.highlight = (char_x, char_y)
-            self.update_canvas(auto_refresh=False)
-
-    def mouse_clicked(self, event):
-        x, y = event.x, event.y
-        print('Mouse clicked: (%s %s)' % (x, y))
-
-
     def set_scale(self, value):
         self.scale = value
-        self.pixel_data = numpy.full(shape=(self.canvas_height*self.scale, self.canvas_width*self.scale, 3), fill_value=0xc0, dtype=numpy.uint8)
-        self.update_canvas(auto_refresh=False)
+        print(f"set scale {value}")
+        self.view.update_scale()
+        self.highlight.update_scale()
 
     def set_scale_1x(self):
         self.set_scale(1)
@@ -106,6 +71,91 @@ class Editor(tkinter.Tk):
 
     def set_scale_3x(self):
         self.set_scale(3)
+
+
+class EditorView(tkinter.Label):
+    def __init__(self, editor, zx_screen):
+        super().__init__(editor)
+        self.editor = editor
+        self.zx = zx_screen
+        self.bind('<Motion>', self.mouse_moved)
+        self.bind('<Button-1>', self.mouse_clicked)
+        self.view_width = self.zx.SCREEN_WIDTH_PIXELS
+        self.view_height = self.zx.SCREEN_HEIGHT_PIXELS
+        self.pixel_data = numpy.full(shape=(self.view_height*self.editor.scale, self.view_width*self.editor.scale, 3), fill_value=0, dtype=numpy.uint8)
+        self.update_view(auto_refresh=True)
+
+    def clear(self):
+        self.pixel_data[:] = 0
+
+    def mouse_moved(self, event):
+        pass
+
+    def mouse_clicked(self, event):
+        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+            char_x = (event.x // self.editor.scale) // 8
+            char_y = (event.y // self.editor.scale) // 8
+            self.editor.highlight.set_region(self, char_x, char_y)
+            self.update_view(auto_refresh=False)
+
+    def render_canvas(self):
+        rgb_data = self.zx.to_rgb()
+        rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.editor.scale, axis=0), self.editor.scale, axis=1)
+        self.pixel_data[:] = rgb_data
+
+    def update_view(self, auto_refresh=True):
+        self.render_canvas()
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.config(image=tk_img)
+        self.image = tk_img
+
+        if auto_refresh:
+            self.after(100, self.update_view)
+
+    def update_scale(self):
+        self.pixel_data = numpy.full(shape=(self.view_height*self.editor.scale, self.view_width*self.editor.scale, 3), fill_value=0, dtype=numpy.uint8)
+        self.update_view(auto_refresh=False)
+
+
+class EditorHighlight(tkinter.Label):
+    def __init__(self, editor):
+        super().__init__(editor)
+        self.editor = editor
+        self.view_width = 8
+        self.view_height = 8
+        self.scale = 8
+
+        self.update_scale(refresh=False)
+        self.update_view(auto_refresh=True)
+
+    def update_scale(self, refresh=True):
+        self.actual_width = self.view_width * self.editor.scale * self.scale
+        self.actual_height = self.view_height * self.editor.scale * self.scale
+        self.pixel_data = numpy.full(shape=(self.actual_height, self.actual_width, 3), fill_value=0, dtype=numpy.uint8)
+        if refresh:
+            self.update_view(auto_refresh=False)
+
+    def update_view(self, auto_refresh=True):
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.config(image=tk_img)
+        self.image = tk_img
+
+        if auto_refresh:
+            self.after(100, self.update_view)
+
+    
+    def set_region(self, source, char_x, char_y):
+        region_size = 8*self.editor.scale
+        start_x = char_x * region_size
+        start_y = char_y * region_size
+
+        result = source.pixel_data[start_y:(start_y+region_size), start_x:(start_x+region_size)]
+        result = numpy.repeat(numpy.repeat(result, self.scale, axis=0), self.scale, axis=1)
+
+        self.pixel_data[:] = result
+
 
 class ZXScreen:
     # Attributes
