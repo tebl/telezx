@@ -8,10 +8,12 @@ class Editor(tkinter.Tk):
     def __init__(self):
         super().__init__()
         self.title("ZX Editor")
+        self.scale = 3
+        self.highlight = (0, 0)
+        self.font_default = ZXFont.from_file("font_default.bin")
         self.create_menu()
         self.zx = ZXScreen()
         self.zx.flip_memory(numpy.fromfile("test.scr", dtype='uint8'))
-        self.scale = 3
         self.create_canvas()
 
 
@@ -80,10 +82,10 @@ class Editor(tkinter.Tk):
 
 
     def mouse_moved(self, event):
-        if event.x < self.canvas_width and event.y < self.canvas_height:
-            x, y = event.x, event.y
-            #print('Mouse position: (%s %s)' % (x, y))
-            self.pixel_data[y, x] = [0,0,0]
+        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+            char_x = (event.x // self.scale) // 8
+            char_y = (event.y // self.scale) // 8
+            self.highlight = (char_x, char_y)
             self.update_canvas(auto_refresh=False)
 
     def mouse_clicked(self, event):
@@ -104,7 +106,6 @@ class Editor(tkinter.Tk):
 
     def set_scale_3x(self):
         self.set_scale(3)
-
 
 class ZXScreen:
     # Attributes
@@ -227,7 +228,7 @@ class ZXScreen:
 
 
     def write_cell(self, pos_x, pos_y, values, attribute=-1):
-        if len(values) != 8:
+        if values.size != 8:
             raise ValueError(f'values ({values}) not array of 8 bytes')
         index = self.start_at[pos_x][pos_y]
         for byte_idx, byte_value in enumerate(values):
@@ -239,6 +240,23 @@ class ZXScreen:
     def write_attribute(self, pos_x, pos_y, attribute=0):
         self.memory[(pos_y * self.SCREEN_WIDTH_CHARS) + pos_x] = attribute
 
+
+class ZXFont:
+    def __init__(self, font_data):
+        self.font_data = font_data
+
+    def get_offset(self, offset):
+        return self.font_data[offset]
+
+    def get_character(self, character):
+        data = self.get_offset(ord(character) - 32)
+        return data
+
+    @classmethod
+    def from_file(cls, path):
+        font_data = numpy.fromfile(path, dtype=numpy.uint8)
+        font_data = numpy.reshape(font_data, shape=(96,8))
+        return cls(font_data)
 
 def main():
     editor = Editor()
