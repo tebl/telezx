@@ -1,8 +1,3 @@
-"""
-    Author: Israel Dryer
-    Modified: 2021-12-12
-    Adapted from: http://www.leo-backup.com/screenshots.shtml
-"""
 from datetime import datetime
 from random import choices
 import ttkbootstrap as ttk
@@ -24,19 +19,17 @@ class ZXEditor(ttk.Frame):
         self.pack(fill=BOTH, expand=YES)
 
         image_files = {
-            'properties-dark': 'icons8_settings_24px.png',
-            'properties-light': 'icons8_settings_24px_2.png',
-            'add-to-backup-dark': 'icons8_add_folder_24px.png',
-            'add-to-backup-light': 'icons8_add_book_24px.png',
+            'new-dark': 'icons8_add_folder_24px.png',
+            'new-light': 'icons8_add_book_24px.png',
+
+            'settings-dark': 'icons8_settings_24px.png',
+            'settings-light': 'icons8_settings_24px_2.png',
             'stop-backup-dark': 'icons8_cancel_24px.png',
             'stop-backup-light': 'icons8_cancel_24px_1.png',
-            # 'play': 'icons8_play_24px_1.png',
-            # 'refresh': 'icons8_refresh_24px_1.png',
             'stop-dark': 'icons8_stop_24px.png',
             'stop-light': 'icons8_stop_24px_1.png',
             'opened-folder': 'icons8_opened_folder_24px.png',
             'open': 'icons8_folder_24px.png'
-            # 'logo': 'backup.png'
         }
 
         self.photoimages = []
@@ -45,194 +38,19 @@ class ZXEditor(ttk.Frame):
             _path = imgpath / val
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
 
-        # buttonbar
-        buttonbar = ttk.Frame(self, style='primary.TFrame')
+        buttonbar = Menubar(self)
         buttonbar.pack(fill=X, pady=1, side=TOP)
 
-        ## new backup
-        _func = lambda: Messagebox.ok(message='Adding new backup')
-        btn = ttk.Button(
-            master=buttonbar, text='New...',
-            image='add-to-backup-light', 
-            compound=LEFT, 
-            command=_func
-        )
-        btn.pack(side=LEFT, ipadx=5, ipady=5, padx=(1, 0), pady=1)
-
-        ## backup
-        _func = lambda: Messagebox.ok(message='Backing up...')
-        btn = ttk.Button(
-            master=buttonbar, 
-            text='Open SCR', 
-            image='opened-folder', 
-            compound=LEFT, 
-            command=_func
-        )
-        btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
-
-        ## configure scale
-        menu = ttk.Menu(self)
-        menu.add_radiobutton(label="1x", value=1)
-        menu.add_radiobutton(label="2x", value=2)
-        menu.add_radiobutton(label="3x", value=3)
-        scale = ttk.Menubutton(
-            master=buttonbar,
-            text="Set scale",
-            menu=menu
-        )
-        scale.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
-
-        ## settings
-        # _func = lambda: Messagebox.ok(message='Changing settings')
-        # btn = ttk.Button(
-        #     master=buttonbar, 
-        #     text='Settings', 
-        #     image='properties-light',
-        #     compound=LEFT, 
-        #     command=_func
-        # )
-        # btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
-
-
         # sidebar panel
-        sidebar = ttk.Frame(self, style='bg.TFrame')
-        sidebar.pack(side=LEFT, fill=Y)
+        sidebar = Sidebar(self)
+        sidebar.pack(side=RIGHT, fill=Y)
 
+        highlight = Highlight(sidebar)
+        highlight.pack(fill=X, pady=1)
 
+        symbols = Symbols(sidebar)
+        symbols.pack(fill=BOTH, pady=1)
 
-        ## Highlight (collapsible)
-        highlight_cf = CollapsingFrame(sidebar)
-        highlight_cf.pack(fill=X, pady=1)
-
-        ## container
-        highlight_frm = ttk.Frame(highlight_cf, padding=5)
-        highlight_frm.columnconfigure(1, weight=1)
-        highlight_cf.add(
-            child=highlight_frm, 
-            title='Highlight', 
-            bootstyle=SECONDARY)
-
-        ## destination
-        lbl = ttk.Label(highlight_frm, text='Destination:')
-        lbl.grid(row=0, column=0, sticky=W, pady=2)
-        lbl = ttk.Label(highlight_frm, textvariable='destination')
-        lbl.grid(row=0, column=1, sticky=EW, padx=5, pady=2)
-        self.setvar('destination', 'd:/test/')
-
-        ## last run
-        lbl = ttk.Label(highlight_frm, text='Last Run:')
-        lbl.grid(row=1, column=0, sticky=W, pady=2)
-        lbl = ttk.Label(highlight_frm, textvariable='lastrun')
-        lbl.grid(row=1, column=1, sticky=EW, padx=5, pady=2)
-        self.setvar('lastrun', '14.06.2021 19:34:43')
-
-        ## files Identical
-        lbl = ttk.Label(highlight_frm, text='Files Identical:')
-        lbl.grid(row=2, column=0, sticky=W, pady=2)
-        lbl = ttk.Label(highlight_frm, textvariable='filesidentical')
-        lbl.grid(row=2, column=1, sticky=EW, padx=5, pady=2)
-        self.setvar('filesidentical', '15%')
-
-        ## section separator
-        sep = ttk.Separator(highlight_frm, bootstyle=SECONDARY)
-        sep.grid(row=3, column=0, columnspan=2, pady=10, sticky=EW)
-
-        ## properties button
-        _func = lambda: Messagebox.ok(message='Changing properties')
-        bus_prop_btn = ttk.Button(
-            master=highlight_frm, 
-            text='Properties', 
-            image='properties-dark', 
-            compound=LEFT,
-            command=_func, 
-            bootstyle=LINK
-        )
-        bus_prop_btn.grid(row=4, column=0, columnspan=2, sticky=W)
-
-        ## add to backup button
-        _func = lambda: Messagebox.ok(message='Adding to backup')
-        add_btn = ttk.Button(
-            master=highlight_frm, 
-            text='Add to backup', 
-            image='add-to-backup-dark', 
-            compound=LEFT,
-            command=_func, 
-            bootstyle=LINK
-        )
-        add_btn.grid(row=5, column=0, columnspan=2, sticky=W)
-
-
-
-
-        # Symbols (collapsible)
-        symbols_cf = CollapsingFrame(sidebar)
-        symbols_cf.pack(fill=BOTH, pady=1)
-
-        ## container
-        symbols_frm = ttk.Frame(symbols_cf, padding=10)
-        symbols_frm.columnconfigure(1, weight=1)
-        symbols_cf.add(
-            child=symbols_frm, 
-            title='Symbols', 
-            bootstyle=SECONDARY
-        )
-        ## progress message
-        lbl = ttk.Label(
-            master=symbols_frm, 
-            textvariable='prog-message', 
-            font='Helvetica 10 bold'
-        )
-        lbl.grid(row=0, column=0, columnspan=2, sticky=W)
-        self.setvar('prog-message', 'Backing up...')
-
-        ## progress bar
-        pb = ttk.Progressbar(
-            master=symbols_frm, 
-            variable='prog-value', 
-            bootstyle=SUCCESS
-        )
-        pb.grid(row=1, column=0, columnspan=2, sticky=EW, pady=(10, 5))
-        self.setvar('prog-value', 71)
-
-        ## time started
-        lbl = ttk.Label(symbols_frm, textvariable='prog-time-started')
-        lbl.grid(row=2, column=0, columnspan=2, sticky=EW, pady=2)
-        self.setvar('prog-time-started', 'Started at: 14.06.2021 19:34:56')
-
-        ## time elapsed
-        lbl = ttk.Label(symbols_frm, textvariable='prog-time-elapsed')
-        lbl.grid(row=3, column=0, columnspan=2, sticky=EW, pady=2)
-        self.setvar('prog-time-elapsed', 'Elapsed: 1 sec')
-
-        ## time remaining
-        lbl = ttk.Label(symbols_frm, textvariable='prog-time-left')
-        lbl.grid(row=4, column=0, columnspan=2, sticky=EW, pady=2)
-        self.setvar('prog-time-left', 'Left: 0 sec')
-
-        ## section separator
-        sep = ttk.Separator(symbols_frm, bootstyle=SECONDARY)
-        sep.grid(row=5, column=0, columnspan=2, pady=10, sticky=EW)
-
-        ## stop button
-        _func = lambda: Messagebox.ok(message='Stopping backup')
-        btn = ttk.Button(
-            master=symbols_frm, 
-            text='Stop', 
-            image='stop-backup-dark', 
-            compound=LEFT, 
-            command=_func, 
-            bootstyle=LINK
-        )
-        btn.grid(row=6, column=0, columnspan=2, sticky=W)
-
-        ## section separator
-        sep = ttk.Separator(symbols_frm, bootstyle=SECONDARY)
-        sep.grid(row=7, column=0, columnspan=2, pady=10, sticky=EW)
-
-        # current file message
-        lbl = ttk.Label(symbols_frm, textvariable='current-file-msg')
-        lbl.grid(row=8, column=0, columnspan=2, pady=2, sticky=EW)
-        self.setvar('current-file-msg', 'Uploading: d:/test/settings.txt')
 
 
 
@@ -286,6 +104,54 @@ class ZXEditor(ttk.Frame):
             )
         tv.selection_set(20)
 
+
+class Menubar(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master, style='primary.TFrame')
+
+        ## new backup
+        _func = lambda: Messagebox.ok(message='Adding new backup')
+        btn = ttk.Button(
+            master=self, text='New...',
+            image='new-light', 
+            compound=LEFT, 
+            command=_func
+        )
+        btn.pack(side=LEFT, ipadx=5, ipady=5, padx=(1, 0), pady=1)
+
+        ## backup
+        _func = lambda: Messagebox.ok(message='Backing up...')
+        btn = ttk.Button(
+            master=self, 
+            text='Open SCR', 
+            image='opened-folder', 
+            compound=LEFT, 
+            command=_func
+        )
+        btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
+
+        ## configure scale
+        menu = ttk.Menu(self)
+        menu.add_radiobutton(label="1x", value=1)
+        menu.add_radiobutton(label="2x", value=2)
+        menu.add_radiobutton(label="3x", value=3)
+        scale = ttk.Menubutton(
+            master=self,
+            text="Set scale",
+            menu=menu
+        )
+        scale.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
+
+        ## settings
+        # _func = lambda: Messagebox.ok(message='Changing settings')
+        # btn = ttk.Button(
+        #     master=buttonbar, 
+        #     text='Settings', 
+        #     image='settings-light',
+        #     compound=LEFT, 
+        #     command=_func
+        # )
+        # btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
 
 
 class CollapsingFrame(ttk.Frame):
@@ -368,6 +234,69 @@ class CollapsingFrame(ttk.Frame):
         else:
             child.grid()
             child.btn.configure(image=self.images[0])
+
+
+class Sidebar(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master, style='bg.TFrame')
+
+
+class Highlight(CollapsingFrame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        frame = ttk.Frame(self, padding=5)
+        frame.columnconfigure(1, weight=1)
+        self.add(
+            child=frame, 
+            title='Highlight', 
+            bootstyle=INFO
+        )
+
+        ## destination
+        lbl = ttk.Label(frame, text='Destination:')
+        lbl.grid(row=0, column=0, sticky=W, pady=2)
+        lbl = ttk.Label(frame, textvariable='destination')
+        lbl.grid(row=0, column=1, sticky=EW, padx=5, pady=2)
+        self.setvar('destination', 'd:/test/')
+
+        ## last run
+        lbl = ttk.Label(frame, text='Last Run:')
+        lbl.grid(row=1, column=0, sticky=W, pady=2)
+        lbl = ttk.Label(frame, textvariable='lastrun')
+        lbl.grid(row=1, column=1, sticky=EW, padx=5, pady=2)
+        self.setvar('lastrun', '14.06.2021 19:34:43')
+
+        ## files Identical
+        lbl = ttk.Label(frame, text='Files Identical:')
+        lbl.grid(row=2, column=0, sticky=W, pady=2)
+        lbl = ttk.Label(frame, textvariable='filesidentical')
+        lbl.grid(row=2, column=1, sticky=EW, padx=5, pady=2)
+        self.setvar('filesidentical', '15%')
+
+
+class Symbols(CollapsingFrame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        frame = ttk.Frame(self, padding=10)
+        frame.columnconfigure(1, weight=1)
+        self.add(
+            child=frame, 
+            title='Symbols', 
+            bootstyle=INFO
+        )
+
+        btn = ttk.Button(
+            master=frame, 
+            text='Stop', 
+            compound=LEFT
+        )
+        btn.grid(row=0, column=0, columnspan=2, sticky=W)
+
+        lbl = ttk.Label(frame, text="Loaded:")
+        lbl.grid(row=1, column=0, sticky=W)
+        lbl = ttk.Label(frame, textvariable='symbols-count')
+        lbl.grid(row=1, column=1, sticky=W)
+        self.setvar('symbols-count', '33')
 
 
 if __name__ == '__main__':
