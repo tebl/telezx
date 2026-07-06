@@ -24,12 +24,14 @@ class ZXEditor(ttk.Frame):
 
         self.scale = 3
         self.zx = ZXScreen()
+        self.rowconfigure(2, weight=1)
+        self.columnconfigure(2, weight=1)
 
-        self.buttonbar = Menubar(self)
-        self.buttonbar.pack(fill=X, pady=1, side=TOP)
+        self.menu_bar = MenuBar(self)
+        self.menu_bar.grid(row=0, column=0, columnspan=3, sticky=EW)
 
         self.sidebar = Sidebar(self)
-        self.sidebar.pack(side=RIGHT, fill=Y)
+        self.sidebar.grid(row=1, column=1, sticky=NS)
 
         self.highlight = Highlight(self.sidebar)
         self.highlight.pack(fill=X, pady=1)
@@ -38,7 +40,10 @@ class ZXEditor(ttk.Frame):
         self.symbols.pack(fill=X, pady=1)
 
         self.display = DisplayArea(self)
-        self.display.pack(side=LEFT, fill=BOTH)
+        self.display.grid(row=1, column=0, sticky=NW)
+
+        self.status_bar = StatusBar(self)
+        self.status_bar.grid(row=3, column=0, columnspan=3, sticky=EW)
 
     def clicked_new(self):
         print("Clear")
@@ -72,18 +77,19 @@ class ZXEditor(ttk.Frame):
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
 
 
-class Menubar(ttk.Frame):
+class MenuBar(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, style='primary.TFrame')
 
         ## New...
         btn = ttk.Button(
-            master=self, text='New...',
+            master=self,
+            text='New...',
             image='new-light', 
             compound=LEFT, 
             command=self.master.clicked_new
         )
-        btn.pack(side=LEFT, ipadx=5, ipady=5, padx=(1, 0), pady=1)
+        btn.grid(row=0, column=0)
 
         ## Open SCR...
         btn = ttk.Button(
@@ -93,7 +99,7 @@ class Menubar(ttk.Frame):
             compound=LEFT, 
             command=self.master.clicked_scr
         )
-        btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
+        btn.grid(row=0, column=1)
 
         ## configure scale
         scale_options = ttk.Menu(self)
@@ -105,11 +111,40 @@ class Menubar(ttk.Frame):
             text="Set scale",
             menu=scale_options
         )
-        self.scale.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
+        self.scale.grid(row=0, column=2)
 
     def set_scale(self, value):
         self.scale.config(text=f'{value}x')
         self.master.set_scale(value)
+
+
+class StatusBar(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master, style='dark.TFrame')
+        self.columnconfigure(2, weight=1)
+
+        self.position = ttk.Label(
+            master=self,
+            textvariable='status-position',
+            bootstyle="inverse-dark"
+        )
+        self.position.grid(row=0, column=0)
+        self.set_position(0, 0)
+
+        self.status = ttk.Label(
+            master=self,
+            textvariable='status-text',
+            bootstyle="inverse-dark"
+        )
+        self.status.grid(row=0, column=1)
+        self.set_status('')
+
+    def set_position(self, pos_x, pos_y):
+        self.setvar('status-position', f'Cursor: ({pos_x},{pos_y})')
+
+    def set_status(self, message=''):
+        self.setvar('status-text', message)
+
 
 class CollapsingFrame(ttk.Frame):
     """A collapsible frame widget that opens and closes with a click."""
