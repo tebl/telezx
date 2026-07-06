@@ -40,6 +40,12 @@ class ZXEditor(ttk.Frame):
         self.display = DisplayArea(self)
         self.display.pack(side=LEFT, fill=BOTH)
 
+    def clicked_new(self):
+        print("Clear")
+
+    def clicked_scr(self):
+        print("Open SCR")
+
     def set_scale(self, value):
         self.scale = value
         self.display.configure_scale(value)
@@ -70,24 +76,22 @@ class Menubar(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, style='primary.TFrame')
 
-        ## Clear screen
-        _func = lambda: Messagebox.ok(message='Adding new backup')
+        ## New...
         btn = ttk.Button(
             master=self, text='New...',
             image='new-light', 
             compound=LEFT, 
-            command=_func
+            command=self.master.clicked_new
         )
         btn.pack(side=LEFT, ipadx=5, ipady=5, padx=(1, 0), pady=1)
 
-        ## Open SCR
-        _func = lambda: Messagebox.ok(message='Backing up...')
+        ## Open SCR...
         btn = ttk.Button(
             master=self, 
             text='Open SCR', 
             image='opened-folder', 
             compound=LEFT, 
-            command=_func
+            command=self.master.clicked_scr
         )
         btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
 
