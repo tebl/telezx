@@ -7,17 +7,44 @@ from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.constants import *
 from tkinter.scrolledtext import ScrolledText
 from pathlib import Path
+import numpy
+
+from lib import ZXScreen
+from PIL import Image, ImageTk
 
 
 PATH = Path(__file__).parent / 'assets'
 
 
 class ZXEditor(ttk.Frame):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pack(fill=BOTH, expand=YES)
+        self.__load_assets()
 
+        self.scale = 3
+        self.zx = ZXScreen()
+
+        self.buttonbar = Menubar(self)
+        self.buttonbar.pack(fill=X, pady=1, side=TOP)
+
+        self.sidebar = Sidebar(self)
+        self.sidebar.pack(side=RIGHT, fill=Y)
+
+        self.highlight = Highlight(self.sidebar)
+        self.highlight.pack(fill=X, pady=1)
+
+        self.symbols = Symbols(self.sidebar)
+        self.symbols.pack(fill=X, pady=1)
+
+        self.display = DisplayArea(self)
+        self.display.pack(side=LEFT, fill=BOTH)
+
+    def set_scale(self, value):
+        self.scale = value
+        self.display.configure_scale(value)
+
+    def __load_assets(self):
         image_files = {
             'new-dark': 'icons8_add_folder_24px.png',
             'new-light': 'icons8_add_book_24px.png',
@@ -38,78 +65,12 @@ class ZXEditor(ttk.Frame):
             _path = imgpath / val
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
 
-        buttonbar = Menubar(self)
-        buttonbar.pack(fill=X, pady=1, side=TOP)
-
-        # sidebar panel
-        sidebar = Sidebar(self)
-        sidebar.pack(side=RIGHT, fill=Y)
-
-        highlight = Highlight(sidebar)
-        highlight.pack(fill=X, pady=1)
-
-        symbols = Symbols(sidebar)
-        symbols.pack(fill=BOTH, pady=1)
-
-
-
-
-        # Main editor
-        main_panel = ttk.Frame(self, padding=(2, 1))
-        main_panel.pack(side=RIGHT, fill=BOTH, expand=YES)
-
-
-
-        ## scrolling text output
-        scroll_cf = CollapsingFrame(main_panel)
-        scroll_cf.pack(fill=BOTH, expand=YES)
-        
-        output_container = ttk.Frame(scroll_cf, padding=1)
-        _value = 'Log: Backing up... [Uploading file: D:/sample_file_35.txt]'
-        self.setvar('scroll-message', _value)
-        st = ScrolledText(output_container)
-        st.pack(fill=BOTH, expand=YES)
-        scroll_cf.add(output_container, textvariable='scroll-message')
-
-
-
-        ## Treeview
-        tv = ttk.Treeview(main_panel, show='headings', height=5)
-        tv.configure(columns=(
-            'name', 'state', 'last-modified', 
-            'last-run-time', 'size'
-        ))
-        tv.column('name', width=150, stretch=True)
-        
-        for col in ['last-modified', 'last-run-time', 'size']:
-            tv.column(col, stretch=False)
-        
-        for col in tv['columns']:
-            tv.heading(col, text=col.title(), anchor=W)
-        
-        tv.pack(fill=X, pady=1)
-
-
-
-        ## treeview and backup logs
-        for x in range(20, 35):
-            result = choices(['Backup Up', 'Missed in Destination'])[0]
-            st.insert(END, f'19:34:{x}\t\t Uploading: D:/file_{x}.txt\n')
-            st.insert(END, f'19:34:{x}\t\t Upload {result}.\n')
-            timestamp = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-            tv.insert('', END, x, 
-                      values=(f'sample_file_{x}.txt', 
-                              result, timestamp, timestamp, 
-                              f'{int(x // 3)} MB')
-            )
-        tv.selection_set(20)
-
 
 class Menubar(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, style='primary.TFrame')
 
-        ## new backup
+        ## Clear screen
         _func = lambda: Messagebox.ok(message='Adding new backup')
         btn = ttk.Button(
             master=self, text='New...',
@@ -119,7 +80,7 @@ class Menubar(ttk.Frame):
         )
         btn.pack(side=LEFT, ipadx=5, ipady=5, padx=(1, 0), pady=1)
 
-        ## backup
+        ## Open SCR
         _func = lambda: Messagebox.ok(message='Backing up...')
         btn = ttk.Button(
             master=self, 
@@ -131,28 +92,20 @@ class Menubar(ttk.Frame):
         btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
 
         ## configure scale
-        menu = ttk.Menu(self)
-        menu.add_radiobutton(label="1x", value=1)
-        menu.add_radiobutton(label="2x", value=2)
-        menu.add_radiobutton(label="3x", value=3)
-        scale = ttk.Menubutton(
+        scale_options = ttk.Menu(self)
+        scale_options.add_radiobutton(label="1x", command=lambda: self.set_scale(1))
+        scale_options.add_radiobutton(label="2x", command=lambda: self.set_scale(2))
+        scale_options.add_radiobutton(label="3x", command=lambda: self.set_scale(3))
+        self.scale = ttk.Menubutton(
             master=self,
             text="Set scale",
-            menu=menu
+            menu=scale_options
         )
-        scale.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
+        self.scale.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
 
-        ## settings
-        # _func = lambda: Messagebox.ok(message='Changing settings')
-        # btn = ttk.Button(
-        #     master=buttonbar, 
-        #     text='Settings', 
-        #     image='settings-light',
-        #     compound=LEFT, 
-        #     command=_func
-        # )
-        # btn.pack(side=LEFT, ipadx=5, ipady=5, padx=0, pady=1)
-
+    def set_scale(self, value):
+        self.scale.config(text=f'{value}x')
+        self.master.set_scale(value)
 
 class CollapsingFrame(ttk.Frame):
     """A collapsible frame widget that opens and closes with a click."""
@@ -235,6 +188,32 @@ class CollapsingFrame(ttk.Frame):
             child.grid()
             child.btn.configure(image=self.images[0])
 
+
+class DisplayArea(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.default_fill = 0xc0
+        self.view_width = self.master.zx.SCREEN_WIDTH_PIXELS
+        self.view_height = self.master.zx.SCREEN_HEIGHT_PIXELS
+
+        self.label = ttk.Label(self)
+        self.label.pack(padx=5, pady=5)
+
+        self.configure_scale(self.master.scale)
+
+    def clear(self):
+        self.pixel_data[:] = self.default_fill
+
+    def configure_scale(self, value):
+        self.pixel_data = numpy.full(shape=(self.view_height*value, self.view_width*value, 3), fill_value=self.default_fill, dtype=numpy.uint8)
+        self.update()
+
+    def update(self):
+        # self.render_canvas()
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.label.config(image=tk_img)
+        self.image = tk_img
 
 class Sidebar(ttk.Frame):
     def __init__(self, master):
