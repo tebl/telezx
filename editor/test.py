@@ -5,15 +5,12 @@ from ttkbootstrap.style import Bootstyle
 from tkinter.filedialog import askdirectory
 from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.constants import *
-from tkinter.scrolledtext import ScrolledText
+from ttkbootstrap import colorutils
 from pathlib import Path
 import numpy
 
-from lib import ZXScreen
+from lib import ZXScreen, ZXFont, ZXGlyph
 from PIL import Image, ImageTk
-
-
-PATH = Path(__file__).parent / 'assets'
 
 
 class ZXEditor(ttk.Frame):
@@ -27,23 +24,17 @@ class ZXEditor(ttk.Frame):
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
 
-        self.menu_bar = MenuBar(self)
-        self.menu_bar.grid(row=0, column=0, columnspan=3, sticky=EW)
+        self.menu = Menu(self)
+        self.menu.grid(row=0, column=0, columnspan=3, sticky=EW)
 
         self.sidebar = Sidebar(self)
-        self.sidebar.grid(row=1, column=1, sticky=NS)
+        self.sidebar.grid(row=1, column=1, sticky=NE)
 
-        self.highlight = Highlight(self.sidebar)
-        self.highlight.pack(fill=X, pady=1)
-
-        self.symbols = Symbols(self.sidebar)
-        self.symbols.pack(fill=X, pady=1)
-
-        self.display = DisplayArea(self)
+        self.display = Main(self)
         self.display.grid(row=1, column=0, sticky=NW)
 
-        self.status_bar = StatusBar(self)
-        self.status_bar.grid(row=3, column=0, columnspan=3, sticky=EW)
+        self.status = Status(self)
+        self.status.grid(row=3, column=0, columnspan=3, sticky=EW)
 
     def clicked_new(self):
         print("Clear")
@@ -53,6 +44,8 @@ class ZXEditor(ttk.Frame):
 
     def set_scale(self, value):
         self.scale = value
+        self.sidebar.highlight.configure_scale(value)
+        self.sidebar.symbols.configure_scale(value)
         self.display.configure_scale(value)
 
     def __load_assets(self):
@@ -77,7 +70,7 @@ class ZXEditor(ttk.Frame):
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
 
 
-class MenuBar(ttk.Frame):
+class Menu(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, style='primary.TFrame')
 
@@ -118,7 +111,138 @@ class MenuBar(ttk.Frame):
         self.master.set_scale(value)
 
 
-class StatusBar(ttk.Frame):
+class Canvas(ttk.Frame):
+    SCALE_MASTER = 0
+
+    def __init__(self, master, zx_editor, view_width, view_height, default_fill=0, style='bg.TFrame', scale_mode=0, label_padx=5, label_pady=5):
+        super().__init__(master, style=style)
+        self.zx_editor = zx_editor
+        self.default_fill = default_fill
+        self.view_width = view_width
+        self.view_height = view_height
+        self.scale_mode = scale_mode
+
+        self.label = ttk.Label(self)
+        self.label.pack(padx=label_padx, pady=label_pady)
+
+        self.configure_scale(self.zx_editor.scale)
+
+    def clear(self):
+        self.pixel_data[:] = self.default_fill
+
+    def configure_scale(self, value):
+        # Canvas can add additional scaling in addition to that of the main
+        # application, should be an integer value
+        self.scale_value = self.__get_scale(value)
+        self.pixel_data = numpy.full(shape=(self.view_height*self.scale_value, self.view_width*self.scale_value, 3), fill_value=self.default_fill, dtype=numpy.uint8)
+        self.flip_canvas()
+
+    def __get_scale(self, value):
+        scaling = self.scale_mode
+        if self.scale_mode == self.SCALE_MASTER:
+            scaling = value
+        return scaling
+
+    def flip_canvas(self):
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.label.config(image=tk_img)
+        self.image = tk_img
+
+    def render_rgb(self, rgb_data):
+        rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.scale_value, axis=0), self.scale_value, axis=1)
+        self.pixel_data[:] = rgb_data
+
+
+class Main(Canvas):
+    def __init__(self, master):
+        super().__init__(master, master, view_width=master.zx.SCREEN_WIDTH_PIXELS, view_height=master.zx.SCREEN_HEIGHT_PIXELS)
+
+
+class Sidebar(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+
+        self.highlight = Highlight(master=self, zx_editor=master)
+        self.highlight.pack(fill=X, pady=0)
+
+        self.symbols = Symbols(self, zx_editor=master)
+        self.symbols.pack(fill=X, pady=0)
+
+
+class Highlight(Canvas):
+    def __init__(self, master, zx_editor):
+        super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=16)
+
+
+class Symbols(ttk.Frame):
+    NUM_COLUMNS = 8
+
+    def __init__(self, master, zx_editor):
+        super().__init__(master, style='bg.TFrame')
+        self.zx_editor = zx_editor
+
+        self.frame = ttk.Frame(self, padding=5)
+        self.frame.pack()
+        self.font_widgets = []
+        self.load_font('font_default.bin')
+
+
+    def configure_scale(self, value):
+        self.load_font('font_default.bin')
+
+
+    def load_font(self, path):
+        self.font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('foreground'), rgb_bg=self.__get_colour('background'))
+        
+        # Remove existing elements
+        for widget in self.font_widgets:
+            widget.destroy()
+        self.font_widgets = []
+
+        # Add new ones
+        grid_row = 0
+        grid_column = 0
+        for idx in range(self.font_data.get_glyph_count()):
+            widget = Glyph(self.frame, self.zx_editor, idx)
+            widget.render_rgb(self.font_data.get_offset_rgb(idx))
+            widget.flip_canvas()
+            widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
+
+            grid_column += 1
+            if grid_column == self.NUM_COLUMNS:
+                grid_column = 0
+                grid_row += 1
+            self.font_widgets.append(widget)
+    
+
+    def __get_colour(self, description):
+        return colorutils.color_to_rgb(self.zx_editor.master.style.lookup('TFrame', description))
+
+
+    def load_glyphs(self, path):
+        self.glyph_data = ZXGlyph.from_file(path)
+
+
+class Glyph(Canvas):
+    def __init__(self, master, zx_editor, glyph_idx):
+        super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=0, label_padx=0, label_pady=0)
+        self.glyph_idx = glyph_idx
+        self.label.bind('<Button-1>', self.mouse_clicked)
+        self.label.bind('<Enter>', self.mouse_hover)
+        self.label.bind('<Leave>', self.mouse_exit)
+
+    def mouse_clicked(self, event):
+        print('Clicked', self.glyph_idx)
+
+    def mouse_hover(self, event):
+        self.label.config(relief='raised')
+
+    def mouse_exit(self, event):
+        self.label.config(relief='flat')
+
+
+class Status(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, style='dark.TFrame')
         self.columnconfigure(2, weight=1)
@@ -146,178 +270,7 @@ class StatusBar(ttk.Frame):
         self.setvar('status-text', message)
 
 
-class CollapsingFrame(ttk.Frame):
-    """A collapsible frame widget that opens and closes with a click."""
-
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
-        self.columnconfigure(0, weight=1)
-        self.cumulative_rows = 0
-
-        # widget images
-        self.images = [
-            ttk.PhotoImage(file=PATH/'icons8_double_up_24px.png'),
-            ttk.PhotoImage(file=PATH/'icons8_double_right_24px.png')
-        ]
-
-    def add(self, child, title="", bootstyle=PRIMARY, **kwargs):
-        """Add a child to the collapsible frame
-
-        Parameters:
-
-            child (Frame):
-                The child frame to add to the widget.
-
-            title (str):
-                The title appearing on the collapsible section header.
-
-            bootstyle (str):
-                The style to apply to the collapsible section header.
-
-            **kwargs (Dict):
-                Other optional keyword arguments.
-        """
-        if child.winfo_class() != 'TFrame':
-            return
-        
-        style_color = Bootstyle.ttkstyle_widget_color(bootstyle)
-        frm = ttk.Frame(self, bootstyle=style_color)
-        frm.grid(row=self.cumulative_rows, column=0, sticky=EW)
-
-        # header title
-        header = ttk.Label(
-            master=frm,
-            text=title,
-            bootstyle=(style_color, INVERSE)
-        )
-        if kwargs.get('textvariable'):
-            header.configure(textvariable=kwargs.get('textvariable'))
-        header.pack(side=LEFT, fill=BOTH, padx=10)
-
-        # header toggle button
-        def _func(c=child): return self._toggle_open_close(c)
-        btn = ttk.Button(
-            master=frm,
-            image=self.images[0],
-            bootstyle=style_color,
-            command=_func
-        )
-        btn.pack(side=RIGHT)
-
-        # assign toggle button to child so that it can be toggled
-        child.btn = btn
-        child.grid(row=self.cumulative_rows + 1, column=0, sticky=NSEW)
-
-        # increment the row assignment
-        self.cumulative_rows += 2
-
-    def _toggle_open_close(self, child):
-        """Open or close the section and change the toggle button 
-        image accordingly.
-
-        Parameters:
-            
-            child (Frame):
-                The child element to add or remove from grid manager.
-        """
-        if child.winfo_viewable():
-            child.grid_remove()
-            child.btn.configure(image=self.images[1])
-        else:
-            child.grid()
-            child.btn.configure(image=self.images[0])
-
-
-class DisplayArea(ttk.Frame):
-    def __init__(self, master):
-        super().__init__(master)
-        self.default_fill = 0xc0
-        self.view_width = self.master.zx.SCREEN_WIDTH_PIXELS
-        self.view_height = self.master.zx.SCREEN_HEIGHT_PIXELS
-
-        self.label = ttk.Label(self)
-        self.label.pack(padx=5, pady=5)
-
-        self.configure_scale(self.master.scale)
-
-    def clear(self):
-        self.pixel_data[:] = self.default_fill
-
-    def configure_scale(self, value):
-        self.pixel_data = numpy.full(shape=(self.view_height*value, self.view_width*value, 3), fill_value=self.default_fill, dtype=numpy.uint8)
-        self.update()
-
-    def update(self):
-        # self.render_canvas()
-        pil_img = Image.fromarray(self.pixel_data)
-        tk_img = ImageTk.PhotoImage(pil_img)
-        self.label.config(image=tk_img)
-        self.image = tk_img
-
-class Sidebar(ttk.Frame):
-    def __init__(self, master):
-        super().__init__(master, style='bg.TFrame')
-
-
-class Highlight(CollapsingFrame):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
-        frame = ttk.Frame(self, padding=5)
-        frame.columnconfigure(1, weight=1)
-        self.add(
-            child=frame, 
-            title='Highlight', 
-            bootstyle=INFO
-        )
-
-        ## destination
-        lbl = ttk.Label(frame, text='Destination:')
-        lbl.grid(row=0, column=0, sticky=W, pady=2)
-        lbl = ttk.Label(frame, textvariable='destination')
-        lbl.grid(row=0, column=1, sticky=EW, padx=5, pady=2)
-        self.setvar('destination', 'd:/test/')
-
-        ## last run
-        lbl = ttk.Label(frame, text='Last Run:')
-        lbl.grid(row=1, column=0, sticky=W, pady=2)
-        lbl = ttk.Label(frame, textvariable='lastrun')
-        lbl.grid(row=1, column=1, sticky=EW, padx=5, pady=2)
-        self.setvar('lastrun', '14.06.2021 19:34:43')
-
-        ## files Identical
-        lbl = ttk.Label(frame, text='Files Identical:')
-        lbl.grid(row=2, column=0, sticky=W, pady=2)
-        lbl = ttk.Label(frame, textvariable='filesidentical')
-        lbl.grid(row=2, column=1, sticky=EW, padx=5, pady=2)
-        self.setvar('filesidentical', '15%')
-
-
-class Symbols(CollapsingFrame):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
-        frame = ttk.Frame(self, padding=10)
-        frame.columnconfigure(1, weight=1)
-        self.add(
-            child=frame, 
-            title='Symbols', 
-            bootstyle=INFO
-        )
-
-        btn = ttk.Button(
-            master=frame, 
-            text='Stop', 
-            compound=LEFT
-        )
-        btn.grid(row=0, column=0, columnspan=2, sticky=W)
-
-        lbl = ttk.Label(frame, text="Loaded:")
-        lbl.grid(row=1, column=0, sticky=W)
-        lbl = ttk.Label(frame, textvariable='symbols-count')
-        lbl.grid(row=1, column=1, sticky=W)
-        self.setvar('symbols-count', '33')
-
-
 if __name__ == '__main__':
-    app = ttk.Window("ZX Editor")
+    app = ttk.Window("ZX Editor", themename="darkly")
     ZXEditor(app)
     app.mainloop()
