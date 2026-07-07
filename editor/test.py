@@ -182,30 +182,36 @@ class Symbols(ttk.Frame):
         super().__init__(master, style='bg.TFrame')
         self.zx_editor = zx_editor
 
-        self.frame = ttk.Frame(self, padding=5)
-        self.frame.pack()
+        self.font_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
+        self.font_frame.pack()
         self.font_widgets = []
-        self.load_font('font_default.bin')
+        self.load_font('font_default.bin', self.font_frame, self.font_widgets)
+
+        self.glyph_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
+        self.glyph_frame.pack()
+        self.glyph_widgets = []
+        self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
 
 
     def configure_scale(self, value):
-        self.load_font('font_default.bin')
+        self.load_font('font_default.bin', self.font_frame, self.font_widgets)
+        self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
 
 
-    def load_font(self, path):
-        self.font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('foreground'), rgb_bg=self.__get_colour('background'))
+    def load_font(self, path, frame, widgets):
+        font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'))
         
         # Remove existing elements
-        for widget in self.font_widgets:
+        for widget in widgets:
             widget.destroy()
-        self.font_widgets = []
+        widgets.clear()
 
         # Add new ones
         grid_row = 0
         grid_column = 0
-        for idx in range(self.font_data.get_glyph_count()):
-            widget = Glyph(self.frame, self.zx_editor, idx)
-            widget.render_rgb(self.font_data.get_offset_rgb(idx))
+        for idx in range(font_data.get_glyph_count()):
+            widget = Glyph(frame, self.zx_editor, idx)
+            widget.render_rgb(font_data.get_offset_rgb(idx))
             widget.flip_canvas()
             widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
 
@@ -213,11 +219,11 @@ class Symbols(ttk.Frame):
             if grid_column == self.NUM_COLUMNS:
                 grid_column = 0
                 grid_row += 1
-            self.font_widgets.append(widget)
+            widgets.append(widget)
     
 
-    def __get_colour(self, description):
-        return colorutils.color_to_rgb(self.zx_editor.master.style.lookup('TFrame', description))
+    def __get_colour(self, color_label):
+        return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
 
 
     def load_glyphs(self, path):
@@ -271,6 +277,6 @@ class Status(ttk.Frame):
 
 
 if __name__ == '__main__':
-    app = ttk.Window("ZX Editor", themename="darkly")
+    app = ttk.Window("ZX Editor", themename="superhero")
     ZXEditor(app)
     app.mainloop()
