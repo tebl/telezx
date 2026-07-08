@@ -44,7 +44,7 @@ class ZXEditor(ttk.Frame):
 
     def set_scale(self, value):
         self.scale = value
-        self.sidebar.highlight.configure_scale(value)
+        # self.sidebar.highlight.configure_scale(value)
         self.sidebar.symbols.configure_scale(value)
         self.display.configure_scale(value)
 
@@ -163,16 +163,188 @@ class Sidebar(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
 
-        self.highlight = Highlight(master=self, zx_editor=master)
-        self.highlight.pack(fill=X, pady=0)
+        # self.highlight = Highlight(master=self, zx_editor=master)
+        # self.highlight.pack(fill=X, pady=0)
+
+        self.palette = Palette(master=self, zx_editor=master)
+        self.palette.pack(fill=X, pady=0)
 
         self.symbols = Symbols(self, zx_editor=master)
         self.symbols.pack(fill=X, pady=0)
 
 
-class Highlight(Canvas):
+class Palette(ttk.Frame):
     def __init__(self, master, zx_editor):
-        super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=16)
+        super().__init__(master, style='bg.TFrame')
+        self.zx_editor = zx_editor
+        self.is_bright = False
+        self.is_bright_var = ttk.BooleanVar(master=self, value=self.is_bright)
+        self.is_flash = False
+        self.is_flash_var = ttk.BooleanVar(master=self, value=self.is_flash)
+        self.is_sticky = False
+        self.is_sticky_var = ttk.BooleanVar(master=self, value=self.is_sticky)
+        self.current_ink = ZXScreen.WHITE
+        self.current_paper = ZXScreen.BLACK
+
+        lbl = ttk.Label(self, text="INK")
+        lbl.grid(row=0, column=0)
+        self.ink_widgets = []
+
+        frame = ttk.Frame(self)
+        frame.grid(row=1, column=0)
+        for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
+            widget = PaletteColour(frame, self.zx_editor, self, type=PaletteColour.TYPE_INK, colour=ink_value)
+            widget.grid(row=ink_value, column=0, padx=0, pady=0)
+            widget.refresh()
+            self.ink_widgets.append(widget)
+
+
+        lbl = ttk.Label(self, text="PAPER")
+        lbl.grid(row=0, column=1)
+        self.paper_widgets = []
+
+        frame = ttk.Frame(self, style="danger.TFrame")
+        frame.grid(row=1, column=1)
+        for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
+            widget = PaletteColour(frame, self.zx_editor, self, type=PaletteColour.TYPE_PAPER, colour=ink_value)
+            widget.grid(row=ink_value, column=0, padx=0, pady=0)
+            widget.refresh()
+            self.ink_widgets.append(widget)
+
+
+        # lbl = ttk.Label(self, text="Modifier")
+        # lbl.grid(row=0, column=2, sticky=N)
+
+        frame = ttk.Frame(self)
+        frame.grid(row=1, column=2, sticky=NSEW)
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Bright", 
+            bootstyle="square-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_bright_var,
+            command=lambda: self.changed_bright(self.is_bright_var.get()))
+        btn.grid(row=0, column=0, sticky=NW, padx=20)
+
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Flashing", 
+            bootstyle="square-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_flash_var,
+            command=lambda: self.changed_flash(self.is_flash_var.get()))
+        btn.grid(row=1, column=0, sticky=NW, padx=20)
+
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Keep attribute", 
+            bootstyle="danger-round-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_sticky_var,
+            command=lambda: self.changed_sticky(self.is_sticky_var.get()))
+        btn.grid(row=3, column=0, sticky=NW, padx=20)
+
+    def changed_bright(self, value):
+        self.is_bright = value
+        self.refresh()
+
+    def changed_flash(self, value):
+        self.is_flash = value
+        self.refresh()
+
+    def changed_sticky(self, value):
+        self.is_sticky = value
+        self.refresh()
+
+    def set_attribute(self, value):
+        parsed = ZXScreen.to_parsed_attribute(value)
+        self.is_bright = parsed['bright']
+        self.is_flash = parsed['flash']
+        self.current_ink = parsed['ink']
+        self.current_paper = parsed['paper']
+        self.refresh()
+
+    def set_ink(self, colour):
+        self.current_ink = colour
+        self.refresh()
+
+    def set_paper(self, colour):
+        self.current_paper = colour
+        self.refresh()
+
+    def refresh(self):
+        self.is_bright_var.set(self.is_bright)
+        self.is_flash_var.set(self.is_flash)
+        for widget in self.ink_widgets:
+            widget.refresh()
+        for widget in self.paper_widgets:
+            widget.refresh()
+
+
+class PaletteColour(Canvas):
+    TYPE_INK = 0
+    TYPE_PAPER = 1
+
+    def __init__(self, master, zx_editor, palette, type, colour):
+        super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=0, label_padx=0, label_pady=0)
+        self.palette = palette
+        self.type = type
+        self.colour = colour
+        self.label.bind('<Button-1>', self.mouse_clicked)
+
+    def mouse_clicked(self, event):
+        if self.type == self.TYPE_INK:
+            self.palette.set_ink(self.colour)
+        if self.type == self.TYPE_PAPER:
+            self.palette.set_paper(self.colour)
+
+    def refresh(self):
+        zx_fg = ZXScreen.colour_to_rgb(self.colour, self.palette.is_bright)
+        inactive = colorutils.color_to_rgb(self.zx_editor.master.style.colors.get('dark'))
+
+        rgb_data = numpy.full(shape=(8, 8, 3), fill_value=zx_fg, dtype=numpy.uint8)
+        rgb_data[1:7, 1:7] = inactive
+        if self.__check_active():
+            rgb_data[2:6, 2:6] = zx_fg
+
+        self.render_rgb(rgb_data)
+        self.flip_canvas()
+
+    def __check_active(self):
+        if self.type == self.TYPE_INK and self.palette.current_ink == self.colour:
+            return True
+        if self.type == self.TYPE_PAPER and self.palette.current_paper == self.colour:
+            return True
+        return False
+
+    
+
+class Highlight(ttk.Frame):
+    def __init__(self, master, zx_editor):
+        super().__init__(master, style='bg.TFrame')
+        self.zx_editor = zx_editor
+        self.pixel_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
+        self.pixel_frame.pack()
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.widgets = {}
+        for pixel_row in range(8):
+            for pixel_column in range(8):
+                widget = Glyph(self.pixel_frame, self.zx_editor, (pixel_column, pixel_row))
+                widget.grid(row=pixel_row, column=pixel_column, padx=0, pady=0)
+                widget.render_rgb(numpy.zeros(shape=(8, 8, 3), dtype=numpy.uint8))
+                widget.flip_canvas()
+                self.widgets[(pixel_row, pixel_column)] = widget
+
+    def configure_scale(self, value):
+        for pixel_row in range(8):
+            for pixel_column in range(8):
+                self.widgets[(pixel_row, pixel_column)].configure_scale(value)
 
 
 class Symbols(ttk.Frame):
@@ -224,10 +396,6 @@ class Symbols(ttk.Frame):
 
     def __get_colour(self, color_label):
         return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
-
-
-    def load_glyphs(self, path):
-        self.glyph_data = ZXGlyph.from_file(path)
 
 
 class Glyph(Canvas):
