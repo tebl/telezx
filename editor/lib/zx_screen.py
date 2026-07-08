@@ -67,12 +67,15 @@ class ZXScreen:
         self.memory[:] = numpy_array[:]
         print("flipped memory")
 
+    def get_attribute_at(self, pos_x, pos_y):
+        attr_idx = self.__get_attr_idx(pos_x, pos_y)
+        return self.memory[attr_idx]
 
     def to_rgb(self):
         pixels = numpy.zeros(shape=(self.SCREEN_HEIGHT_PIXELS, self.SCREEN_WIDTH_PIXELS, 3), dtype=numpy.uint8)
         for pos_x in range(self.SCREEN_WIDTH_CHARS):
             for pos_y in range(self.SCREEN_HEIGHT_CHARS):
-                attr_idx = self.SIZE_DATA + (self.SCREEN_WIDTH_CHARS*pos_y + pos_x)
+                attr_idx = self.__get_attr_idx(pos_x, pos_y)
                 attr_value = self.to_parsed_attribute(self.memory[attr_idx])
 
                 data_start = self.start_at[pos_x][pos_y]
@@ -85,6 +88,10 @@ class ZXScreen:
                             attr_value
                         )
         return pixels
+
+
+    def __get_attr_idx(self, pos_x, pos_y):
+        return self.SIZE_DATA + (self.SCREEN_WIDTH_CHARS*pos_y + pos_x)
 
 
     def __check_bits(self, value, bit_idx):
@@ -132,8 +139,8 @@ class ZXScreen:
     @classmethod
     def to_parsed_attribute(cls, attribute):
         return {
-            'flash': (attribute & cls.FLASH) == cls.FLASH,
-            'bright': (attribute & cls.BRIGHT) == cls.BRIGHT,
+            'flash': bool((attribute & cls.FLASH) == cls.FLASH),
+            'bright': bool((attribute & cls.BRIGHT) == cls.BRIGHT),
             'paper': (attribute & 0b00111000) >> 3,
             'ink': attribute & 0b00000111
         }

@@ -20,7 +20,8 @@ class ZXEditor(ttk.Frame):
         self.__load_assets()
 
         self.scale = 3
-        self.zx = ZXScreen()
+        self.zx_screen = ZXScreen()
+        self.zx_screen.flip_memory(numpy.fromfile("test.scr", dtype='uint8'))
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
 
@@ -156,7 +157,27 @@ class Canvas(ttk.Frame):
 
 class Main(Canvas):
     def __init__(self, master):
-        super().__init__(master, master, view_width=master.zx.SCREEN_WIDTH_PIXELS, view_height=master.zx.SCREEN_HEIGHT_PIXELS)
+        super().__init__(master, zx_editor=master, view_width=master.zx_screen.SCREEN_WIDTH_PIXELS, view_height=master.zx_screen.SCREEN_HEIGHT_PIXELS)
+        self.label.bind('<Motion>', self.mouse_moved)
+        self.label.bind('<Button-1>', self.mouse_clicked)
+
+    def flip_canvas(self):
+        self.render_rgb(self.master.zx_screen.to_rgb())
+        print(self.pixel_data.shape)
+        return super().flip_canvas()
+
+    def mouse_moved(self, event):
+        pass
+
+    def mouse_clicked(self, event):
+        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+            char_x = (event.x // self.zx_editor.scale) // 8
+            char_y = (event.y // self.zx_editor.scale) // 8
+            attr = self.zx_editor.zx_screen.get_attribute_at(char_x, char_y)
+            print(char_x, char_y, attr)
+            self.zx_editor.sidebar.palette.set_attribute(attr)
+            # self.editor.highlight.set_region(self, char_x, char_y)
+            # self.update_view(auto_refresh=False)
 
 
 class Sidebar(ttk.Frame):
