@@ -188,7 +188,7 @@ class Main(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
         self.zx_editor = master
-        self.default_fill = 0
+        self.default_fill = colorutils.color_to_rgb(master.master.style.colors.get('bg'))
         self.grid_colour = colorutils.color_to_rgb(master.master.style.colors.get('dark'))
         self.label = ttk.Label(self)
         self.label.pack(padx=5, pady=5)
@@ -206,14 +206,14 @@ class Main(ttk.Frame):
 
     def __get_canvas_width(self):
         num_pixels = ZXScreen.SCREEN_WIDTH_CHARS*8*self.zx_editor.scale
-        if self.zx_editor.is_grid_enabled:
-            num_pixels += ZXScreen.SCREEN_WIDTH_CHARS+1
+        # if self.zx_editor.is_grid_enabled:
+        num_pixels += ZXScreen.SCREEN_WIDTH_CHARS+1
         return num_pixels
 
     def __get_canvas_height(self):
         num_pixels = ZXScreen.SCREEN_HEIGHT_CHARS*8*self.zx_editor.scale
-        if self.zx_editor.is_grid_enabled:
-            num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
+        # if self.zx_editor.is_grid_enabled:
+        num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
         return num_pixels
 
     def configure_scale(self, scale_value):
@@ -255,6 +255,8 @@ class Main(ttk.Frame):
         if self.zx_editor.is_grid_enabled:
             x += pos_x + 1
             y += pos_y + 1
+        else:
+            x += ZXScreen.SCREEN_WIDTH_CHARS // 2
         return (x, y, cell_size)
 
     def __get_cursor_from(self, pos_x, pos_y):
@@ -263,7 +265,7 @@ class Main(ttk.Frame):
             char_x = ((pos_x - 1) // (cell_size + 1)) if pos_x >= 1 else 0
             char_y = ((pos_y - 1) // (cell_size + 1)) if pos_y >= 1 else 0
             return (char_x, char_y)
-        char_x = (pos_x // cell_size)
+        char_x = ((pos_x - (ZXScreen.SCREEN_WIDTH_CHARS // 2)) // cell_size)
         char_y = (pos_y // cell_size)
         return (char_x, char_y)
 
