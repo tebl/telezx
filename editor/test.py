@@ -33,14 +33,20 @@ class ZXEditor(ttk.Frame):
         self.sidebar = Sidebar(self)
         self.sidebar.grid(row=1, column=1, sticky=NE)
 
-        self.display = Main(self)
-        self.display.grid(row=1, column=0, sticky=NW)
+        self.main = Main(self)
+        self.main.grid(row=1, column=0, sticky=NW)
 
         self.status = Status(self)
         self.status.grid(row=3, column=0, columnspan=3, sticky=EW)
 
+    def toggle_grid_enabled(self):
+        self.is_grid_enabled = (not self.is_grid_enabled)
+        print(self.is_grid_enabled)
+        self.main.configure_scale(self.scale)
+
     def changed_grid_enabled(self, value):
-        print("changed_grid: ", value)
+        self.is_grid_enabled = value
+        self.main.configure_scale(self.scale)
 
     def clicked_new(self):
         print("Clear")
@@ -51,8 +57,11 @@ class ZXEditor(ttk.Frame):
     def set_scale(self, value):
         self.scale = value
         # self.sidebar.highlight.configure_scale(value)
-        self.sidebar.symbols.configure_scale(value)
-        self.display.configure_scale(value)
+        # self.sidebar.symbols.configure_scale(value)
+        self.main.configure_scale(value)
+
+    def refresh(self):
+        self.main.refresh()
 
     def __load_assets(self):
         image_files = {
@@ -79,6 +88,7 @@ class ZXEditor(ttk.Frame):
 class Menu(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, style='primary.TFrame')
+        self.zx_editor = master
 
         ## New...
         btn = ttk.Button(
@@ -111,6 +121,16 @@ class Menu(ttk.Frame):
             menu=scale_options
         )
         self.scale.grid(row=0, column=2)
+
+        ## Enable display grid
+        btn = ttk.Button(
+            master=self, 
+            text='Grid', 
+            image='opened-folder', 
+            compound=LEFT, 
+            command=self.zx_editor.toggle_grid_enabled
+        )
+        btn.grid(row=0, column=3)
 
     def set_scale(self, value):
         self.scale.config(text=f'{value}x')
@@ -160,20 +180,20 @@ class Canvas(ttk.Frame):
         self.pixel_data[:] = rgb_data
 
 
-class Main(Canvas):
+class Main(ttk.Frame):
     REFRESH_EVERYTHING = 0
     REFRESH_SCREEN = 1
     REFRESH_GRID = 2
 
     def __init__(self, master):
-        self.grid_enabled = True
-        # self.grid_colour = 0
+        super().__init__(master)
+        self.zx_editor = master
+        self.default_fill = 0
         self.grid_colour = colorutils.color_to_rgb(master.master.style.colors.get('dark'))
+        self.label = ttk.Label(self)
+        self.label.pack(padx=5, pady=5)
 
-        self.cursor_x = 0
-        self.cursor_y = 0
-        super().__init__(master, zx_editor=master, view_width=master.zx_screen.SCREEN_WIDTH_PIXELS, view_height=master.zx_screen.SCREEN_HEIGHT_PIXELS)
-        self.zx_screen = master.zx_screen
+        self.configure_scale(self.zx_editor.scale)
         self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
 
@@ -181,19 +201,18 @@ class Main(Canvas):
         self.pixel_data[:] = self.default_fill
 
     def create(self):
-        self.scale_value = self.get_scale(self.zx_editor.scale)
-        colour = self.grid_colour if self.grid_enabled else self.default_fill
+        colour = self.grid_colour if self.zx_editor.is_grid_enabled else self.default_fill
         self.pixel_data = numpy.full(shape=(self.__get_canvas_height(), self.__get_canvas_width(), 3), fill_value=colour, dtype=numpy.uint8)
 
     def __get_canvas_width(self):
-        num_pixels = ZXScreen.SCREEN_WIDTH_CHARS*8*self.scale_value
-        if self.grid_enabled:
+        num_pixels = ZXScreen.SCREEN_WIDTH_CHARS*8*self.zx_editor.scale
+        if self.zx_editor.is_grid_enabled:
             num_pixels += ZXScreen.SCREEN_WIDTH_CHARS+1
         return num_pixels
 
     def __get_canvas_height(self):
-        num_pixels = ZXScreen.SCREEN_HEIGHT_CHARS*8*self.scale_value
-        if self.grid_enabled:
+        num_pixels = ZXScreen.SCREEN_HEIGHT_CHARS*8*self.zx_editor.scale
+        if self.zx_editor.is_grid_enabled:
             num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
         return num_pixels
 
@@ -201,11 +220,17 @@ class Main(Canvas):
         self.create()
         self.refresh()
 
+    def flip_canvas(self):
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.label.config(image=tk_img)
+        self.image = tk_img
+
     def refresh(self):
-        if self.grid_enabled:
+        if self.zx_editor.is_grid_enabled:
             self.pixel_data[:] = self.grid_colour
         rgb_data = self.master.zx_screen.to_rgb()
-        rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.scale_value, axis=0), self.scale_value, axis=1)
+        rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for pos_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for pos_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__refresh_cell(pos_x, pos_y, rgb_data)
@@ -218,23 +243,23 @@ class Main(Canvas):
         self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = rgb_data[rgb_y:rgb_y+rgb_size, rgb_x:rgb_x+rgb_size]
 
     def __get_screen_position(self, pos_x, pos_y):
-        cell_size = 8*self.scale_value
+        cell_size = 8*self.zx_editor.scale
         x = pos_x*cell_size
         y = pos_y*cell_size
         return (x, y, cell_size)
 
     def __get_canvas_position(self, pos_x, pos_y):
-        cell_size = 8*self.scale_value
+        cell_size = 8*self.zx_editor.scale
         x = pos_x*cell_size
         y = pos_y*cell_size
-        if self.grid_enabled:
+        if self.zx_editor.is_grid_enabled:
             x += pos_x + 1
             y += pos_y + 1
         return (x, y, cell_size)
 
     def __get_cursor_from(self, pos_x, pos_y):
-        cell_size = 8*self.scale_value
-        if self.grid_enabled:
+        cell_size = 8*self.zx_editor.scale
+        if self.zx_editor.is_grid_enabled:
             char_x = ((pos_x - 1) // (cell_size + 1)) if pos_x >= 1 else 0
             char_y = ((pos_y - 1) // (cell_size + 1)) if pos_y >= 1 else 0
             return (char_x, char_y)
@@ -281,7 +306,6 @@ class Palette(ttk.Frame):
         self.is_flash_var = ttk.BooleanVar(master=self, value=self.is_flash)
         self.is_sticky = False
         self.is_sticky_var = ttk.BooleanVar(master=self, value=self.is_sticky)
-        # self.is_grid_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.grid_enabled)
         self.current_ink = ZXScreen.WHITE
         self.current_paper = ZXScreen.BLACK
 
@@ -345,17 +369,6 @@ class Palette(ttk.Frame):
             variable=self.is_sticky_var,
             command=lambda: self.changed_sticky(self.is_sticky_var.get()))
         btn.grid(row=5, column=0, sticky=NW, padx=20, pady=(10, 0))
-
-        var = ttk.BooleanVar(master=self, value=self.zx_editor.is_grid_enabled)
-        btn = ttk.Checkbutton(
-            frame, 
-            text="Render grid", 
-            bootstyle="danger-round-toggle",
-            onvalue=True,
-            offvalue=False,
-            variable=var,
-            command=lambda: self.zx_editor.changed_grid_enabled(var.get()))
-        btn.grid(row=6, column=0, sticky=NW, padx=20)
 
     def changed_bright(self, value):
         self.is_bright = value
