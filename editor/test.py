@@ -115,6 +115,7 @@ class Menu(ttk.Frame):
         scale_options.add_radiobutton(label="1x", command=lambda: self.set_scale(1))
         scale_options.add_radiobutton(label="2x", command=lambda: self.set_scale(2))
         scale_options.add_radiobutton(label="3x", command=lambda: self.set_scale(3))
+        scale_options.add_radiobutton(label="4x", command=lambda: self.set_scale(4))
         self.scale = ttk.Menubutton(
             master=self,
             text="Set scale",
@@ -181,18 +182,19 @@ class Canvas(ttk.Frame):
 
 
 class Main(ttk.Frame):
-    REFRESH_EVERYTHING = 0
-    REFRESH_SCREEN = 1
-    REFRESH_GRID = 2
+    NOGRID_Y_OFFSET = 2
 
     def __init__(self, master):
         super().__init__(master)
         self.zx_editor = master
         self.default_fill = colorutils.color_to_rgb(master.master.style.colors.get('bg'))
         self.grid_colour = colorutils.color_to_rgb(master.master.style.colors.get('dark'))
-        self.highlight_colour = colorutils.color_to_rgb(master.master.style.colors.get('light'))
+        self.highlight_colour = colorutils.color_to_rgb(master.master.style.colors.get('danger'))
+        self.cursor_x = -1
+        self.cursor_y = -1
         self.label = ttk.Label(self)
         self.label.pack(padx=5, pady=5)
+
 
         self.configure_scale(self.zx_editor.scale)
         self.label.bind('<Motion>', self.mouse_moved)
@@ -226,24 +228,37 @@ class Main(ttk.Frame):
         self.image = tk_img
 
     def refresh(self):
-        if self.zx_editor.is_grid_enabled:
-            self.pixel_data[:] = self.grid_colour
+        self.pixel_data[:] = self.grid_colour if self.zx_editor.is_grid_enabled else self.default_fill
+
         rgb_data = self.master.zx_screen.to_rgb()
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__refresh_cell(char_x, char_y, rgb_data)
-        self.__highlight_cell(self.cursor_x, self.cursor_y)
+        self.__highlight_cell(self.cursor_x, self.cursor_y, self.highlight_colour)
         self.flip_canvas()
-
-    def __highlight_cell(self, char_x, char_y):
-        pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
-        self.pixel_data[pix_y-1:pix_y+pix_size+1, pix_x-1:pix_x+pix_size+1] = self.highlight_colour
 
     def __refresh_cell(self, char_x, char_y, rgb_data):
         pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
         rgb_x, rgb_y, rgb_size = self.__get_screen_position(char_x, char_y)
         self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = rgb_data[rgb_y:rgb_y+rgb_size, rgb_x:rgb_x+rgb_size]
+
+    def __highlight_cell(self, char_x, char_y, colour):
+        if char_x == -1 or char_y == -1:
+            return
+        pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
+        self.pixel_data[pix_y-1, pix_x-1:pix_x+pix_size+1] = colour
+        self.pixel_data[pix_y+pix_size, pix_x-1:pix_x+pix_size+1] = colour
+        self.pixel_data[pix_y-1:pix_y+pix_size, pix_x-1] = colour
+        self.pixel_data[pix_y-1:pix_y+pix_size, pix_x+pix_size] = colour
+
+        # average RGB 
+        fill = numpy.full(shape=(pix_size, pix_size, 3), fill_value=colour, dtype=numpy.uint8)
+        self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = numpy.mean(numpy.array([self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size], fill]), axis=0)
+
+        # darken contents
+        # self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] >> 1
+
 
     def __get_screen_position(self, char_x, char_y):
         cell_size = 8*self.zx_editor.scale
@@ -265,6 +280,7 @@ class Main(ttk.Frame):
             y += char_y + 1
         else:
             x += ZXScreen.SCREEN_WIDTH_CHARS // 2
+            y+= self.NOGRID_Y_OFFSET
         return (x, y, cell_size)
 
     def __get_cursor_from(self, pos_x, pos_y):
@@ -276,23 +292,33 @@ class Main(ttk.Frame):
             char_x = ((pos_x - 1) // (cell_size + 1)) if pos_x >= 1 else 0
             char_y = ((pos_y - 1) // (cell_size + 1)) if pos_y >= 1 else 0
             return (char_x, char_y)
+
         char_x = ((pos_x - (ZXScreen.SCREEN_WIDTH_CHARS // 2)) // cell_size)
-        char_y = (pos_y // cell_size)
+        if char_x < 0 or char_x >= ZXScreen.SCREEN_WIDTH_CHARS:
+            char_x = -1
+
+        char_y = ((pos_y - self.NOGRID_Y_OFFSET) // cell_size)
+        if char_y < 0 or char_y >= ZXScreen.SCREEN_HEIGHT_CHARS:
+            char_y = -1
         return (char_x, char_y)
 
     def mouse_moved(self, event):
         # if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
         #     char_x, char_y = self.__get_cursor_from(event.x, event.y)
-        #     print(char_x, char_y)
+        #     self.__highlight_cell(char_x, char_y, self.HIGHLIGHT_ACTIVE)
+        #     self.refresh()
         pass
 
     def mouse_clicked(self, event):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-            self.cursor_x, self.cursor_y = self.__get_cursor_from(event.x, event.y)
-            attr = self.zx_editor.zx_screen.get_attribute_at(self.cursor_x, self.cursor_y)
-            # print(char_x, char_y, attr)
-            self.zx_editor.sidebar.palette.set_attribute(attr)
-            self.refresh()
+            new_x, new_y = self.__get_cursor_from(event.x, event.y)
+            if new_x >= 0 and new_y >= 0:
+                self.cursor_x = new_x
+                self.cursor_y = new_y
+                print(self.cursor_x, self.cursor_y)
+                attr = self.zx_editor.zx_screen.get_attribute_at(self.cursor_x, self.cursor_y)
+                self.zx_editor.sidebar.palette.set_attribute(attr)
+                self.refresh()
 
 
 class Sidebar(ttk.Frame):
