@@ -190,6 +190,7 @@ class Main(ttk.Frame):
         self.zx_editor = master
         self.default_fill = colorutils.color_to_rgb(master.master.style.colors.get('bg'))
         self.grid_colour = colorutils.color_to_rgb(master.master.style.colors.get('dark'))
+        self.highlight_colour = colorutils.color_to_rgb(master.master.style.colors.get('light'))
         self.label = ttk.Label(self)
         self.label.pack(padx=5, pady=5)
 
@@ -206,13 +207,11 @@ class Main(ttk.Frame):
 
     def __get_canvas_width(self):
         num_pixels = ZXScreen.SCREEN_WIDTH_CHARS*8*self.zx_editor.scale
-        # if self.zx_editor.is_grid_enabled:
         num_pixels += ZXScreen.SCREEN_WIDTH_CHARS+1
         return num_pixels
 
     def __get_canvas_height(self):
         num_pixels = ZXScreen.SCREEN_HEIGHT_CHARS*8*self.zx_editor.scale
-        # if self.zx_editor.is_grid_enabled:
         num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
         return num_pixels
 
@@ -231,35 +230,47 @@ class Main(ttk.Frame):
             self.pixel_data[:] = self.grid_colour
         rgb_data = self.master.zx_screen.to_rgb()
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
-        for pos_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
-            for pos_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                self.__refresh_cell(pos_x, pos_y, rgb_data)
-        
+        for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
+            for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
+                self.__refresh_cell(char_x, char_y, rgb_data)
+        self.__highlight_cell(self.cursor_x, self.cursor_y)
         self.flip_canvas()
 
-    def __refresh_cell(self, pos_x, pos_y, rgb_data):
-        pix_x, pix_y, pix_size = self.__get_canvas_position(pos_x, pos_y)
-        rgb_x, rgb_y, rgb_size = self.__get_screen_position(pos_x, pos_y)
+    def __highlight_cell(self, char_x, char_y):
+        pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
+        self.pixel_data[pix_y-1:pix_y+pix_size+1, pix_x-1:pix_x+pix_size+1] = self.highlight_colour
+
+    def __refresh_cell(self, char_x, char_y, rgb_data):
+        pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
+        rgb_x, rgb_y, rgb_size = self.__get_screen_position(char_x, char_y)
         self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = rgb_data[rgb_y:rgb_y+rgb_size, rgb_x:rgb_x+rgb_size]
 
-    def __get_screen_position(self, pos_x, pos_y):
+    def __get_screen_position(self, char_x, char_y):
         cell_size = 8*self.zx_editor.scale
-        x = pos_x*cell_size
-        y = pos_y*cell_size
+        x = char_x*cell_size
+        y = char_y*cell_size
         return (x, y, cell_size)
 
-    def __get_canvas_position(self, pos_x, pos_y):
+    def __get_canvas_position(self, char_x, char_y):
+        '''
+        Translate from cursor location to pixel ranges within the displayed canvas,
+        adjusted for whether a 1px wide grid is enabled. If not enabled then we
+        will instead try to center image within canvas.
+        '''
         cell_size = 8*self.zx_editor.scale
-        x = pos_x*cell_size
-        y = pos_y*cell_size
+        x = char_x*cell_size
+        y = char_y*cell_size
         if self.zx_editor.is_grid_enabled:
-            x += pos_x + 1
-            y += pos_y + 1
+            x += char_x + 1
+            y += char_y + 1
         else:
             x += ZXScreen.SCREEN_WIDTH_CHARS // 2
         return (x, y, cell_size)
 
     def __get_cursor_from(self, pos_x, pos_y):
+        '''
+        Translates a pixel location within the displayed canvas to cursor location.
+        '''
         cell_size = 8*self.zx_editor.scale
         if self.zx_editor.is_grid_enabled:
             char_x = ((pos_x - 1) // (cell_size + 1)) if pos_x >= 1 else 0
