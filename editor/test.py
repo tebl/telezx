@@ -1,15 +1,13 @@
-from datetime import datetime
-from random import choices
 import ttkbootstrap as ttk
-from ttkbootstrap.style import Bootstyle
-from tkinter.filedialog import askdirectory
+# from ttkbootstrap.style import Bootstyle
+from tkinter import filedialog
 from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.constants import *
 from ttkbootstrap import colorutils
 from pathlib import Path
 import numpy
 
-from lib import ZXScreen, ZXFont, ZXGlyph
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXDocument
 from PIL import Image, ImageTk
 
 
@@ -21,9 +19,13 @@ class ZXEditor(ttk.Frame):
 
         self.scale = 3
         self.is_grid_enabled = True
+        self.cursor_x = 0
+        self.cursor_y = 0
 
         self.zx_screen = ZXScreen()
-        self.zx_screen.flip_memory(numpy.fromfile("test.scr", dtype='uint8'))
+        self.zx_document_path = None
+        self.zx_document = ZXDocument(self.zx_screen)
+
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
 
@@ -48,34 +50,90 @@ class ZXEditor(ttk.Frame):
         self.is_grid_enabled = value
         self.main.configure_scale(self.scale)
 
-    def clicked_new(self):
-        print("Clear")
+    def clicked_background(self):
+        try:
+            filename = filedialog.askopenfilename(parent=self, title='Set background', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
+            if filename:
+                self.zx_document.set_background(filename)
+                self.refresh()
+                self.set_status(f'Background loaded: {filename}')
+        except Exception as e:
+            Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
 
-    def clicked_scr(self):
-        print("Open SCR")
+    def clicked_new(self):
+        if self.zx_document.changes:
+            if self.__allow_discard() == 'OK':
+                self.zx_document_path = None
+                self.zx_document.clear()
+        else:
+            # just in case I mess things up
+            self.zx_document_path = None
+            self.zx_document.clear()
+        self.refresh()
+        self.set_status(f'New document')
+
+
+    def __allow_discard(self):
+        return Messagebox.okcancel(parent=self, title='New document', message='Document has unsaved changes, do you want to discard these?')
+
+    def clicked_open(self):
+        try:
+            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], multiple=False)
+            if filename:
+                if not self.zx_document.changes or self.__allow_discard() == 'OK':
+                    self.zx_document.load(filename)
+                    self.zx_document_path = filename
+        except Exception as e:
+            Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
+        self.refresh()
+        self.set_status(f'Document loaded: {self.zx_document_path}')
+
+    def clicked_save(self):
+        if not self.zx_document_path:
+            try:
+                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], defaultextension='.telezx', confirmoverwrite=True)
+                if not filename:
+                    return
+                self.zx_document_path = filename
+            except Exception as e:
+                Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
+        self.zx_document.save_as(self.zx_document_path)
+        self.set_status(f'Document saved: {self.zx_document_path}')
+
+    def move_cursor(self, char_x, char_y):
+        self.cursor_x = char_x
+        self.cursor_y = char_y
+
+        self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
+        self.status.notify_cursor_changed(self.cursor_x, self.cursor_y)
+
+    def move_cursor_up(self):
+        if self.cursor_y > 0:
+            self.move_cursor(self.cursor_x, self.cursor_y - 1)
+
+    def move_cursor_down(self):
+        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
+            self.move_cursor(self.cursor_x, self.cursor_y + 1)
 
     def set_scale(self, value):
         self.scale = value
-        # self.sidebar.highlight.configure_scale(value)
-        # self.sidebar.symbols.configure_scale(value)
         self.main.configure_scale(value)
+        self.set_status(f'Scale set to {self.scale}x')
+
+    def set_status(self, message):
+        self.status.set_status(message)
 
     def refresh(self):
         self.main.refresh()
 
     def __load_assets(self):
         image_files = {
-            'new-dark': 'icons8_add_folder_24px.png',
-            'new-light': 'icons8_add_book_24px.png',
-
-            'settings-dark': 'icons8_settings_24px.png',
-            'settings-light': 'icons8_settings_24px_2.png',
-            'stop-backup-dark': 'icons8_cancel_24px.png',
-            'stop-backup-light': 'icons8_cancel_24px_1.png',
-            'stop-dark': 'icons8_stop_24px.png',
-            'stop-light': 'icons8_stop_24px_1.png',
-            'opened-folder': 'icons8_opened_folder_24px.png',
-            'open': 'icons8_folder_24px.png'
+            'new-project': 'zx-new.png',
+            'open-project': 'zx-open.png',
+            'save-project': 'zx-save.png',
+            'set-background': 'zx-background.png',
+            'set-scale': 'zx-scale.png',
+            'grid-enabled': 'zx-grid.png'
         }
 
         self.photoimages = []
@@ -94,21 +152,41 @@ class Menu(ttk.Frame):
         btn = ttk.Button(
             master=self,
             text='New...',
-            image='new-light', 
+            image='new-project', 
             compound=LEFT, 
             command=self.master.clicked_new
         )
         btn.grid(row=0, column=0)
 
+        ## Open...
+        btn = ttk.Button(
+            master=self,
+            text='Open',
+            image='open-project', 
+            compound=LEFT, 
+            command=self.master.clicked_open
+        )
+        btn.grid(row=0, column=1)
+
+        ## Save
+        btn = ttk.Button(
+            master=self,
+            text='Save',
+            image='save-project', 
+            compound=LEFT, 
+            command=self.master.clicked_save
+        )
+        btn.grid(row=0, column=2)
+
         ## Open SCR...
         btn = ttk.Button(
             master=self, 
-            text='Open SCR', 
-            image='opened-folder', 
+            text='Background', 
+            image='set-background', 
             compound=LEFT, 
-            command=self.master.clicked_scr
+            command=self.master.clicked_background
         )
-        btn.grid(row=0, column=1)
+        btn.grid(row=0, column=3)
 
         ## configure scale
         scale_options = ttk.Menu(self)
@@ -119,19 +197,21 @@ class Menu(ttk.Frame):
         self.scale = ttk.Menubutton(
             master=self,
             text="Set scale",
+            image='set-scale',
+            compound=LEFT,
             menu=scale_options
         )
-        self.scale.grid(row=0, column=2)
+        self.scale.grid(row=0, column=4)
 
         ## Enable display grid
         btn = ttk.Button(
             master=self, 
             text='Grid', 
-            image='opened-folder', 
+            image='grid-enabled', 
             compound=LEFT, 
             command=self.zx_editor.toggle_grid_enabled
         )
-        btn.grid(row=0, column=3)
+        btn.grid(row=0, column=5)
 
     def set_scale(self, value):
         self.scale.config(text=f'{value}x')
@@ -190,8 +270,6 @@ class Main(ttk.Frame):
         self.default_fill = colorutils.color_to_rgb(master.master.style.colors.get('bg'))
         self.grid_colour = colorutils.color_to_rgb(master.master.style.colors.get('dark'))
         self.highlight_colour = colorutils.color_to_rgb(master.master.style.colors.get('danger'))
-        self.cursor_x = -1
-        self.cursor_y = -1
         self.label = ttk.Label(self)
         self.label.pack(padx=5, pady=5)
 
@@ -204,8 +282,13 @@ class Main(ttk.Frame):
         self.pixel_data[:] = self.default_fill
 
     def create(self):
-        colour = self.grid_colour if self.zx_editor.is_grid_enabled else self.default_fill
+        colour = self.__get_fill_colour()
         self.pixel_data = numpy.full(shape=(self.__get_canvas_height(), self.__get_canvas_width(), 3), fill_value=colour, dtype=numpy.uint8)
+
+    def __get_fill_colour(self):
+        if self.zx_editor.is_grid_enabled:
+            return self.grid_colour
+        return self.default_fill
 
     def __get_canvas_width(self):
         num_pixels = ZXScreen.SCREEN_WIDTH_CHARS*8*self.zx_editor.scale
@@ -228,14 +311,14 @@ class Main(ttk.Frame):
         self.image = tk_img
 
     def refresh(self):
-        self.pixel_data[:] = self.grid_colour if self.zx_editor.is_grid_enabled else self.default_fill
+        self.pixel_data[:] = self.__get_fill_colour()
 
         rgb_data = self.master.zx_screen.to_rgb()
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__refresh_cell(char_x, char_y, rgb_data)
-        self.__highlight_cell(self.cursor_x, self.cursor_y, self.highlight_colour)
+        self.__highlight_cell(self.zx_editor.cursor_x, self.zx_editor.cursor_y, self.highlight_colour)
         self.flip_canvas()
 
     def __refresh_cell(self, char_x, char_y, rgb_data):
@@ -311,15 +394,14 @@ class Main(ttk.Frame):
 
     def mouse_clicked(self, event):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-            new_x, new_y = self.__get_cursor_from(event.x, event.y)
-            if new_x >= 0 and new_y >= 0:
-                self.cursor_x = new_x
-                self.cursor_y = new_y
-                print(self.cursor_x, self.cursor_y)
-                attr = self.zx_editor.zx_screen.get_attribute_at(self.cursor_x, self.cursor_y)
-                self.zx_editor.sidebar.palette.set_attribute(attr)
-                self.refresh()
+            cursor_x, cursor_y = self.__get_cursor_from(event.x, event.y)
+            if cursor_x >= 0 and cursor_y >= 0:
+                self.zx_editor.move_cursor(cursor_x, cursor_y)
 
+    def notify_cursor_changed(self, cursor_x, cursor_y):
+        attr = self.zx_editor.zx_screen.get_attribute_at(cursor_x, cursor_y)
+        self.zx_editor.sidebar.palette.set_attribute(attr)
+        self.refresh()
 
 class Sidebar(ttk.Frame):
     def __init__(self, master):
@@ -583,30 +665,33 @@ class Status(ttk.Frame):
         super().__init__(master, style='dark.TFrame')
         self.columnconfigure(2, weight=1)
 
-        self.position = ttk.Label(
-            master=self,
-            textvariable='status-position',
-            bootstyle="inverse-dark"
-        )
-        self.position.grid(row=0, column=0)
-        self.set_position(0, 0)
-
         self.status = ttk.Label(
             master=self,
             textvariable='status-text',
             bootstyle="inverse-dark"
         )
-        self.status.grid(row=0, column=1)
+        self.status.grid(row=0, column=0)
         self.set_status('')
 
-    def set_position(self, pos_x, pos_y):
-        self.setvar('status-position', f'Cursor: ({pos_x},{pos_y})')
+        self.position = ttk.Label(
+            master=self,
+            textvariable='status-position',
+            bootstyle="inverse-dark"
+        )
+        self.position.grid(row=0, column=3)
 
     def set_status(self, message=''):
         self.setvar('status-text', message)
 
+    def notify_cursor_changed(self, cursor_x, cursor_y):
+        self.setvar(
+            'status-position', 
+            'Cursor: ({},{})'.format(
+                str(cursor_x).rjust(2, '0'), 
+                str(cursor_y).rjust(2, '0')))
+
 
 if __name__ == '__main__':
-    app = ttk.Window("ZX Editor", themename="superhero")
+    app = ttk.Window("ZX Editor", themename="darkly")
     ZXEditor(app)
     app.mainloop()
