@@ -23,7 +23,6 @@ class ZXEditor(ttk.Frame):
         self.cursor_y = 0
 
         self.zx_screen = ZXScreen()
-        self.zx_document_path = None
         self.zx_document = ZXDocument(self.zx_screen)
 
         self.rowconfigure(2, weight=1)
@@ -41,14 +40,16 @@ class ZXEditor(ttk.Frame):
         self.status = Status(self)
         self.status.grid(row=3, column=0, columnspan=3, sticky=EW)
 
+        self.__load_font()
+        self.__load_glyph()
+
     def toggle_grid_enabled(self):
         self.is_grid_enabled = (not self.is_grid_enabled)
-        print(self.is_grid_enabled)
-        self.main.configure_scale(self.scale)
+        self.main.notify_grid_changed(self.is_grid_enabled)
 
     def changed_grid_enabled(self, value):
         self.is_grid_enabled = value
-        self.main.configure_scale(self.scale)
+        self.main.notify_grid_changed(self.is_grid_enabled)
 
     def clicked_background(self):
         try:
@@ -61,17 +62,14 @@ class ZXEditor(ttk.Frame):
             Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
 
     def clicked_new(self):
-        if self.zx_document.changes:
-            if self.__allow_discard() == 'OK':
-                self.zx_document_path = None
-                self.zx_document.clear()
-        else:
-            # just in case I mess things up
-            self.zx_document_path = None
-            self.zx_document.clear()
+        if self.zx_document.has_changes():
+            if self.__allow_discard() != 'OK':
+                return
+        self.zx_document.clear()
+        self.__load_font()
+        self.__load_glyph()
         self.refresh()
         self.set_status(f'New document')
-
 
     def __allow_discard(self):
         return Messagebox.okcancel(parent=self, title='New document', message='Document has unsaved changes, do you want to discard these?')
@@ -80,25 +78,32 @@ class ZXEditor(ttk.Frame):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], multiple=False)
             if filename:
-                if not self.zx_document.changes or self.__allow_discard() == 'OK':
+                if not self.zx_document.has_changes() or self.__allow_discard() == 'OK':
                     self.zx_document.load(filename)
-                    self.zx_document_path = filename
+                    self.__load_font()
+                    self.__load_glyph()
         except Exception as e:
             Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
         self.refresh()
-        self.set_status(f'Document loaded: {self.zx_document_path}')
+        self.set_status(f'Document loaded: {self.zx_document.document_path}')
 
     def clicked_save(self):
-        if not self.zx_document_path:
+        if self.zx_document.is_blank():
             try:
                 filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], defaultextension='.telezx', confirmoverwrite=True)
                 if not filename:
                     return
-                self.zx_document_path = filename
+                self.zx_document.set_document(filename)
             except Exception as e:
                 Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
-        self.zx_document.save_as(self.zx_document_path)
-        self.set_status(f'Document saved: {self.zx_document_path}')
+        self.zx_document.save()
+        self.set_status(f'Document saved: {self.zx_document.document_path}')
+
+    def __load_font(self):
+        self.sidebar.symbols.notify_font_changed(self.zx_document.font_path)
+
+    def __load_glyph(self):
+        self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
 
     def move_cursor(self, char_x, char_y):
         self.cursor_x = char_x
@@ -117,7 +122,11 @@ class ZXEditor(ttk.Frame):
 
     def set_scale(self, value):
         self.scale = value
-        self.main.configure_scale(value)
+        self.main.notify_scale_changed(value)
+        # Uncomment to rescale symbols
+        # self.__load_font()
+        # self.__load_glyph()
+        self.sidebar.palette.notify_scale_changed(value)
         self.set_status(f'Scale set to {self.scale}x')
 
     def set_status(self, message):
@@ -232,12 +241,12 @@ class Canvas(ttk.Frame):
         self.label = ttk.Label(self)
         self.label.pack(padx=label_padx, pady=label_pady)
 
-        self.configure_scale(self.zx_editor.scale)
+        self.notify_scale_changed(self.zx_editor.scale)
 
     def clear(self):
         self.pixel_data[:] = self.default_fill
 
-    def configure_scale(self, value):
+    def notify_scale_changed(self, value):
         # Canvas can add additional scaling in addition to that of the main
         # application, should be an integer value
         self.scale_value = self.get_scale(value)
@@ -274,7 +283,7 @@ class Main(ttk.Frame):
         self.label.pack(padx=5, pady=5)
 
 
-        self.configure_scale(self.zx_editor.scale)
+        self.notify_scale_changed(self.zx_editor.scale)
         self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
 
@@ -300,7 +309,11 @@ class Main(ttk.Frame):
         num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
         return num_pixels
 
-    def configure_scale(self, scale_value):
+    def notify_grid_changed(self, grid_enabled):
+        self.create()
+        self.refresh()
+
+    def notify_scale_changed(self, scale_value):
         self.create()
         self.refresh()
 
@@ -407,9 +420,6 @@ class Sidebar(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
 
-        # self.highlight = Highlight(master=self, zx_editor=master)
-        # self.highlight.pack(fill=X, pady=0)
-
         self.palette = Palette(master=self, zx_editor=master)
         self.palette.pack(fill=X, pady=0)
 
@@ -502,6 +512,9 @@ class Palette(ttk.Frame):
     def changed_sticky(self, value):
         self.is_sticky = value
         self.refresh()
+
+    def notify_scale_changed(self, value):
+        pass
 
     def set_attribute(self, value):
         parsed = ZXScreen.to_parsed_attribute(value)
@@ -601,21 +614,21 @@ class Symbols(ttk.Frame):
         self.font_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
         self.font_frame.pack()
         self.font_widgets = []
-        self.load_font('font_default.bin', self.font_frame, self.font_widgets)
+        # self.load_font('font_default.bin', self.font_frame, self.font_widgets)
 
         self.glyph_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
         self.glyph_frame.pack()
         self.glyph_widgets = []
-        self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
+        # self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
 
 
-    def configure_scale(self, value):
-        self.load_font('font_default.bin', self.font_frame, self.font_widgets)
-        self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
+    # def configure_scale(self, value):
+    #     self.load_font('font_default.bin', self.font_frame, self.font_widgets)
+    #     self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
 
 
     def load_font(self, path, frame, widgets):
-        font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'))
+        font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'), generate_rgb=True)
         
         # Remove existing elements
         for widget in widgets:
@@ -626,7 +639,7 @@ class Symbols(ttk.Frame):
         grid_row = 0
         grid_column = 0
         for idx in range(font_data.get_glyph_count()):
-            widget = Glyph(frame, self.zx_editor, idx)
+            widget = Glyph(frame, self.zx_editor, idx, scale_mode=3)
             widget.render_rgb(font_data.get_offset_rgb(idx))
             widget.flip_canvas()
             widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
@@ -641,10 +654,19 @@ class Symbols(ttk.Frame):
     def __get_colour(self, color_label):
         return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
 
+    def notify_font_changed(self, font_path):
+        self.load_font(font_path, self.font_frame, self.font_widgets)
+
+    def notify_glyph_changed(self, glyph_path):
+        self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets)
+
+    def notify_scale_changed(self, value):
+        for widget in self.font_widgets:
+            widget.notify_scale_changed(value)
 
 class Glyph(Canvas):
-    def __init__(self, master, zx_editor, glyph_idx):
-        super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=0, label_padx=0, label_pady=0)
+    def __init__(self, master, zx_editor, glyph_idx, scale_mode=0):
+        super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=scale_mode, label_padx=0, label_pady=0)
         self.glyph_idx = glyph_idx
         self.label.bind('<Button-1>', self.mouse_clicked)
         self.label.bind('<Enter>', self.mouse_hover)

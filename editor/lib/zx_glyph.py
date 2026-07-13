@@ -1,9 +1,10 @@
 import numpy
 
 class ZXGlyph:
-    def __init__(self, glyph_data, rgb_fg=255, rgb_bg=0):
+    def __init__(self, glyph_data, rgb_fg=255, rgb_bg=0, generate_rgb=False):
         self.glyph_data = glyph_data
-        self.__generate_rgb(foreground=rgb_fg, background=rgb_bg)
+        if generate_rgb:
+            self.__generate_rgb(foreground=rgb_fg, background=rgb_bg)
 
     def __generate_rgb(self, foreground, background):
         self.rgb_data = {}
@@ -22,7 +23,6 @@ class ZXGlyph:
         mask = (1 << (7 - bit_idx))
         return (value & mask) != 0
 
-
     def get_offset(self, offset):
         return self.glyph_data[offset]
     
@@ -33,7 +33,7 @@ class ZXGlyph:
         return self.glyph_data.shape[0]
 
     @classmethod
-    def from_file(cls, path, rgb_fg=255, rgb_bg=0):
+    def from_file(cls, path, rgb_fg=255, rgb_bg=0, generate_rgb=False):
         glyph_data = numpy.fromfile(path, dtype=numpy.uint8)
         glyph_data = numpy.reshape(glyph_data, shape=((glyph_data.size // 8),8))
-        return cls(glyph_data, rgb_fg, rgb_bg)
+        return cls(glyph_data, rgb_fg, rgb_bg, generate_rgb)
