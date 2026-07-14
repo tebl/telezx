@@ -2,7 +2,9 @@ import numpy
 from .zx_glyph import ZXGlyph
 
 class ZXFont(ZXGlyph):
-    ASCII_SPACE = 32
+    ASCII_SPACE = 0x20
+    ASCII_COPYRIGHT = 0x7f
+    FONT_OFFSET = ASCII_SPACE
 
     def __init__(self, glyph_data, rgb_fg=255, rgb_bg=0, generate_rgb=False):
         super().__init__(glyph_data, rgb_fg, rgb_bg, generate_rgb)

@@ -105,6 +105,12 @@ class ZXEditor(ttk.Frame):
     def __load_glyph(self):
         self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
 
+    def set_cursor_character(self, char_code):
+        print(self.cursor_x, self.cursor_y, '=', char_code)
+        changed = self.zx_document.set_character(self.cursor_x, self.cursor_y, char_code)
+        if changed:
+            self.refresh()
+
     def move_cursor(self, char_x, char_y):
         self.cursor_x = char_x
         self.cursor_y = char_y
@@ -578,32 +584,6 @@ class PaletteColour(Canvas):
         return False
 
     
-
-class Highlight(ttk.Frame):
-    def __init__(self, master, zx_editor):
-        super().__init__(master, style='bg.TFrame')
-        self.zx_editor = zx_editor
-        self.pixel_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
-        self.pixel_frame.pack()
-
-        self.create_widgets()
-
-    def create_widgets(self):
-        self.widgets = {}
-        for pixel_row in range(8):
-            for pixel_column in range(8):
-                widget = Glyph(self.pixel_frame, self.zx_editor, (pixel_column, pixel_row))
-                widget.grid(row=pixel_row, column=pixel_column, padx=0, pady=0)
-                widget.render_rgb(numpy.zeros(shape=(8, 8, 3), dtype=numpy.uint8))
-                widget.flip_canvas()
-                self.widgets[(pixel_row, pixel_column)] = widget
-
-    def configure_scale(self, value):
-        for pixel_row in range(8):
-            for pixel_column in range(8):
-                self.widgets[(pixel_row, pixel_column)].configure_scale(value)
-
-
 class Symbols(ttk.Frame):
     NUM_COLUMNS = 8
 
@@ -614,20 +594,12 @@ class Symbols(ttk.Frame):
         self.font_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
         self.font_frame.pack()
         self.font_widgets = []
-        # self.load_font('font_default.bin', self.font_frame, self.font_widgets)
 
         self.glyph_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
         self.glyph_frame.pack()
         self.glyph_widgets = []
-        # self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
 
-
-    # def configure_scale(self, value):
-    #     self.load_font('font_default.bin', self.font_frame, self.font_widgets)
-    #     self.load_font('font_glyphs.bin', self.glyph_frame, self.glyph_widgets)
-
-
-    def load_font(self, path, frame, widgets):
+    def load_font(self, path, frame, widgets, value_offset):
         font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'), generate_rgb=True)
         
         # Remove existing elements
@@ -638,9 +610,9 @@ class Symbols(ttk.Frame):
         # Add new ones
         grid_row = 0
         grid_column = 0
-        for idx in range(font_data.get_glyph_count()):
-            widget = Glyph(frame, self.zx_editor, idx, scale_mode=3)
-            widget.render_rgb(font_data.get_offset_rgb(idx))
+        for char_index in range(font_data.get_glyph_count()):
+            widget = Glyph(frame, self.zx_editor, char_index, value_offset, scale_mode=3)
+            widget.render_rgb(font_data.get_offset_rgb(char_index))
             widget.flip_canvas()
             widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
 
@@ -648,32 +620,35 @@ class Symbols(ttk.Frame):
             if grid_column == self.NUM_COLUMNS:
                 grid_column = 0
                 grid_row += 1
-            widgets.append(widget)
-    
+            widgets.append(widget)   
 
     def __get_colour(self, color_label):
         return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
 
     def notify_font_changed(self, font_path):
-        self.load_font(font_path, self.font_frame, self.font_widgets)
+        self.load_font(font_path, self.font_frame, self.font_widgets, ZXFont.FONT_OFFSET)
 
     def notify_glyph_changed(self, glyph_path):
-        self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets)
+        self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets, ZXGlyph.GLYPH_OFFSET)
 
     def notify_scale_changed(self, value):
         for widget in self.font_widgets:
             widget.notify_scale_changed(value)
 
 class Glyph(Canvas):
-    def __init__(self, master, zx_editor, glyph_idx, scale_mode=0):
+    def __init__(self, master, zx_editor, glyph_idx, value_offset, scale_mode=0):
         super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=scale_mode, label_padx=0, label_pady=0)
         self.glyph_idx = glyph_idx
+        self.value_offset = value_offset
         self.label.bind('<Button-1>', self.mouse_clicked)
         self.label.bind('<Enter>', self.mouse_hover)
         self.label.bind('<Leave>', self.mouse_exit)
 
     def mouse_clicked(self, event):
-        print('Clicked', self.glyph_idx)
+        self.zx_editor.set_cursor_character(self.__get_char_code())
+
+    def __get_char_code(self):
+        return (self.glyph_idx + self.value_offset)
 
     def mouse_hover(self, event):
         self.label.config(relief='raised')
