@@ -9,16 +9,12 @@ class ZXDocument:
     DEFAULT_FONT_PATH = 'font_default.bin'
     DEFAULT_GLYPH_PATH = 'font_glyphs.bin'
 
-    def __init__(self, zx_screen):
-        self.zx_screen = zx_screen
-        self.__clear_background()
-        self.__clear_fonts()
-        self.__clear_cells()
-        self.document_path = None
-        self.changes = False
+    def __init__(self):
+        self.zx_screen = ZXScreen()
+        self.clear()
 
     def clear(self):
-        self.zx_screen.clear_memory()
+        self.zx_screen.clear_memory(attribute=ZXScreen.to_attribute(paper=ZXScreen.BLACK, ink=ZXScreen.WHITE))
         self.__clear_background()
         self.__clear_fonts()
         self.__clear_cells()
@@ -34,7 +30,7 @@ class ZXDocument:
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             self.cells[char_y] = {}
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                self.cells[char_y][char_x] = Element(char_x, char_y, self.UNDEFINED, self.UNDEFINED)
+                self.cells[char_y][char_x] = Cell(char_x, char_y, self.UNDEFINED, self.UNDEFINED)
 
     def __clear_fonts(self):
         self.set_font(self.DEFAULT_FONT_PATH)
@@ -68,13 +64,16 @@ class ZXDocument:
             s_char_y = str(char_y)
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 s_char_x = str(char_x)
-                element = self.cells[char_y][char_x]
+                cell = self.cells[char_y][char_x]
                 if s_char_y in data['cells'] and s_char_x in data['cells'][s_char_y]:
-                    element.from_dict(data['cells'][s_char_y][s_char_x])
+                    cell.from_dict(data['cells'][s_char_y][s_char_x])
                 else:
-                    element.set(self.UNDEFINED, self.UNDEFINED)
+                    cell.set(self.UNDEFINED, self.UNDEFINED)
         self.__render_cells()
         self.changes = False
+    
+    def to_rgb(self):
+        return self.zx_screen.to_rgb()
 
     def __render_cells(self):
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
@@ -82,8 +81,8 @@ class ZXDocument:
                 self.__render_cell(char_x, char_y)
 
     def __render_cell(self, char_x, char_y):
-        element = self.cells[char_y][char_x]
-        element.render_screen(self)
+        cell = self.cells[char_y][char_x]
+        cell.render_screen(self)
 
     def set_document(self, document_path):
         self.document_path = document_path
@@ -103,6 +102,10 @@ class ZXDocument:
         # Render into ZXScreen instance
         self.__render_cell(char_x, char_y)
         return result
+
+    def get_attribute(self, char_x, char_y):
+        cell = self.cells[char_y][char_x]
+        return cell.get_attribute(self)
 
     def set_attribute(self, char_x, char_y, attribute=UNDEFINED):
         result = self.cells[char_y][char_x].set_attribute(attribute)
@@ -142,7 +145,7 @@ class ZXDocument:
                 result['cells'][char_y][char_x] = self.cells[char_y][char_x].to_dict()
         return result
 
-class Element:
+class Cell:
     def __init__(self, char_x, char_y, char_code, char_attribute):
         self.char_code = ZXDocument.UNDEFINED
         self.char_attribute = ZXDocument.UNDEFINED
@@ -175,6 +178,11 @@ class Element:
         if self.char_attribute == ZXDocument.UNDEFINED:
             return
         zx_document.zx_screen.write_attribute(self.char_x, self.char_y, self.char_attribute)
+
+    def get_attribute(self, zx_document):
+        if self.char_attribute == ZXDocument.UNDEFINED:
+            return zx_document.zx_screen.get_attribute_at(self.char_x, self.char_y)
+        return self.char_attribute
 
     def set_attribute(self, char_attribute=ZXDocument.UNDEFINED):
         changed = (self.char_attribute != char_attribute)

@@ -22,8 +22,7 @@ class ZXEditor(ttk.Frame):
         self.cursor_x = 0
         self.cursor_y = 0
 
-        self.zx_screen = ZXScreen()
-        self.zx_document = ZXDocument(self.zx_screen)
+        self.zx_document = ZXDocument()
 
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
@@ -112,8 +111,8 @@ class ZXEditor(ttk.Frame):
             self.refresh()
 
     def move_cursor(self, char_x, char_y):
-        self.cursor_x = char_x
-        self.cursor_y = char_y
+        self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
+        self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
 
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed(self.cursor_x, self.cursor_y)
@@ -125,6 +124,20 @@ class ZXEditor(ttk.Frame):
     def move_cursor_down(self):
         if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
             self.move_cursor(self.cursor_x, self.cursor_y + 1)
+
+    def move_cursor_left(self):
+        if self.cursor_x > 0:
+            self.move_cursor(self.cursor_x - 1, self.cursor_y)
+            return
+        if self.cursor_y > 0:
+            self.move_cursor(ZXScreen.SCREEN_WIDTH_CHARS - 1, self.cursor_y - 1)
+    
+    def move_cursor_right(self):
+        if self.cursor_x < (ZXScreen.SCREEN_WIDTH_CHARS - 1):
+            self.move_cursor(self.cursor_x + 1, self.cursor_y)
+            return
+        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
+            self.move_cursor(0, self.cursor_y + 1)
 
     def set_scale(self, value):
         self.scale = value
@@ -332,7 +345,7 @@ class Main(ttk.Frame):
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
 
-        rgb_data = self.master.zx_screen.to_rgb()
+        rgb_data = self.zx_editor.zx_document.to_rgb()
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -418,7 +431,7 @@ class Main(ttk.Frame):
                 self.zx_editor.move_cursor(cursor_x, cursor_y)
 
     def notify_cursor_changed(self, cursor_x, cursor_y):
-        attr = self.zx_editor.zx_screen.get_attribute_at(cursor_x, cursor_y)
+        attr = self.zx_editor.zx_document.get_attribute(cursor_x, cursor_y)
         self.zx_editor.sidebar.palette.set_attribute(attr)
         self.refresh()
 
