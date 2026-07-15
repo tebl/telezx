@@ -182,6 +182,9 @@ class Cell:
         print()
 
     def render_screen(self, zx_document):
+        #
+        # need to fix so we can delete value
+        #
         if self.char_code == ZXDocument.UNDEFINED:
             self.__apply_attribute(zx_document)
             return

@@ -43,9 +43,7 @@ class ZXEditor(ttk.Frame):
         self.__load_font()
         self.__load_glyph()
 
-    def toggle_grid_enabled(self):
-        self.is_grid_enabled = (not self.is_grid_enabled)
-        self.main.notify_grid_changed(self.is_grid_enabled)
+        self.master.bind("<Key>", self.keyboard_event)
 
     def changed_grid_enabled(self, value):
         self.is_grid_enabled = value
@@ -87,6 +85,12 @@ class ZXEditor(ttk.Frame):
         self.refresh()
         self.set_status(f'Document loaded: {self.zx_document.document_path}')
 
+    def __load_font(self):
+        self.sidebar.symbols.notify_font_changed(self.zx_document.font_path)
+
+    def __load_glyph(self):
+        self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
+
     def clicked_save(self):
         if self.zx_document.is_blank():
             try:
@@ -99,18 +103,48 @@ class ZXEditor(ttk.Frame):
         self.zx_document.save()
         self.set_status(f'Document saved: {self.zx_document.document_path}')
 
-    def __load_font(self):
-        self.sidebar.symbols.notify_font_changed(self.zx_document.font_path)
-
-    def __load_glyph(self):
-        self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
-
-    def set_cursor_character(self, char_code):
-        changed = self.zx_document.set_character(self.cursor_x, self.cursor_y, char_code)
-        if not self.is_overwrite_enabled:
-            self.move_cursor_right()
-        if changed:
-            self.refresh()
+    def keyboard_event(self, event):
+        print('Key event:', event.char, event.keysym, event.keycode)
+        if self.main.check_focus():
+            match event.keysym:
+                case 'Enter' | 'KP_Enter' | 'Return':
+                    self.move_cursor_newline()
+                case 'Home' | 'KP_Home':
+                    if self.cursor_x == 0:
+                        self.move_cursor(0, 0)
+                        return
+                    self.move_cursor(0, self.cursor_y)
+                case 'End' | 'KP_End':
+                    if self.cursor_x == (ZXScreen.SCREEN_WIDTH_CHARS - 1):
+                        self.move_cursor(
+                            ZXScreen.SCREEN_WIDTH_CHARS - 1, 
+                            ZXScreen.SCREEN_HEIGHT_CHARS - 1)
+                        return
+                    self.move_cursor(
+                        ZXScreen.SCREEN_WIDTH_CHARS - 1, 
+                        self.cursor_y)
+                case 'Up' | 'KP_Up':
+                    self.move_cursor_up()
+                case 'Down' | 'KP_Down':
+                    self.move_cursor_down()
+                case 'Left' | 'KP_Left' | 'BackSpace':
+                    self.move_cursor_left()
+                case 'Right' | 'KP_Right':
+                    self.move_cursor_right()
+                case 'Shift_L' | 'Shift_R' | 'Control_L' | 'Control_R':
+                    pass
+                case 'Delete':
+                    self.zx_document.set_character(self.cursor_x, self.cursor_y)
+                    self.zx_document.set_attribute(self.cursor_x, self.cursor_y)
+                    self.move_cursor(self.cursor_x, self.cursor_y)
+                    self.refresh()
+                case _:
+                    if event.char:
+                        ascii_code = ord(event.char)
+                        if ZXFont.validate_ascii(ascii_code):
+                            self.set_cursor_character(ascii_code)
+                            return
+                    print('Unknown key:', event.char, event.keysym, event.keycode)
 
     def move_cursor(self, char_x, char_y):
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
@@ -141,6 +175,20 @@ class ZXEditor(ttk.Frame):
         if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
             self.move_cursor(0, self.cursor_y + 1)
 
+    def move_cursor_newline(self):
+        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
+            self.move_cursor(0, self.cursor_y + 1)
+
+    def refresh(self):
+        self.main.refresh()
+
+    def set_cursor_character(self, char_code):
+        changed = self.zx_document.set_character(self.cursor_x, self.cursor_y, char_code)
+        if not self.is_overwrite_enabled:
+            self.move_cursor_right()
+        if changed:
+            self.refresh()
+
     def set_scale(self, value):
         self.scale = value
         self.main.notify_scale_changed(value)
@@ -160,9 +208,9 @@ class ZXEditor(ttk.Frame):
         else:
             self.set_status(f'INSERT')
 
-
-    def refresh(self):
-        self.main.refresh()
+    def toggle_grid_enabled(self):
+        self.is_grid_enabled = (not self.is_grid_enabled)
+        self.main.notify_grid_changed(self.is_grid_enabled)
 
     def __load_assets(self):
         image_files = {
@@ -301,6 +349,8 @@ class Canvas(ttk.Frame):
 
 class Main(ttk.Frame):
     NOGRID_Y_OFFSET = 2
+    HIGHLIGHT_EFFECT_AVERAGE = 0
+    HIGHLIGHT_EFFECT_DARKEN = 1
 
     def __init__(self, master):
         super().__init__(master)
@@ -310,11 +360,27 @@ class Main(ttk.Frame):
         self.highlight_colour = colorutils.color_to_rgb(master.master.style.colors.get('danger'))
         self.label = ttk.Label(self)
         self.label.pack(padx=5, pady=5)
-
+        self.in_focus = False
 
         self.notify_scale_changed(self.zx_editor.scale)
         self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
+        self.label.bind('<Enter>', self.focus_enter)
+        self.label.bind('<Leave>', self.focus_leave)
+
+    def check_focus(self):
+        return self.in_focus
+
+    def focus_enter(self, event):
+        self.__set_focus(True)
+
+    def focus_leave(self, event):
+        self.__set_focus(False)
+
+    def __set_focus(self, in_focus):
+        self.in_focus = in_focus
+        style = 'raised' if in_focus else 'flat'
+        self.label.config(relief=style)
 
     def clear(self):
         self.pixel_data[:] = self.default_fill
@@ -368,7 +434,7 @@ class Main(ttk.Frame):
         rgb_x, rgb_y, rgb_size = self.__get_screen_position(char_x, char_y)
         self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = rgb_data[rgb_y:rgb_y+rgb_size, rgb_x:rgb_x+rgb_size]
 
-    def __highlight_cell(self, char_x, char_y, colour):
+    def __highlight_cell(self, char_x, char_y, colour, highlight_effect=HIGHLIGHT_EFFECT_AVERAGE):
         if char_x == -1 or char_y == -1:
             return
         pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
@@ -377,13 +443,14 @@ class Main(ttk.Frame):
         self.pixel_data[pix_y-1:pix_y+pix_size, pix_x-1] = colour
         self.pixel_data[pix_y-1:pix_y+pix_size, pix_x+pix_size] = colour
 
-        # average RGB 
-        fill = numpy.full(shape=(pix_size, pix_size, 3), fill_value=colour, dtype=numpy.uint8)
-        self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = numpy.mean(numpy.array([self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size], fill]), axis=0)
-
-        # darken contents
-        # self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] >> 1
-
+        match highlight_effect:
+            case self.HIGHLIGHT_EFFECT_AVERAGE:
+                # average RGB between fill and contents
+                fill = numpy.full(shape=(pix_size, pix_size, 3), fill_value=colour, dtype=numpy.uint8)
+                self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = numpy.mean(numpy.array([self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size], fill]), axis=0)
+            case self.HIGHLIGHT_EFFECT_DARKEN:
+                # darken contents
+                self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] >> 1
 
     def __get_screen_position(self, char_x, char_y):
         cell_size = 8*self.zx_editor.scale
@@ -721,6 +788,8 @@ class Status(ttk.Frame):
             'Cursor: ({},{})'.format(
                 str(cursor_x).rjust(2, '0'), 
                 str(cursor_y).rjust(2, '0')))
+
+
 
 
 if __name__ == '__main__':

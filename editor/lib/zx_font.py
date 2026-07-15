@@ -12,3 +12,7 @@ class ZXFont(ZXGlyph):
     def get_ascii(self, character):
         data = self.get_offset(ord(character) - self.ASCII_SPACE)
         return data
+
+    @classmethod
+    def validate_ascii(cls, char_code):
+        return char_code >= cls.ASCII_SPACE and char_code <= cls.ASCII_COPYRIGHT
