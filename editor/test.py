@@ -37,7 +37,7 @@ class ZXEditor(ttk.Frame):
         self.main = Main(self)
         self.main.grid(row=1, column=0, sticky=NW)
 
-        self.status = Status(self)
+        self.status = Status(self, self)
         self.status.grid(row=3, column=0, columnspan=3, sticky=EW)
 
         self.__load_font()
@@ -138,6 +138,9 @@ class ZXEditor(ttk.Frame):
                     self.zx_document.set_attribute(self.cursor_x, self.cursor_y)
                     self.move_cursor(self.cursor_x, self.cursor_y)
                     self.refresh()
+                case 'Insert' | 'KP_Insert':
+                    self.set_overwrite(not self.is_overwrite_enabled)
+                    pass
                 case _:
                     if event.char:
                         ascii_code = ord(event.char)
@@ -203,10 +206,7 @@ class ZXEditor(ttk.Frame):
 
     def set_overwrite(self, value):
         self.is_overwrite_enabled = value
-        if self.is_overwrite_enabled:
-            self.set_status(f'OVERWRITE')
-        else:
-            self.set_status(f'INSERT')
+        self.sidebar.palette.notify_overwrite_changed(value)
 
     def toggle_grid_enabled(self):
         self.is_grid_enabled = (not self.is_grid_enabled)
@@ -365,19 +365,13 @@ class Main(ttk.Frame):
         self.notify_scale_changed(self.zx_editor.scale)
         self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
-        self.label.bind('<Enter>', self.focus_enter)
-        self.label.bind('<Leave>', self.focus_leave)
+        self.label.bind('<Enter>', lambda x: self.set_focus(True))
+        self.label.bind('<Leave>', lambda x: self.set_focus(False))
 
     def check_focus(self):
         return self.in_focus
 
-    def focus_enter(self, event):
-        self.__set_focus(True)
-
-    def focus_leave(self, event):
-        self.__set_focus(False)
-
-    def __set_focus(self, in_focus):
+    def set_focus(self, in_focus):
         self.in_focus = in_focus
         style = 'raised' if in_focus else 'flat'
         self.label.config(relief=style)
@@ -404,6 +398,30 @@ class Main(ttk.Frame):
         num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
         return num_pixels
 
+    def flip_canvas(self):
+        pil_img = Image.fromarray(self.pixel_data)
+        tk_img = ImageTk.PhotoImage(pil_img)
+        self.label.config(image=tk_img)
+        self.image = tk_img
+
+    def mouse_clicked(self, event):
+        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+            cursor_x, cursor_y = self.__get_cursor_from(event.x, event.y)
+            if cursor_x >= 0 and cursor_y >= 0:
+                self.zx_editor.move_cursor(cursor_x, cursor_y)
+
+    def mouse_moved(self, event):
+        # if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+        #     char_x, char_y = self.__get_cursor_from(event.x, event.y)
+        #     self.__highlight_cell(char_x, char_y, self.HIGHLIGHT_ACTIVE)
+        #     self.refresh()
+        pass
+
+    def notify_cursor_changed(self, cursor_x, cursor_y):
+        attr = self.zx_editor.zx_document.get_attribute(cursor_x, cursor_y)
+        self.zx_editor.sidebar.palette.set_attribute(attr)
+        self.refresh()
+
     def notify_grid_changed(self, grid_enabled):
         self.create()
         self.refresh()
@@ -411,12 +429,6 @@ class Main(ttk.Frame):
     def notify_scale_changed(self, scale_value):
         self.create()
         self.refresh()
-
-    def flip_canvas(self):
-        pil_img = Image.fromarray(self.pixel_data)
-        tk_img = ImageTk.PhotoImage(pil_img)
-        self.label.config(image=tk_img)
-        self.image = tk_img
 
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
@@ -493,24 +505,7 @@ class Main(ttk.Frame):
         if char_y < 0 or char_y >= ZXScreen.SCREEN_HEIGHT_CHARS:
             char_y = -1
         return (char_x, char_y)
-
-    def mouse_moved(self, event):
-        # if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-        #     char_x, char_y = self.__get_cursor_from(event.x, event.y)
-        #     self.__highlight_cell(char_x, char_y, self.HIGHLIGHT_ACTIVE)
-        #     self.refresh()
-        pass
-
-    def mouse_clicked(self, event):
-        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-            cursor_x, cursor_y = self.__get_cursor_from(event.x, event.y)
-            if cursor_x >= 0 and cursor_y >= 0:
-                self.zx_editor.move_cursor(cursor_x, cursor_y)
-
-    def notify_cursor_changed(self, cursor_x, cursor_y):
-        attr = self.zx_editor.zx_document.get_attribute(cursor_x, cursor_y)
-        self.zx_editor.sidebar.palette.set_attribute(attr)
-        self.refresh()
+    
 
 class Sidebar(ttk.Frame):
     def __init__(self, master):
@@ -589,6 +584,8 @@ class Palette(ttk.Frame):
             command=lambda: self.changed_flash(self.is_flash_var.get()))
         btn.grid(row=1, column=0, sticky=NW)
 
+        # When enabled we ignore updates to the palette when inserting data,
+        # allowing us to lock a style for data entered.
         btn = ttk.Checkbutton(
             frame, 
             text="Keep attribute", 
@@ -599,6 +596,8 @@ class Palette(ttk.Frame):
             command=lambda: self.changed_sticky(self.is_sticky_var.get()))
         btn.grid(row=2, column=0, sticky=NW, pady=(10, 0))
 
+        # Determines if we're overwriting the current highlighted cell or
+        # advancing to the next position on write.
         btn = ttk.Checkbutton(
             frame, 
             text="Cursor overwrite", 
@@ -624,6 +623,17 @@ class Palette(ttk.Frame):
     def notify_scale_changed(self, value):
         pass
 
+    def notify_overwrite_changed(self, value):
+        self.is_overwrite_enabled_var.set(value)
+
+    def refresh(self):
+        self.is_bright_var.set(self.is_bright)
+        self.is_flash_var.set(self.is_flash)
+        for widget in self.ink_widgets:
+            widget.refresh()
+        for widget in self.paper_widgets:
+            widget.refresh()
+
     def set_attribute(self, value):
         parsed = ZXScreen.to_parsed_attribute(value)
         self.is_bright = parsed['bright']
@@ -639,14 +649,6 @@ class Palette(ttk.Frame):
     def set_paper(self, colour):
         self.current_paper = colour
         self.refresh()
-
-    def refresh(self):
-        self.is_bright_var.set(self.is_bright)
-        self.is_flash_var.set(self.is_flash)
-        for widget in self.ink_widgets:
-            widget.refresh()
-        for widget in self.paper_widgets:
-            widget.refresh()
 
 
 class PaletteColour(Canvas):
@@ -760,9 +762,10 @@ class Glyph(Canvas):
 
 
 class Status(ttk.Frame):
-    def __init__(self, master):
+    def __init__(self, master, zx_editor):
         super().__init__(master, style='dark.TFrame')
-        self.columnconfigure(2, weight=1)
+        self.zx_editor = zx_editor
+        self.columnconfigure(1, weight=1)
 
         self.status = ttk.Label(
             master=self,
@@ -777,7 +780,9 @@ class Status(ttk.Frame):
             textvariable='status-position',
             bootstyle="inverse-dark"
         )
-        self.position.grid(row=0, column=3)
+        self.position.grid(row=0, column=2)
+
+        self.notify_cursor_changed(self.zx_editor.cursor_x, self.zx_editor.cursor_y)
 
     def set_status(self, message=''):
         self.setvar('status-text', message)
@@ -788,8 +793,6 @@ class Status(ttk.Frame):
             'Cursor: ({},{})'.format(
                 str(cursor_x).rjust(2, '0'), 
                 str(cursor_y).rjust(2, '0')))
-
-
 
 
 if __name__ == '__main__':

@@ -14,12 +14,11 @@ class ZXDocument:
         self.clear()
 
     def clear(self):
-        self.zx_screen.clear_memory(
-            attribute=ZXScreen.to_attribute(
-                paper=ZXScreen.BLACK, 
-                ink=ZXScreen.WHITE
-            )
+        self.default_attribute = ZXScreen.to_attribute(
+            paper=ZXScreen.BLACK, 
+            ink=ZXScreen.WHITE
         )
+        self.zx_screen.clear_memory(attribute=self.default_attribute)
         self.__clear_background()
         self.__clear_fonts()
         self.__clear_cells()
@@ -53,12 +52,7 @@ class ZXDocument:
         return False
 
     def load(self, document_path):
-        data = {
-            'background': None,
-            'font': self.font_path,
-            'glyph': self.glyph_path,
-            'cells': {}
-        }
+        data = self.__json_defaults()
         with open(document_path, 'r') as file:
             data.update(json.load(file))
         self.set_document(document_path)
@@ -79,6 +73,15 @@ class ZXDocument:
                     cell.set(self.UNDEFINED, self.UNDEFINED)
         self.__render_cells()
         self.changes = False
+    
+    def __json_defaults(self):
+        return {
+            'attribute': self.default_attribute,
+            'background': self.background,
+            'font': self.font_path,
+            'glyph': self.glyph_path,
+            'cells': {}
+        }
     
     def to_rgb(self):
         return self.zx_screen.to_rgb()
@@ -141,12 +144,7 @@ class ZXDocument:
         raise Exception('No document set')
         
     def to_dict(self):
-        result = {
-            'background': self.background,
-            'font': self.font_path,
-            'glyph': self.glyph_path,
-            'cells': {}
-        }
+        result = self.__json_defaults()
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             result['cells'][char_y] = {}
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
