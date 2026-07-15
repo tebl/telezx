@@ -14,7 +14,12 @@ class ZXDocument:
         self.clear()
 
     def clear(self):
-        self.zx_screen.clear_memory(attribute=ZXScreen.to_attribute(paper=ZXScreen.BLACK, ink=ZXScreen.WHITE))
+        self.zx_screen.clear_memory(
+            attribute=ZXScreen.to_attribute(
+                paper=ZXScreen.BLACK, 
+                ink=ZXScreen.WHITE
+            )
+        )
         self.__clear_background()
         self.__clear_fonts()
         self.__clear_cells()
@@ -35,6 +40,9 @@ class ZXDocument:
     def __clear_fonts(self):
         self.set_font(self.DEFAULT_FONT_PATH)
         self.set_glyph(self.DEFAULT_GLYPH_PATH)
+
+    def debug_cell(self, char_x, char_y):
+        self.cells[char_y][char_x].debug(self)
 
     def has_changes(self):
         return self.changes
@@ -154,12 +162,30 @@ class Cell:
         self.set_character(char_code)
         self.set_attribute(char_attribute)
 
+    def debug(self, zx_document):
+        print(f'Cell X={self.char_x},Y={self.char_y}:')
+        source = ZXScreen.__name__ if self.char_attribute == ZXDocument.UNDEFINED else ZXDocument.__name__
+        print(f'  attribute = {self.get_attribute(zx_document)} from {source}')
+
+        if self.char_code != ZXDocument.UNDEFINED:
+            source = ZXDocument.__name__
+            print(f'  char_code = {self.char_code} ({chr(self.char_code)}) from {source}')
+        else:
+            print(f'  char_code = UNDEFINED')
+        memory = zx_document.zx_screen.read_cell(self.char_x, self.char_y)
+        for idx, value in enumerate(memory):
+            s_value = "{:08b}".format(value)
+            if idx == 0:
+                print(f'  memory = {s_value}')
+            else:
+                print(f'           {s_value}')
+        print()
+
     def render_screen(self, zx_document):
         if self.char_code == ZXDocument.UNDEFINED:
             self.__apply_attribute(zx_document)
             return
         if self.char_code >= ZXFont.ASCII_SPACE and self.char_code <= ZXFont.ASCII_COPYRIGHT:
-            print('ASCII', self.char_code, zx_document.font.get_offset(self.char_code - ZXFont.ASCII_SPACE), self.char_attribute)
             zx_document.zx_screen.write_cell(
                 self.char_x, 
                 self.char_y, 

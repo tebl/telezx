@@ -19,6 +19,7 @@ class ZXEditor(ttk.Frame):
 
         self.scale = 3
         self.is_grid_enabled = True
+        self.is_overwrite_enabled = False
         self.cursor_x = 0
         self.cursor_y = 0
 
@@ -105,15 +106,16 @@ class ZXEditor(ttk.Frame):
         self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
 
     def set_cursor_character(self, char_code):
-        print(self.cursor_x, self.cursor_y, '=', char_code)
         changed = self.zx_document.set_character(self.cursor_x, self.cursor_y, char_code)
+        if not self.is_overwrite_enabled:
+            self.move_cursor_right()
         if changed:
             self.refresh()
 
     def move_cursor(self, char_x, char_y):
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
         self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
-
+        # self.zx_document.debug_cell(self.cursor_x, self.cursor_y)
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed(self.cursor_x, self.cursor_y)
 
@@ -150,6 +152,14 @@ class ZXEditor(ttk.Frame):
 
     def set_status(self, message):
         self.status.set_status(message)
+
+    def set_overwrite(self, value):
+        self.is_overwrite_enabled = value
+        if self.is_overwrite_enabled:
+            self.set_status(f'OVERWRITE')
+        else:
+            self.set_status(f'INSERT')
+
 
     def refresh(self):
         self.main.refresh()
@@ -456,6 +466,7 @@ class Palette(ttk.Frame):
         self.is_flash_var = ttk.BooleanVar(master=self, value=self.is_flash)
         self.is_sticky = False
         self.is_sticky_var = ttk.BooleanVar(master=self, value=self.is_sticky)
+        self.is_overwrite_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_overwrite_enabled)
         self.current_ink = ZXScreen.WHITE
         self.current_paper = ZXScreen.BLACK
 
@@ -486,10 +497,11 @@ class Palette(ttk.Frame):
 
 
         # lbl = ttk.Label(self, text="Modifier")
-        # lbl.grid(row=0, column=2, sticky=N)
+        # lbl.grid(row=0, column=2, sticky=NW)
 
         frame = ttk.Frame(self)
-        frame.grid(row=1, column=2, sticky=NSEW)
+        frame.grid(row=1, column=2, sticky=NSEW, padx=10)
+
         btn = ttk.Checkbutton(
             frame, 
             text="Bright", 
@@ -498,7 +510,7 @@ class Palette(ttk.Frame):
             offvalue=False,
             variable=self.is_bright_var,
             command=lambda: self.changed_bright(self.is_bright_var.get()))
-        btn.grid(row=0, column=0, sticky=NW, padx=20)
+        btn.grid(row=0, column=0, sticky=NW)
 
         btn = ttk.Checkbutton(
             frame, 
@@ -508,7 +520,7 @@ class Palette(ttk.Frame):
             offvalue=False,
             variable=self.is_flash_var,
             command=lambda: self.changed_flash(self.is_flash_var.get()))
-        btn.grid(row=1, column=0, sticky=NW, padx=20)
+        btn.grid(row=1, column=0, sticky=NW)
 
         btn = ttk.Checkbutton(
             frame, 
@@ -518,7 +530,17 @@ class Palette(ttk.Frame):
             offvalue=False,
             variable=self.is_sticky_var,
             command=lambda: self.changed_sticky(self.is_sticky_var.get()))
-        btn.grid(row=5, column=0, sticky=NW, padx=20, pady=(10, 0))
+        btn.grid(row=2, column=0, sticky=NW, pady=(10, 0))
+
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Cursor overwrite", 
+            bootstyle="danger-round-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_overwrite_enabled_var,
+            command=lambda: self.zx_editor.set_overwrite(self.is_overwrite_enabled_var.get()))
+        btn.grid(row=3, column=0, sticky=NW)
 
     def changed_bright(self, value):
         self.is_bright = value

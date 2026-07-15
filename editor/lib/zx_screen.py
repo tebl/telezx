@@ -60,7 +60,6 @@ class ZXScreen:
         self.write_cell(self.cursor_x, self.cursor_y, values, attribute)
         self.cursor_next()
     
-
     def flip_memory(self, numpy_array):
         if not isinstance(numpy_array, numpy.ndarray) or numpy_array.size != self.SIZE_MEMORY:
             raise ValueError('does not look like a numpy array of expected size')
@@ -97,6 +96,14 @@ class ZXScreen:
     def __check_bits(self, value, bit_idx):
         mask = (1 << (7 - bit_idx))
         return (value & mask) != 0
+
+
+    def read_cell(self, pos_x, pos_y):
+        result = []
+        index = self.start_at[pos_x][pos_y]
+        for byte_idx in range(8):
+            result.append(self.memory[index + byte_idx*0x100])
+        return result
 
 
     def write_cell(self, pos_x, pos_y, values, attribute=-1):
