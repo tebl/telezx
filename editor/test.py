@@ -21,6 +21,7 @@ class ZXEditor(ttk.Frame):
 
         self.scale = 3
         self.is_grid_enabled = True
+        self.is_sticky_enabled = False
         self.is_overwrite_enabled = False
         self.cursor_x = 0
         self.cursor_y = 0
@@ -137,8 +138,8 @@ class ZXEditor(ttk.Frame):
                 case 'Shift_L' | 'Shift_R' | 'Control_L' | 'Control_R':
                     pass
                 case 'Delete' | 'KP_Delete':
-                    self.zx_document.set_character(self.cursor_x, self.cursor_y)
-                    self.zx_document.set_attribute(self.cursor_x, self.cursor_y)
+                    self.zx_document.set_character(self.cursor_x, self.cursor_y, ZXDocument.UNDEFINED)
+                    self.zx_document.set_attribute(self.cursor_x, self.cursor_y, ZXDocument.UNDEFINED)
                     self.move_cursor(self.cursor_x, self.cursor_y)
                     self.refresh()
                 case 'Insert' | 'KP_Insert':
@@ -190,8 +191,20 @@ class ZXEditor(ttk.Frame):
 
     def set_cursor_character(self, char_code):
         changed = self.zx_document.set_character(self.cursor_x, self.cursor_y, char_code)
+        if self.is_sticky_enabled:
+            attribute_changed = self.zx_document.set_attribute(
+                self.cursor_x, 
+                self.cursor_y, 
+                self.sidebar.palette.get_attribute())
+            if attribute_changed:
+                changed = True
         if not self.is_overwrite_enabled:
             self.move_cursor_right()
+        if changed:
+            self.refresh()
+
+    def set_cursor_attribute(self, attribute):
+        changed = self.zx_document.set_attribute(self.cursor_x, self.cursor_y, attribute)
         if changed:
             self.refresh()
 
@@ -206,6 +219,10 @@ class ZXEditor(ttk.Frame):
 
     def set_status(self, message):
         self.status.set_status(message)
+
+    def set_sticky(self, value):
+        self.is_sticky_enabled = value
+        self.sidebar.palette.notify_sticky_changed(value)
 
     def set_overwrite(self, value):
         self.is_overwrite_enabled = value
@@ -434,7 +451,7 @@ class Main(ttk.Frame):
 
     def notify_cursor_changed(self, cursor_x, cursor_y):
         attr = self.zx_editor.zx_document.get_attribute(cursor_x, cursor_y)
-        self.zx_editor.sidebar.palette.set_attribute(attr)
+        self.zx_editor.sidebar.palette.from_attribute(attr)
         self.refresh()
 
     def notify_grid_changed(self, grid_enabled):
@@ -541,8 +558,7 @@ class Palette(ttk.Frame):
         self.is_bright_var = ttk.BooleanVar(master=self, value=self.is_bright)
         self.is_flash = False
         self.is_flash_var = ttk.BooleanVar(master=self, value=self.is_flash)
-        self.is_sticky = False
-        self.is_sticky_var = ttk.BooleanVar(master=self, value=self.is_sticky)
+        self.is_sticky_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_sticky_enabled)
         self.is_overwrite_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_overwrite_enabled)
         self.current_ink = ZXScreen.WHITE
         self.current_paper = ZXScreen.BLACK
@@ -607,8 +623,8 @@ class Palette(ttk.Frame):
             bootstyle="danger-round-toggle",
             onvalue=True,
             offvalue=False,
-            variable=self.is_sticky_var,
-            command=lambda: self.changed_sticky(self.is_sticky_var.get()))
+            variable=self.is_sticky_enabled_var,
+            command=lambda: self.zx_editor.set_sticky(self.is_sticky_enabled_var.get()))
         btn.grid(row=2, column=0, sticky=NW, pady=(10, 0))
 
         # Determines if we're overwriting the current highlighted cell or
@@ -625,14 +641,22 @@ class Palette(ttk.Frame):
 
     def changed_bright(self, value):
         self.is_bright = value
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
         self.refresh()
 
     def changed_flash(self, value):
         self.is_flash = value
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
         self.refresh()
 
-    def changed_sticky(self, value):
-        self.is_sticky = value
+    def changed_ink(self, colour):
+        self.current_ink = colour
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
+    def changed_paper(self, colour):
+        self.current_paper = colour
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
         self.refresh()
 
     def notify_scale_changed(self, value):
@@ -640,6 +664,9 @@ class Palette(ttk.Frame):
 
     def notify_overwrite_changed(self, value):
         self.is_overwrite_enabled_var.set(value)
+
+    def notify_sticky_changed(self, value):
+        self.is_sticky_enabled_var.set(value)
 
     def refresh(self):
         self.is_bright_var.set(self.is_bright)
@@ -649,8 +676,8 @@ class Palette(ttk.Frame):
         for widget in self.paper_widgets:
             widget.refresh()
 
-    def set_attribute(self, value):
-        if self.is_sticky:
+    def from_attribute(self, value):
+        if self.zx_editor.is_sticky_enabled:
             return
         parsed = ZXScreen.to_parsed_attribute(value)
         self.is_bright = parsed['bright']
@@ -666,14 +693,6 @@ class Palette(ttk.Frame):
             self.current_paper, 
             self.current_ink)
 
-    def set_ink(self, colour):
-        self.current_ink = colour
-        self.refresh()
-
-    def set_paper(self, colour):
-        self.current_paper = colour
-        self.refresh()
-
 
 class PaletteColour(Canvas):
     TYPE_INK = 0
@@ -688,9 +707,9 @@ class PaletteColour(Canvas):
 
     def mouse_clicked(self, event):
         if self.type == self.TYPE_INK:
-            self.palette.set_ink(self.colour)
+            self.palette.changed_ink(self.colour)
         if self.type == self.TYPE_PAPER:
-            self.palette.set_paper(self.colour)
+            self.palette.changed_paper(self.colour)
 
     def refresh(self):
         zx_fg = ZXScreen.colour_to_rgb(self.colour, self.palette.is_bright)
