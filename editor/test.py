@@ -45,6 +45,11 @@ class ZXEditor(ttk.Frame):
         self.__load_font()
         self.__load_glyph()
 
+        self.master.bind("<Control-KeyPress-n>", self.clicked_new)
+        self.master.bind("<Control-KeyPress-o>", self.clicked_open)
+        self.master.bind("<Control-KeyPress-s>", self.clicked_save)
+        self.master.bind("<Control-KeyPress-b>", self.clicked_background)
+        self.master.bind("<Control-KeyPress-g>", self.clicked_grid)
         self.master.bind("<Key>", self.keyboard_event)
         self.update_title_periodic()
 
@@ -52,7 +57,7 @@ class ZXEditor(ttk.Frame):
         self.is_grid_enabled = value
         self.main.notify_grid_changed(self.is_grid_enabled)
 
-    def clicked_background(self):
+    def clicked_background(self, event=None):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Set background', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
             if filename:
@@ -61,8 +66,14 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f'Background loaded: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
+        return 'break'
 
-    def clicked_new(self):
+    def clicked_grid(self, event=None):
+        self.is_grid_enabled = (not self.is_grid_enabled)
+        self.main.notify_grid_changed(self.is_grid_enabled)
+        return 'break'
+
+    def clicked_new(self, event=None):
         if self.zx_document.has_changes():
             if self.__allow_discard() != 'OK':
                 return
@@ -70,13 +81,14 @@ class ZXEditor(ttk.Frame):
         self.__load_font()
         self.__load_glyph()
         self.refresh()
-        self.set_status(f'New document')
+        self.set_status('New untitled document')
         self.update_title()
+        return 'break'
 
     def __allow_discard(self):
         return Messagebox.okcancel(parent=self, title='New document', message='Document has unsaved changes, do you want to discard these?')
 
-    def clicked_open(self):
+    def clicked_open(self, event=None):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], multiple=False)
             if filename:
@@ -88,6 +100,7 @@ class ZXEditor(ttk.Frame):
             Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
         self.refresh()
         self.set_status(f'Document loaded: {self.zx_document.document_path}')
+        return 'break'
 
     def __load_font(self):
         self.sidebar.symbols.notify_font_changed(self.zx_document.font_path)
@@ -95,7 +108,7 @@ class ZXEditor(ttk.Frame):
     def __load_glyph(self):
         self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
 
-    def clicked_save(self):
+    def clicked_save(self, event=None):
         if self.zx_document.is_blank():
             try:
                 filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], defaultextension='.telezx', confirmoverwrite=True)
@@ -106,6 +119,7 @@ class ZXEditor(ttk.Frame):
                 Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
         self.zx_document.save()
         self.set_status(f'Document saved: {self.zx_document.document_path}')
+        return 'break'
 
     def keyboard_event(self, event):
         if self.main.check_focus():
@@ -227,10 +241,6 @@ class ZXEditor(ttk.Frame):
         self.is_overwrite_enabled = value
         self.sidebar.palette.notify_overwrite_changed(value)
 
-    def toggle_grid_enabled(self):
-        self.is_grid_enabled = (not self.is_grid_enabled)
-        self.main.notify_grid_changed(self.is_grid_enabled)
-
     def update_title_periodic(self):
         self.update_title()
         self.after(250, self.update_title_periodic)
@@ -271,7 +281,7 @@ class Menu(ttk.Frame):
             text='New...',
             image='new-project', 
             compound=LEFT, 
-            command=self.master.clicked_new
+            command=self.zx_editor.clicked_new
         )
         btn.grid(row=0, column=0)
 
@@ -281,7 +291,7 @@ class Menu(ttk.Frame):
             text='Open',
             image='open-project', 
             compound=LEFT, 
-            command=self.master.clicked_open
+            command=self.zx_editor.clicked_open
         )
         btn.grid(row=0, column=1)
 
@@ -291,7 +301,7 @@ class Menu(ttk.Frame):
             text='Save',
             image='save-project', 
             compound=LEFT, 
-            command=self.master.clicked_save
+            command=self.zx_editor.clicked_save
         )
         btn.grid(row=0, column=2)
 
@@ -301,7 +311,7 @@ class Menu(ttk.Frame):
             text='Background', 
             image='set-background', 
             compound=LEFT, 
-            command=self.master.clicked_background
+            command=self.zx_editor.clicked_background
         )
         btn.grid(row=0, column=3)
 
@@ -326,7 +336,7 @@ class Menu(ttk.Frame):
             text='Grid', 
             image='grid-enabled', 
             compound=LEFT, 
-            command=self.zx_editor.toggle_grid_enabled
+            command=self.zx_editor.clicked_grid
         )
         btn.grid(row=0, column=5)
 
