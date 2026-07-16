@@ -341,7 +341,7 @@ class Menu(ttk.Frame):
         btn.grid(row=0, column=5)
 
     def set_scale(self, value):
-        self.scale.config(text=f'{value}x')
+        # self.scale.config(text=f'{value}x')
         self.master.set_scale(value)
 
 
