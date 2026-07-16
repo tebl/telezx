@@ -12,6 +12,8 @@ from PIL import Image, ImageTk
 
 
 class ZXEditor(ttk.Frame):
+    PROGRAM_TITLE = 'ZX Editor'
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pack(fill=BOTH, expand=YES)
@@ -44,6 +46,7 @@ class ZXEditor(ttk.Frame):
         self.__load_glyph()
 
         self.master.bind("<Key>", self.keyboard_event)
+        self.update_title_periodic()
 
     def changed_grid_enabled(self, value):
         self.is_grid_enabled = value
@@ -68,6 +71,7 @@ class ZXEditor(ttk.Frame):
         self.__load_glyph()
         self.refresh()
         self.set_status(f'New document')
+        self.update_title()
 
     def __allow_discard(self):
         return Messagebox.okcancel(parent=self, title='New document', message='Document has unsaved changes, do you want to discard these?')
@@ -104,7 +108,6 @@ class ZXEditor(ttk.Frame):
         self.set_status(f'Document saved: {self.zx_document.document_path}')
 
     def keyboard_event(self, event):
-        print('Key event:', event.char, event.keysym, event.keycode)
         if self.main.check_focus():
             match event.keysym:
                 case 'Enter' | 'KP_Enter' | 'Return':
@@ -133,7 +136,7 @@ class ZXEditor(ttk.Frame):
                     self.move_cursor_right()
                 case 'Shift_L' | 'Shift_R' | 'Control_L' | 'Control_R':
                     pass
-                case 'Delete':
+                case 'Delete' | 'KP_Delete':
                     self.zx_document.set_character(self.cursor_x, self.cursor_y)
                     self.zx_document.set_attribute(self.cursor_x, self.cursor_y)
                     self.move_cursor(self.cursor_x, self.cursor_y)
@@ -152,7 +155,7 @@ class ZXEditor(ttk.Frame):
     def move_cursor(self, char_x, char_y):
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
         self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
-        # self.zx_document.debug_cell(self.cursor_x, self.cursor_y)
+        self.zx_document.debug_cell(self.cursor_x, self.cursor_y)
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed(self.cursor_x, self.cursor_y)
 
@@ -211,6 +214,18 @@ class ZXEditor(ttk.Frame):
     def toggle_grid_enabled(self):
         self.is_grid_enabled = (not self.is_grid_enabled)
         self.main.notify_grid_changed(self.is_grid_enabled)
+
+    def update_title_periodic(self):
+        self.update_title()
+        self.after(250, self.update_title_periodic)
+
+    def update_title(self):
+        self.master.title(
+            "{} ({})".format(
+                self.PROGRAM_TITLE, 
+                self.zx_document.get_description()
+            )
+        )
 
     def __load_assets(self):
         image_files = {
@@ -635,12 +650,21 @@ class Palette(ttk.Frame):
             widget.refresh()
 
     def set_attribute(self, value):
+        if self.is_sticky:
+            return
         parsed = ZXScreen.to_parsed_attribute(value)
         self.is_bright = parsed['bright']
         self.is_flash = parsed['flash']
         self.current_ink = parsed['ink']
         self.current_paper = parsed['paper']
         self.refresh()
+
+    def get_attribute(self):
+        return ZXScreen.to_attribute(
+            self.is_flash, 
+            self.is_bright, 
+            self.current_paper, 
+            self.current_ink)
 
     def set_ink(self, colour):
         self.current_ink = colour
@@ -796,6 +820,6 @@ class Status(ttk.Frame):
 
 
 if __name__ == '__main__':
-    app = ttk.Window("ZX Editor", themename="darkly")
+    app = ttk.Window(ZXEditor.PROGRAM_TITLE, themename="darkly")
     ZXEditor(app)
     app.mainloop()
