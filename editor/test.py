@@ -1,5 +1,4 @@
 import ttkbootstrap as ttk
-# from ttkbootstrap.style import Bootstyle
 from tkinter import filedialog
 from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.constants import *
@@ -110,6 +109,7 @@ class ZXEditor(ttk.Frame):
 
     def keyboard_event(self, event):
         if self.main.check_focus():
+            self.main.focus_set()
             match event.keysym:
                 case 'Enter' | 'KP_Enter' | 'Return':
                     self.move_cursor_newline()
@@ -144,7 +144,6 @@ class ZXEditor(ttk.Frame):
                     self.refresh()
                 case 'Insert' | 'KP_Insert':
                     self.set_overwrite(not self.is_overwrite_enabled)
-                    pass
                 case _:
                     if event.char:
                         ascii_code = ord(event.char)
@@ -397,13 +396,13 @@ class Main(ttk.Frame):
         self.notify_scale_changed(self.zx_editor.scale)
         self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
-        self.label.bind('<Enter>', lambda x: self.set_focus(True))
-        self.label.bind('<Leave>', lambda x: self.set_focus(False))
+        self.label.bind('<Enter>', lambda x: self.set_custom_focus(True))
+        self.label.bind('<Leave>', lambda x: self.set_custom_focus(False))
 
     def check_focus(self):
         return self.in_focus
 
-    def set_focus(self, in_focus):
+    def set_custom_focus(self, in_focus):
         self.in_focus = in_focus
         style = 'raised' if in_focus else 'flat'
         self.label.config(relief=style)
