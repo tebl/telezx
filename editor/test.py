@@ -12,6 +12,7 @@ from PIL import Image, ImageTk
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
+    SCALE_MAX = 5
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -316,11 +317,15 @@ class Menu(ttk.Frame):
         btn.grid(row=0, column=3)
 
         ## configure scale
+        self.scale_variable = ttk.IntVar()
         scale_options = ttk.Menu(self)
-        scale_options.add_radiobutton(label="1x", command=lambda: self.set_scale(1))
-        scale_options.add_radiobutton(label="2x", command=lambda: self.set_scale(2))
-        scale_options.add_radiobutton(label="3x", command=lambda: self.set_scale(3))
-        scale_options.add_radiobutton(label="4x", command=lambda: self.set_scale(4))
+        for scale_up in range(1, (ZXEditor.SCALE_MAX + 1)):
+            scale_options.add_radiobutton(
+                label=f"{scale_up}x", 
+                command=lambda scale_up=scale_up: self.zx_editor.set_scale(scale_up), 
+                variable=self.scale_variable, 
+                value=scale_up)
+        self.scale_variable.set(self.zx_editor.scale)
         self.scale = ttk.Menubutton(
             master=self,
             text="Set scale",
@@ -339,11 +344,6 @@ class Menu(ttk.Frame):
             command=self.zx_editor.clicked_grid
         )
         btn.grid(row=0, column=5)
-
-    def set_scale(self, value):
-        # self.scale.config(text=f'{value}x')
-        self.master.set_scale(value)
-
 
 class Canvas(ttk.Frame):
     SCALE_MASTER = 0
