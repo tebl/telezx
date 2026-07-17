@@ -57,10 +57,6 @@ class ZXEditor(ttk.Frame):
 
         self.update_title_periodic()
 
-    def changed_grid_enabled(self, value):
-        self.is_grid_enabled = value
-        self.main.notify_grid_changed(self.is_grid_enabled)
-
     def clicked_background(self, event=None):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Set background', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
@@ -75,6 +71,7 @@ class ZXEditor(ttk.Frame):
     def clicked_grid(self, event=None):
         self.is_grid_enabled = (not self.is_grid_enabled)
         self.main.notify_grid_changed(self.is_grid_enabled)
+        self.menu.notify_grid_changed(self.is_grid_enabled)
         if event is not None:
             self.main.focus_set()
         return 'break'
@@ -285,7 +282,8 @@ class ZXEditor(ttk.Frame):
             'save-project': 'zx-save.png',
             'set-background': 'zx-background.png',
             'set-scale': 'zx-scale.png',
-            'grid-enabled': 'zx-grid.png'
+            'grid-enabled': 'zx-grid.png',
+            'grid-disabled': 'zx-grid-disabled.png'
         }
 
         self.photoimages = []
@@ -360,14 +358,18 @@ class Menu(ttk.Frame):
         self.scale.grid(row=0, column=4)
 
         ## Enable display grid
-        btn = ttk.Button(
+        self.button_grid = ttk.Button(
             master=self, 
             text='Grid', 
-            image='grid-enabled', 
+            image='grid-disabled', 
             compound=LEFT, 
             command=self.zx_editor.clicked_grid
         )
-        btn.grid(row=0, column=5)
+        self.button_grid.grid(row=0, column=5)
+
+    def notify_grid_changed(self, value):
+        img_name = 'grid-disabled' if value else 'grid-enabled'
+        self.button_grid.config(image=img_name)
 
 class Canvas(ttk.Frame):
     SCALE_MASTER = 0
