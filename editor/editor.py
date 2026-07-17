@@ -79,10 +79,21 @@ class ZXEditor(ttk.Frame):
 
     def clicked_export_scr(self, event=None):
         try:
-            filename = filedialog.asksaveasfilename(parent=self, title='Exoirt to SCR', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], defaultextension='.scr', confirmoverwrite=True)
+            filename = filedialog.asksaveasfilename(parent=self, title='Export to SCR', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], defaultextension='.scr', confirmoverwrite=True)
             if filename:
                 self.zx_document.export_to_scr(scr_path=filename)
                 self.set_status(f'Exported SCR: {filename}')
+        except Exception as e:
+            Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
+            self.set_status(f'{e}')
+        return 'break'
+
+    def clicked_export_specscii(self, event=None):
+        try:
+            filename = filedialog.asksaveasfilename(parent=self, title='Export to SPECSCII', filetypes=[("SPECSCII", ('*.specscii')), ("All files", "*.*")], defaultextension='.scr', confirmoverwrite=True)
+            if filename:
+                self.zx_document.export_to_specscii(specscii_path=filename)
+                self.set_status(f'Exported SPECSCII: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
             self.set_status(f'{e}')
@@ -392,6 +403,7 @@ class Menu(ttk.Frame):
         ## Export options
         export_options = ttk.Menu(self)
         export_options.add_command(label="Export to SCR", command=self.zx_editor.clicked_export_scr)
+        export_options.add_command(label="Export to SPECSCII", command=self.zx_editor.clicked_export_specscii)
         btn = ttk.Menubutton(
             master=self,
             text="Export",

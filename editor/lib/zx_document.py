@@ -44,6 +44,10 @@ class ZXDocument:
         with open(scr_path, 'wb') as file:
             file.write(self.zx_screen.to_scr())
 
+    def export_to_specscii(self, specscii_path):
+        with open(specscii_path, 'wb') as file:
+            raise Exception("not implemented")
+
     def debug_cell(self, char_x, char_y):
         self.cells[char_y][char_x].debug(self)
 
