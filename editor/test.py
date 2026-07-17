@@ -53,6 +53,7 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-g>", self.clicked_grid)
         self.master.bind("<Control-KeyPress-z>", self.move_cursor_left)
         self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)
+        self.master.bind("<Control-KeyPress-q>", self.clicked_quit)
         self.master.bind("<Key>", self.keyboard_event)
 
         self.update_title_periodic()
@@ -78,7 +79,7 @@ class ZXEditor(ttk.Frame):
 
     def clicked_new(self, event=None):
         if self.zx_document.has_changes():
-            if self.__allow_discard() != 'OK':
+            if self.__allow_discard('Document unsaved') != 'OK':
                 return
         self.zx_document.clear()
         self.__load_font()
@@ -88,14 +89,14 @@ class ZXEditor(ttk.Frame):
         self.update_title()
         return 'break'
 
-    def __allow_discard(self):
-        return Messagebox.okcancel(parent=self, title='New document', message='Document has unsaved changes, do you want to discard these?')
+    def __allow_discard(self, title):
+        return Messagebox.okcancel(parent=self, title=title, message='Document has unsaved changes, do you want to discard these?')
 
     def clicked_open(self, event=None):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], multiple=False)
             if filename:
-                if not self.zx_document.has_changes() or self.__allow_discard() == 'OK':
+                if not self.zx_document.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
                     self.zx_document.load(filename)
                     self.__load_font()
                     self.__load_glyph()
@@ -128,6 +129,10 @@ class ZXEditor(ttk.Frame):
         self.set_sticky(not self.is_sticky_enabled)
         if event is not None:
             self.main.focus_set()
+        return 'break'
+
+    def clicked_quit(self, event=None):
+        self.on_quit(self.master)
         return 'break'
 
     def keyboard_event(self, event):
@@ -185,7 +190,7 @@ class ZXEditor(ttk.Frame):
                         if ZXFont.validate_ascii(ascii_code):
                             self.set_cursor_character(ascii_code)
                             return
-                    print('Unknown key:', event.char, event.keysym, event.keycode)
+                    # print('Unknown key:', event.char, event.keysym, event.keycode)
 
     def move_cursor(self, char_x, char_y):
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
@@ -220,6 +225,10 @@ class ZXEditor(ttk.Frame):
     def move_cursor_newline(self, event=None):
         if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
             self.move_cursor(0, self.cursor_y + 1)
+
+    def on_quit(self, root):
+        if not self.zx_document.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
+            root.destroy()
 
     def refresh(self):
         self.main.refresh()
@@ -877,8 +886,8 @@ class Status(ttk.Frame):
                 str(cursor_x).rjust(2, '0'), 
                 str(cursor_y).rjust(2, '0')))
 
-
 if __name__ == '__main__':
     app = ttk.Window(ZXEditor.PROGRAM_TITLE, themename="darkly")
-    ZXEditor(app)
+    zx_editor = ZXEditor(app)
+    app.protocol("WM_DELETE_WINDOW", lambda app=app: zx_editor.on_quit(app))
     app.mainloop()
