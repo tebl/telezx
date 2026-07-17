@@ -1,4 +1,4 @@
-import json
+import yaml
 import numpy
 from .zx_screen import ZXScreen
 from .zx_glyph import ZXGlyph
@@ -6,6 +6,7 @@ from .zx_font import ZXFont
 
 class ZXDocument:
     UNDEFINED = -1
+    DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
     DEFAULT_FONT_PATH = 'font_default.bin'
     DEFAULT_GLYPH_PATH = 'font_glyphs.bin'
 
@@ -14,11 +15,7 @@ class ZXDocument:
         self.clear()
 
     def clear(self):
-        self.default_attribute = ZXScreen.to_attribute(
-            paper=ZXScreen.BLACK, 
-            ink=ZXScreen.WHITE
-        )
-        self.zx_screen.clear_memory(set_attribute=self.default_attribute)
+        self.zx_screen.clear_memory(set_attribute=self.DEFAULT_ATTRIBUTE)
         self.__clear_background()
         self.__clear_cells()
         self.__clear_fonts()
@@ -77,38 +74,41 @@ class ZXDocument:
         return False
 
     def load(self, document_path):
-        # Clear current information
-        self.clear()
-
         data = self.__json_defaults()
         with open(document_path, 'r') as file:
-            data.update(json.load(file))
+            data.update(yaml.safe_load(file))
+            if self.__class__.__name__ not in data:
+                raise ValueError("does not look like a telezx file")
+        root = data[self.__class__.__name__]
+
+        # Clear and set as current file
+        self.clear()
         self.set_document(document_path)
 
-        self.default_attribute = data['attribute']
-        if data['background']:
-            self.set_background(data['background'])
-        self.set_selected_font(data['font'])
-        self.set_selected_glyph(data['glyph'])
+        self.current_attribute = root['attribute']
+        if root['background']:
+            self.set_background(root['root'])
+        self.set_selected_font(root['font'])
+        self.set_selected_glyph(root['glyph'])
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
-            s_char_y = str(char_y)
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                s_char_x = str(char_x)
-                cell = self.cells[char_y][char_x]
-                if s_char_y in data['cells'] and s_char_x in data['cells'][s_char_y]:
-                    cell.from_dict(data['cells'][s_char_y][s_char_x])
-                else:
-                    cell.set(self.UNDEFINED, self.UNDEFINED)
+                self.cells[char_y][char_x].from_dict(root['cells'][char_y][char_x])
         self.__render_cells()
         self.changes = False
     
     def __json_defaults(self):
         return {
-            'attribute': self.default_attribute,
-            'background': self.background,
-            'font': self.font_path,
-            'glyph': self.glyph_path,
-            'cells': {}
+            self.__class__.__name__: {
+                'attribute': ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK),
+                'background': None,
+                'font': self.DEFAULT_FONT_PATH,
+                'glyph': self.DEFAULT_GLYPH_PATH,
+                'cells': {
+                    char_y: {
+                        char_x: { 'attribute': ZXDocument.UNDEFINED, 'char_code': ZXDocument.UNDEFINED } 
+                        for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS)} for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS)
+                }
+            }
         }
     
     def __render_cells(self):
@@ -149,17 +149,28 @@ class ZXDocument:
     def save(self):
         if self.document_path:
             with open(self.document_path, 'w') as file:
-                json.dump(self.to_dict(), file, indent=4)
+                yaml.dump(
+                    self.to_dict(), 
+                    file, 
+                    indent=4, 
+                    default_flow_style=False, 
+                    sort_keys=True
+                )
             self.changes = False
             return
         raise Exception('No document set')
         
     def to_dict(self):
         result = self.__json_defaults()
+        root = result[self.__class__.__name__]
+        root['attribute'] = self.current_attribute
+        root['background'] = self.background
+        root['font'] = self.font_path
+        root['glyph'] = self.glyph_path
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
-            result['cells'][char_y] = {}
+            root['cells'][char_y] = {}
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                result['cells'][char_y][char_x] = self.cells[char_y][char_x].to_dict()
+                root['cells'][char_y][char_x] = self.cells[char_y][char_x].to_dict()
         return result
 
     def to_rgb(self):
