@@ -51,7 +51,10 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-s>", self.clicked_save)
         self.master.bind("<Control-KeyPress-b>", self.clicked_background)
         self.master.bind("<Control-KeyPress-g>", self.clicked_grid)
+        self.master.bind("<Control-KeyPress-z>", self.move_cursor_left)
+        self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)
         self.master.bind("<Key>", self.keyboard_event)
+
         self.update_title_periodic()
 
     def changed_grid_enabled(self, value):
@@ -72,6 +75,8 @@ class ZXEditor(ttk.Frame):
     def clicked_grid(self, event=None):
         self.is_grid_enabled = (not self.is_grid_enabled)
         self.main.notify_grid_changed(self.is_grid_enabled)
+        if event is not None:
+            self.main.focus_set()
         return 'break'
 
     def clicked_new(self, event=None):
@@ -122,6 +127,12 @@ class ZXEditor(ttk.Frame):
         self.set_status(f'Document saved: {self.zx_document.document_path}')
         return 'break'
 
+    def clicked_toggle_sticky(self, event=None):
+        self.set_sticky(not self.is_sticky_enabled)
+        if event is not None:
+            self.main.focus_set()
+        return 'break'
+
     def keyboard_event(self, event):
         if self.main.check_focus():
             self.main.focus_set()
@@ -146,10 +157,22 @@ class ZXEditor(ttk.Frame):
                     self.move_cursor_up()
                 case 'Down' | 'KP_Down':
                     self.move_cursor_down()
-                case 'Left' | 'KP_Left' | 'BackSpace':
+                case 'Left' | 'KP_Left':
                     self.move_cursor_left()
                 case 'Right' | 'KP_Right':
                     self.move_cursor_right()
+                case 'BackSpace':
+                    char_x = self.cursor_x
+                    char_y = self.cursor_y
+                    if char_x > 0:
+                        char_x -= 1
+                    else:
+                        if char_y > 0:
+                            char_x = 0
+                            char_y -= 1
+                    self.zx_document.set_character(char_x, char_y, ZXDocument.UNDEFINED)
+                    self.zx_document.set_attribute(char_x, char_y, ZXDocument.UNDEFINED)
+                    self.move_cursor(char_x, char_y)
                 case 'Shift_L' | 'Shift_R' | 'Control_L' | 'Control_R':
                     pass
                 case 'Delete' | 'KP_Delete':
@@ -174,29 +197,30 @@ class ZXEditor(ttk.Frame):
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed(self.cursor_x, self.cursor_y)
 
-    def move_cursor_up(self):
+    def move_cursor_up(self, event=None):
         if self.cursor_y > 0:
             self.move_cursor(self.cursor_x, self.cursor_y - 1)
 
-    def move_cursor_down(self):
+    def move_cursor_down(self, event=None):
         if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
             self.move_cursor(self.cursor_x, self.cursor_y + 1)
 
-    def move_cursor_left(self):
+    def move_cursor_left(self, event=None):
         if self.cursor_x > 0:
             self.move_cursor(self.cursor_x - 1, self.cursor_y)
-            return
-        if self.cursor_y > 0:
-            self.move_cursor(ZXScreen.SCREEN_WIDTH_CHARS - 1, self.cursor_y - 1)
+        else:
+            if self.cursor_y > 0:
+                self.move_cursor(ZXScreen.SCREEN_WIDTH_CHARS - 1, self.cursor_y - 1)
+        return 'break'
     
-    def move_cursor_right(self):
+    def move_cursor_right(self, event=None):
         if self.cursor_x < (ZXScreen.SCREEN_WIDTH_CHARS - 1):
             self.move_cursor(self.cursor_x + 1, self.cursor_y)
             return
         if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
             self.move_cursor(0, self.cursor_y + 1)
 
-    def move_cursor_newline(self):
+    def move_cursor_newline(self, event=None):
         if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
             self.move_cursor(0, self.cursor_y + 1)
 
@@ -416,6 +440,11 @@ class Main(ttk.Frame):
         self.in_focus = in_focus
         style = 'raised' if in_focus else 'flat'
         self.label.config(relief=style)
+        
+        # Focus sometimes sticks to widgets, so we need to force it back to
+        # ensure that using space doesn't additionally toggle widget values.
+        if in_focus:
+            self.focus_set()
 
     def clear(self):
         self.pixel_data[:] = self.default_fill
