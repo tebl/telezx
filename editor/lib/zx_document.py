@@ -40,6 +40,10 @@ class ZXDocument:
         self.set_selected_font(self.DEFAULT_FONT_PATH)
         self.set_selected_glyph(self.DEFAULT_GLYPH_PATH)
 
+    def export_to_scr(self, scr_path):
+        with open(scr_path, 'wb') as file:
+            file.write(self.zx_screen.to_scr())
+
     def debug_cell(self, char_x, char_y):
         self.cells[char_y][char_x].debug(self)
 
@@ -103,9 +107,6 @@ class ZXDocument:
             'cells': {}
         }
     
-    def to_rgb(self):
-        return self.zx_screen.to_rgb()
-
     def __render_cells(self):
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -156,6 +157,10 @@ class ZXDocument:
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 result['cells'][char_y][char_x] = self.cells[char_y][char_x].to_dict()
         return result
+
+    def to_rgb(self):
+        return self.zx_screen.to_rgb()
+
 
 class Cell:
     def __init__(self, char_x, char_y, char_code=ZXDocument.UNDEFINED, char_attribute=ZXDocument.UNDEFINED):

@@ -77,6 +77,17 @@ class ZXEditor(ttk.Frame):
             self.main.focus_set()
         return 'break'
 
+    def clicked_export_scr(self, event=None):
+        try:
+            filename = filedialog.asksaveasfilename(parent=self, title='Exoirt to SCR', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], defaultextension='.scr', confirmoverwrite=True)
+            if filename:
+                self.zx_document.export_to_scr(scr_path=filename)
+                self.set_status(f'Exported SCR: {filename}')
+        except Exception as e:
+            Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
+            self.set_status(f'{e}')
+        return 'break'
+
     def clicked_new(self, event=None):
         if self.zx_document.has_changes():
             if self.__allow_discard('Document unsaved') != 'OK':
@@ -100,10 +111,11 @@ class ZXEditor(ttk.Frame):
                     self.zx_document.load(filename)
                     self.__load_font()
                     self.__load_glyph()
+            self.set_status(f'Document loaded: {self.zx_document.document_path}')
         except Exception as e:
-            Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
+            Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
+            self.set_status(f'Load error: {e}')
         self.refresh()
-        self.set_status(f'Document loaded: {self.zx_document.document_path}')
         return 'break'
 
     def __load_font(self):
@@ -292,7 +304,8 @@ class ZXEditor(ttk.Frame):
             'set-background': 'zx-background.png',
             'set-scale': 'zx-scale.png',
             'grid-enabled': 'zx-grid.png',
-            'grid-disabled': 'zx-grid-disabled.png'
+            'grid-disabled': 'zx-grid-disabled.png',
+            'export': 'zx-export.png'
         }
 
         self.photoimages = []
@@ -375,6 +388,18 @@ class Menu(ttk.Frame):
             command=self.zx_editor.clicked_grid
         )
         self.button_grid.grid(row=0, column=5)
+
+        ## Export options
+        export_options = ttk.Menu(self)
+        export_options.add_command(label="Export to SCR", command=self.zx_editor.clicked_export_scr)
+        btn = ttk.Menubutton(
+            master=self,
+            text="Export",
+            image='export',
+            compound=LEFT,
+            menu=export_options
+        )
+        btn.grid(row=0, column=6)        
 
     def notify_grid_changed(self, value):
         img_name = 'grid-disabled' if value else 'grid-enabled'

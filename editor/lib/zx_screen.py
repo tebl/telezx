@@ -80,6 +80,9 @@ class ZXScreen:
                             attr_value
                         )
         return pixels
+    
+    def to_scr(self):
+        return self.memory
 
     def __check_bits(self, value, bit_idx):
         mask = (1 << (7 - bit_idx))
