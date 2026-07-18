@@ -304,29 +304,33 @@ class SpecsciiFormat:
     GLYPH_START = ZXGlyph.GLYPH_OFFSET
     GLYPH_LAST = 0xff
 
-    def __init__(self, zx_document):
+    def __init__(self, zx_document: ZXDocument):
         self.zx_document = zx_document
-        self.current_attribute = None
-        self.previous_attribute = None
+        self.current_attribute = zx_document.current_attribute
 
+        parsed = ZXScreen.to_parsed_attribute(self.current_attribute)
+        self.last_ink = parsed['ink']
+        self.last_paper = parsed['paper']
+        self.last_bright = parsed['bright']
+        self.last_flash = parsed['flash']
+        self.last_xor = False
+        self.last_inverse = False
+        self.last_xor = False
         self.cursor_x = 0
         self.cursor_y = 0
 
     def write_formatted(self, specscii_path):
         with open(specscii_path, 'wb') as file:
-            self.__set_attribute(file, self.zx_document.current_attribute)
             for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
                 for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                     cell = self.zx_document.cells[char_y][char_x]
-                    # Skip if completely blank
-                    if cell.char_code == ZXDocument.UNDEFINED and cell.char_attribute == ZXDocument.UNDEFINED:
+
+                    # Skip if there's no content
+                    if cell.char_code == ZXDocument.UNDEFINED:
                         continue
 
                     # Move cursor to match
-                    if not self.__position_matches(cell.char_x, cell.char_y):
-                        self.__write_cursor(file, char_x, char_y)
-                        self.cursor_x = cell.char_x
-                        self.cursor_y = cell.char_y
+                    self.__write_cursor(file, char_x, char_y)
 
                     # Update attribute at location
                     if not cell.char_attribute == ZXDocument.UNDEFINED:
@@ -335,90 +339,75 @@ class SpecsciiFormat:
                     # Output a character
                     if not cell.char_code == ZXDocument.UNDEFINED:
                         self.__write_character(file, cell.char_code)
-                        self.__increment_cursor()
-                        
-
-    def __position_matches(self, char_x, char_y):
-        if not self.cursor_x == char_x:
-            return False
-        if not self.cursor_y == char_y:
-            return False
-        return True
     
-    def __increment_cursor(self):
-        if self.cursor_x < (ZXScreen.SCREEN_WIDTH_CHARS - 1):
-            self.cursor_x = (self.cursor_x + 1 % ZXScreen.SCREEN_WIDTH_CHARS)
-            self.cursor_y = (self.cursor_y % ZXScreen.SCREEN_HEIGHT_CHARS)
-            return
-        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
-            self.cursor_x = 0
-            self.cursor_y = (self.cursor_y + 1 % ZXScreen.SCREEN_HEIGHT_CHARS)
-            return
-        self.cursor_x = 0
-        self.cursor_y = 0
-
     def __set_attribute(self, file, attribute):
-        self.previous_attribute = self.current_attribute
-        self.current_attribute = ZXScreen.to_parsed_attribute(attribute)
-        if self.__check_changed_attr('ink'):
-            self.__write_ink(file, self.current_attribute['ink'])
-        if self.__check_changed_attr('paper'):
-            self.__write_paper(file, self.current_attribute['paper'])
-        if self.__check_changed_attr('flash'):
-            self.__write_flash(file, self.current_attribute['flash'])
-        if self.__check_changed_attr('bright'):
-            self.__write_bright(file, self.current_attribute['bright'])
-
-    def __check_changed_attr(self, attr_name):
-        '''
-        Check if a parsed attribute field changed 
-        '''
-        if self.previous_attribute is None:
-            return True
-        if not self.previous_attribute[attr_name] == self.current_attribute[attr_name]:
-            return False
-        print(f'{attr_name} changed to {self.current_attribute[attr_name]}')
-        return True
+        parsed = ZXScreen.to_parsed_attribute(attribute)
+        self.__write_ink(file, parsed['ink'])
+        self.__write_paper(file, parsed['paper'])
+        self.__write_flash(file, parsed['flash'])
+        self.__write_bright(file, parsed['bright'])
 
     def __write_ink(self, file, ink):
         assert ink >= ZXScreen.BLACK and ink <= ZXScreen.WHITE
+        if self.last_ink == ink:
+            return
+        self.last_ink = ink
         self.__write_bytes(file, (self.SET_INK, ink))
 
     def __write_paper(self, file, paper):
         assert paper >= ZXScreen.BLACK and paper <= ZXScreen.WHITE
+        if self.last_paper == paper:
+            return
+        self.last_paper = paper
         self.__write_bytes(file, (self.SET_PAPER, paper))
 
     def __write_flash(self, file, is_flashing):
         assert is_flashing == True or is_flashing == False
-        self.__write_bytes(
-            file, 
-            (self.SET_FLASH, 1 if is_flashing else 0)
-        )
+        if self.last_flash == is_flashing:
+            return
+        self.last_flash = is_flashing
+        self.__write_bytes(file, (self.SET_FLASH, 1 if is_flashing else 0))
 
     def __write_bright(self, file, is_bright):
         assert is_bright == True or is_bright == False
-        self.__write_bytes(
-            file, 
-            (self.SET_BRIGHT, 1 if is_bright else 0)
-        )
+        if self.last_bright == is_bright:
+            return
+        self.last_bright = is_bright
+        self.__write_bytes(file, (self.SET_BRIGHT, 1 if is_bright else 0))
 
     def __write_inverse(self, file, is_inverse):
+        '''
+        Remove client should set a variable to swap ink/paper upon printing
+        data to the screen. This allows a file to highlight text without
+        knowing the colour scheme used on the other end.
+        '''
         assert is_inverse == True or is_inverse == False
+        if self.last_inverse == is_inverse:
+            return
         self.__write_bytes(
             file, 
             (self.SET_INVERSE, 1 if is_inverse else 0)
         )
 
     def __write_xor(self, file, is_xor):
+        '''
+        WARNING: Absolutely no idea what this does.
+        '''
         assert is_xor == True or is_xor == False
+        if self.last_xor == is_xor:
+            return
         self.__write_bytes(
             file, 
-            (self.SET_INVERSE, 1 if is_xor else 0)
+            (self.SET_XOR, 1 if is_xor else 0)
         )
 
     def __write_cursor(self, file, char_x, char_y):
         assert char_x >= 0 and char_x < ZXScreen.SCREEN_WIDTH_CHARS
         assert char_y >= 0 and char_y < ZXScreen.SCREEN_HEIGHT_CHARS
+        if self.cursor_x == char_x and self.cursor_y == char_y:
+            return
+        self.cursor_x = char_x
+        self.cursor_y = char_y
         self.__write_bytes(
             file, 
             (self.SET_CURSOR, char_y, char_x)
@@ -430,6 +419,9 @@ class SpecsciiFormat:
                  purpose is to move cursor within the same screen row.
         '''
         assert char_x >= 0 and char_x < ZXScreen.SCREEN_WIDTH_CHARS
+        if self.cursor_x == char_x:
+            return
+        self.cursor_x = char_x
         self.__write_bytes(
             file, 
             (self.SET_COLUMN, char_x)
@@ -442,6 +434,19 @@ class SpecsciiFormat:
     def __write_character(self, file, char_code):
         assert char_code >= self.ASCII_START and char_code <= self.GLYPH_LAST
         file.write(char_code.to_bytes(1))
+        self.__increment_cursor()
+
+    def __increment_cursor(self):
+        if self.cursor_x < (ZXScreen.SCREEN_WIDTH_CHARS - 1):
+            self.cursor_x = (self.cursor_x + 1 % ZXScreen.SCREEN_WIDTH_CHARS)
+            self.cursor_y = (self.cursor_y % ZXScreen.SCREEN_HEIGHT_CHARS)
+            return
+        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
+            self.cursor_x = 0
+            self.cursor_y = (self.cursor_y + 1 % ZXScreen.SCREEN_HEIGHT_CHARS)
+            return
+        self.cursor_x = 0
+        self.cursor_y = 0
 
     @classmethod
     def write_document(cls, zx_document, specscii_path):

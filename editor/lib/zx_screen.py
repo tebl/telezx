@@ -13,6 +13,9 @@ class ZXScreen:
     FLASH   = 0b10000000
     BRIGHT  = 0b01000000
 
+    RGB_BASE = 0xc0
+    RGB_FULL = 0xff
+
     # Screen dimensions
     SCREEN_WIDTH_CHARS = 32
     SCREEN_WIDTH_PIXELS = SCREEN_WIDTH_CHARS*8
@@ -103,14 +106,14 @@ class ZXScreen:
         self.memory[self.calculate_offset_attribute(char_x, char_y)] = attribute
 
     @classmethod
-    def colour_to_rgb(cls, colour, bright):
-        base_value = 255 if bright else 224
+    def colour_to_rgb(cls, colour, is_bright):
+        base_value = cls.RGB_FULL if is_bright else cls.RGB_BASE
         return [
             ((colour >> 1) & 1)*base_value,  # red
             ((colour >> 2) & 1)*base_value,  # green
             (colour & 1)*base_value          # blue
         ]
-    
+
     @classmethod
     def calculate_offset_data(cls, char_x, char_y, row=0):
         lot = char_y // 8
@@ -161,3 +164,38 @@ class ZXScreen:
             'paper': (attribute & 0b00111000) >> 3,
             'ink': attribute & 0b00000111
         }
+    
+    @classmethod
+    def to_described_attribute(cls, attribute):
+        parsed = cls.to_parsed_attribute(attribute)
+        parts = []
+        if parsed['flash']:
+            parts.append('flashing')
+        if parsed['bright']:
+            parts.append('bright')
+        parts.append(cls.to_described_colour(parsed['ink']))
+        parts.append('on')
+        parts.append(cls.to_described_colour(parsed['paper']))
+        parts.append('paper')
+        return ' '.join(parts)
+
+    @classmethod
+    def to_described_colour(cls, colour):
+        match colour:
+            case cls.BLACK:
+                return 'BLACK'
+            case cls.BLUE:
+                return 'BLUE'
+            case cls.RED:
+                return 'RED'
+            case cls.MAGENTA:
+                return 'MAGENTA'
+            case cls.GREEN:
+                return 'GREEN'
+            case cls.CYAN:
+                return 'CYAN'
+            case cls.YELLOW:
+                return 'YELLOW'
+            case cls.WHITE:
+                return 'WHITE'
+        raise ValueError(f'Invalid colour {colour}')
