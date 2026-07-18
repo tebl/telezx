@@ -12,10 +12,11 @@ class ZXDocument:
 
     def __init__(self):
         self.zx_screen = ZXScreen()
-        self.clear()
+        self.clear(attribute=self.DEFAULT_ATTRIBUTE)
 
-    def clear(self):
-        self.zx_screen.clear_memory(set_attribute=self.DEFAULT_ATTRIBUTE)
+    def clear(self, attribute):
+        self.current_attribute = attribute
+        self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
         self.__clear_cells()
         self.__clear_fonts()
@@ -42,8 +43,7 @@ class ZXDocument:
             file.write(self.zx_screen.to_scr())
 
     def export_to_specscii(self, specscii_path):
-        with open(specscii_path, 'wb') as file:
-            raise Exception("not implemented")
+        SpecsciiFormat.write_document(self, specscii_path)
 
     def debug_cell(self, char_x, char_y):
         self.cells[char_y][char_x].debug(self)
@@ -82,12 +82,11 @@ class ZXDocument:
         root = data[self.__class__.__name__]
 
         # Clear and set as current file
-        self.clear()
+        self.clear(root['attribute'])
         self.set_document(document_path)
 
-        self.current_attribute = root['attribute']
         if root['background']:
-            self.set_background(root['root'])
+            self.set_background(root['background'])
         self.set_selected_font(root['font'])
         self.set_selected_glyph(root['glyph'])
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
@@ -116,9 +115,12 @@ class ZXDocument:
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.cells[char_y][char_x].render_cell(self)
 
-    def set_document(self, document_path):
-        self.document_path = document_path
-    
+    def set_attribute(self, char_x, char_y, attribute=UNDEFINED):
+        result = self.cells[char_y][char_x].set_attribute(self, attribute)
+        if result:
+            self.changes = True
+        return result
+
     def set_background(self, background_path):
         self.background_data = numpy.fromfile(background_path, dtype='uint8')
         self.background = background_path
@@ -132,11 +134,8 @@ class ZXDocument:
             self.changes = True
         return result
 
-    def set_attribute(self, char_x, char_y, attribute=UNDEFINED):
-        result = self.cells[char_y][char_x].set_attribute(self, attribute)
-        if result:
-            self.changes = True
-        return result
+    def set_document(self, document_path):
+        self.document_path = document_path
 
     def set_selected_font(self, font_path):
         self.font_path = font_path
@@ -283,10 +282,167 @@ class Cell:
 
     def to_dict(self):
         return {
-            'char_code': self.char_code,
-            'attribute': self.char_attribute
+            'char_code': int(self.char_code),
+            'attribute': int(self.char_attribute)
         }
     
     def from_dict(self, data):
         self.char_code = data['char_code']
         self.char_attribute = data['attribute']
+
+class SpecsciiFormat:
+    SET_INK = 0x10
+    SET_PAPER = 0x11
+    SET_FLASH = 0x12
+    SET_BRIGHT = 0x13
+    SET_INVERSE = 0x14
+    SET_XOR = 0x15
+    SET_CURSOR = 0x16
+    SET_COLUMN = 0x17
+    ASCII_START = ZXFont.ASCII_SPACE
+    ASCII_LAST = ZXFont.ASCII_COPYRIGHT
+    GLYPH_START = ZXGlyph.GLYPH_OFFSET
+    GLYPH_LAST = 0xff
+
+    def __init__(self, zx_document):
+        self.zx_document = zx_document
+        self.current_attribute = None
+        self.previous_attribute = None
+
+        self.cursor_x = 0
+        self.cursor_y = 0
+
+    def write_formatted(self, specscii_path):
+        with open(specscii_path, 'wb') as file:
+            self.__set_attribute(file, self.zx_document.current_attribute)
+            for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
+                for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
+                    cell = self.zx_document.cells[char_y][char_x]
+                    # Skip if completely blank
+                    if cell.char_code == ZXDocument.UNDEFINED and cell.char_attribute == ZXDocument.UNDEFINED:
+                        continue
+
+                    # Move cursor to match
+                    if not self.__position_matches(cell.char_x, cell.char_y):
+                        self.__write_cursor(file, char_x, char_y)
+                        self.cursor_x = cell.char_x
+                        self.cursor_y = cell.char_y
+
+                    # Update attribute at location
+                    if not cell.char_attribute == ZXDocument.UNDEFINED:
+                        self.__set_attribute(file, cell.char_attribute)
+
+                    # Output a character
+                    if not cell.char_code == ZXDocument.UNDEFINED:
+                        self.__write_character(file, cell.char_code)
+                        self.__increment_cursor()
+                        
+
+    def __position_matches(self, char_x, char_y):
+        if not self.cursor_x == char_x:
+            return False
+        if not self.cursor_y == char_y:
+            return False
+        return True
+    
+    def __increment_cursor(self):
+        if self.cursor_x < (ZXScreen.SCREEN_WIDTH_CHARS - 1):
+            self.cursor_x = (self.cursor_x + 1 % ZXScreen.SCREEN_WIDTH_CHARS)
+            self.cursor_y = (self.cursor_y % ZXScreen.SCREEN_HEIGHT_CHARS)
+            return
+        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
+            self.cursor_x = 0
+            self.cursor_y = (self.cursor_y + 1 % ZXScreen.SCREEN_HEIGHT_CHARS)
+            return
+        self.cursor_x = 0
+        self.cursor_y = 0
+
+    def __set_attribute(self, file, attribute):
+        self.previous_attribute = self.current_attribute
+        self.current_attribute = ZXScreen.to_parsed_attribute(attribute)
+        if self.__check_changed_attr('ink'):
+            self.__write_ink(file, self.current_attribute['ink'])
+        if self.__check_changed_attr('paper'):
+            self.__write_paper(file, self.current_attribute['paper'])
+        if self.__check_changed_attr('flash'):
+            self.__write_flash(file, self.current_attribute['flash'])
+        if self.__check_changed_attr('bright'):
+            self.__write_bright(file, self.current_attribute['bright'])
+
+    def __check_changed_attr(self, attr_name):
+        '''
+        Check if a parsed attribute field changed 
+        '''
+        if self.previous_attribute is None:
+            return True
+        if not self.previous_attribute[attr_name] == self.current_attribute[attr_name]:
+            return False
+        print(f'{attr_name} changed to {self.current_attribute[attr_name]}')
+        return True
+
+    def __write_ink(self, file, ink):
+        assert ink >= ZXScreen.BLACK and ink <= ZXScreen.WHITE
+        self.__write_bytes(file, (self.SET_INK, ink))
+
+    def __write_paper(self, file, paper):
+        assert paper >= ZXScreen.BLACK and paper <= ZXScreen.WHITE
+        self.__write_bytes(file, (self.SET_PAPER, paper))
+
+    def __write_flash(self, file, is_flashing):
+        assert is_flashing == True or is_flashing == False
+        self.__write_bytes(
+            file, 
+            (self.SET_FLASH, 1 if is_flashing else 0)
+        )
+
+    def __write_bright(self, file, is_bright):
+        assert is_bright == True or is_bright == False
+        self.__write_bytes(
+            file, 
+            (self.SET_BRIGHT, 1 if is_bright else 0)
+        )
+
+    def __write_inverse(self, file, is_inverse):
+        assert is_inverse == True or is_inverse == False
+        self.__write_bytes(
+            file, 
+            (self.SET_INVERSE, 1 if is_inverse else 0)
+        )
+
+    def __write_xor(self, file, is_xor):
+        assert is_xor == True or is_xor == False
+        self.__write_bytes(
+            file, 
+            (self.SET_INVERSE, 1 if is_xor else 0)
+        )
+
+    def __write_cursor(self, file, char_x, char_y):
+        assert char_x >= 0 and char_x < ZXScreen.SCREEN_WIDTH_CHARS
+        assert char_y >= 0 and char_y < ZXScreen.SCREEN_HEIGHT_CHARS
+        self.__write_bytes(
+            file, 
+            (self.SET_CURSOR, char_y, char_x)
+        )
+
+    def __write_column(self, file, char_x):
+        '''
+        WARNING: Not sure what this is used for, so I'm assuming that the
+                 purpose is to move cursor within the same screen row.
+        '''
+        assert char_x >= 0 and char_x < ZXScreen.SCREEN_WIDTH_CHARS
+        self.__write_bytes(
+            file, 
+            (self.SET_COLUMN, char_x)
+        )
+
+    def __write_bytes(self, file, bytes):
+        for b in bytes:
+            file.write(b.to_bytes(1))
+    
+    def __write_character(self, file, char_code):
+        assert char_code >= self.ASCII_START and char_code <= self.GLYPH_LAST
+        file.write(char_code.to_bytes(1))
+
+    @classmethod
+    def write_document(cls, zx_document, specscii_path):
+        SpecsciiFormat(zx_document).write_formatted(specscii_path)

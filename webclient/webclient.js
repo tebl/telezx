@@ -775,9 +775,7 @@ const SPECSCII = {
 };
 
 function processTokens(data, default_attribute) {
-    if (default_attribute >= 0) {
-        zx_clearAttributes(default_attribute);
-    }
+    zx_clearMemory(0x00, default_attribute)
 
     zx_setCursor(0, 0);
     let position = 0;
@@ -806,9 +804,9 @@ function processTokens(data, default_attribute) {
             case SPECSCII.CURSOR:
                 // implementation untested
                 position++;
-                const set_x = data[position];
-                position++;
                 const set_y = data[position];
+                position++;
+                const set_x = data[position];
                 position++;
                 zx_setCursor(set_x, set_y);
                 continue;

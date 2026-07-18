@@ -1,3 +1,4 @@
+import traceback
 import ttkbootstrap as ttk
 from tkinter import filedialog
 from ttkbootstrap.dialogs import Messagebox
@@ -90,7 +91,7 @@ class ZXEditor(ttk.Frame):
 
     def clicked_export_specscii(self, event=None):
         try:
-            filename = filedialog.asksaveasfilename(parent=self, title='Export to SPECSCII', filetypes=[("SPECSCII", ('*.specscii')), ("All files", "*.*")], defaultextension='.scr', confirmoverwrite=True)
+            filename = filedialog.asksaveasfilename(parent=self, title='Export to SPECSCII', filetypes=[("TeleZX Token", ('*.tkn')), ("SPECSCII", ('*.specscii')), ("All files", "*.*")], defaultextension='.tkn', confirmoverwrite=True)
             if filename:
                 self.zx_document.export_to_specscii(specscii_path=filename)
                 self.set_status(f'Exported SPECSCII: {filename}')
@@ -124,8 +125,10 @@ class ZXEditor(ttk.Frame):
                     self.__load_glyph()
             self.set_status(f'Document loaded: {self.zx_document.document_path}')
         except Exception as e:
+            traceback.print_exc()
             Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
             self.set_status(f'Load error: {e}')
+            print(e)
         self.refresh()
         return 'break'
 
