@@ -17,7 +17,7 @@ const ATTRIBUTES = {
 const PAGE_DEFAULT = 1000;
 const PAGE_MINIMUM = 1;
 const PAGE_MAXIMUM = 9999;
-const SCREEN_REFRESH = 50;
+const SCREEN_REFRESH = 1000/50;
 const SCREEN_WIDTH_CHARS = 32;
 const SCREEN_HEIGHT_CHARS = 24;
 const SIZE_DATA = 6144;
@@ -272,7 +272,7 @@ var context;
 var canvas_width;
 var canvas_height;
 var canvas_image;
-var canvas_interval;
+var canvas_interval_id;
 var canvas_flash_timer = 0;
 var canvas_flash_value = false;
 
@@ -555,21 +555,33 @@ function renderScreen(timestamp) {
     context.putImageData(canvas_image, 0, 0);
 }
 
-function refreshCanvas() {
+/* We could call renderScreen directly, but that would lead to an inconsistent
+ * framerate so instead we let the browser select a suitable time for us.
+ */
+function requestRenderScreen() {
+    // renderScreen();
     window.requestAnimationFrame(renderScreen);
 }
 
 /* Flashing is performed by ZX Spectrum ULA, and should be performed every 32
-   frames according to some sites. As we're not aiming for cycle-correct, I
-   randomly picked 8 and stuck with it.
+   frames according to some sites. It'll be prone to drifting though we don't
+   really care about that.
 */
+function schedulePeriodicRefresh() {
+    clearInterval(canvas_interval_id);
+    canvas_interval_id = setInterval(
+        periodicRefresh, 
+        SCREEN_REFRESH
+    );
+}
+
 function periodicRefresh() {
     canvas_flash_timer++;
-    if (canvas_flash_timer > 8) {
+    if (canvas_flash_timer > 31) {
         canvas_flash_timer = 0;
         canvas_flash_value = !canvas_flash_value;
+        requestRenderScreen();
     }
-    refreshCanvas();
 }
 
 function clearStatus() {
@@ -629,7 +641,7 @@ async function fetchRemoteIndex() {
         console.error("Failed to fetch data:", error);
     }
 
-    refreshCanvas();
+    requestRenderScreen();
 }
 
 function fetchCurrent() {
@@ -701,7 +713,7 @@ function generatePage(page, subpage) {
     }
 
     setResponse(String(page), STATUS_TYPES.OK);
-    refreshCanvas();
+    requestRenderScreen();
 }
 
 function fetchNext() {
@@ -746,7 +758,7 @@ async function fetchScreen(page, subpage) {
         setError(error.message);
     }
 
-    refreshCanvas();
+    requestRenderScreen();
 }
 
 async function fetchTokens(page, subpage, default_attribute) {
@@ -771,7 +783,7 @@ async function fetchTokens(page, subpage, default_attribute) {
         return;
     }
 
-    refreshCanvas();
+    requestRenderScreen();
 }
 
 
@@ -938,7 +950,6 @@ window.onload = function () {
     canvas_width = canvas.width;
     canvas_height = canvas.height;
     canvas_image = context.createImageData(canvas_width, canvas_height);
-    canvas_interval = setInterval(periodicRefresh, SCREEN_REFRESH);
 
     document.addEventListener('keyup', handleInput);
     function handleInput(event) {
@@ -994,10 +1005,12 @@ window.onload = function () {
 
             }
 
-        refreshCanvas();
+        requestRenderScreen();
     }
 
     zx_clearMemory(0, zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE));
-    refreshCanvas();
+    requestRenderScreen();
     fetchIndex();
+
+    schedulePeriodicRefresh();
 };
