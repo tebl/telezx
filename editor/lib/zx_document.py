@@ -430,13 +430,17 @@ class SpecsciiFormat:
                     if not cell.char_attribute == ZXDocument.UNDEFINED:
                         self.__set_attribute(file, cell.char_attribute)
 
-                    if not cell.char_inverted == ZXDocument.UNDEFINED:
-                        self.__write_inverted(file, cell.char_inverted)
+                    self.__write_inverted(file, self.__get_inverted(cell.char_inverted))
 
                     # Output a character
                     if not cell.char_code == ZXDocument.UNDEFINED:
                         self.__write_character(file, cell.char_code)
     
+    def __get_inverted(self, value):
+        if value == ZXDocument.UNDEFINED:
+            return False
+        return bool(value)
+
     def __set_attribute(self, file, attribute):
         parsed = ZXScreen.to_parsed_attribute(attribute)
         self.__write_ink(file, parsed['ink'])

@@ -377,6 +377,16 @@ function zx_toAttribute(is_flashing, is_bright, paper, ink) {
     return ((is_flashing ? ATTRIBUTES.FLASH : 0x00) | (is_bright ? ATTRIBUTES.BRIGHT : 0x00) | (paper << 3) | ink);
 }
 
+function zx_swapAttribute(attribute) {
+    parsed = zx_parseAttribute(attribute);
+    return zx_toAttribute(
+        parsed.flash, 
+        parsed.bright,
+        parsed.ink,
+        parsed.paper
+    );
+}
+
 function zx_parseAttribute(attribute) {
     return {
         flash: (attribute & ATTRIBUTES.FLASH) == ATTRIBUTES.FLASH,
@@ -771,6 +781,7 @@ const SPECSCII = {
     PAPER: 0x11,
     FLASH: 0x12,
     BRIGHT: 0x13,
+    INVERT: 0x14,
     CURSOR: 0x16
 };
 
@@ -779,6 +790,8 @@ function processTokens(data, default_attribute) {
 
     zx_setCursor(0, 0);
     let position = 0;
+    let token_attribute = default_attribute;
+    let mode_inverted = false;
     while (position < data.length) {
         // SPECSCII format constants
         // Stream format with embedded escape codes (ZX Spectrum BASIC control codes):
@@ -797,12 +810,11 @@ function processTokens(data, default_attribute) {
         switch (current_byte) {
             case SPECSCII.BRIGHT:
                 position++;
-                current_page_attribute = (current_page_attribute & 0xbf) | (data[position] << 6);
+                token_attribute = (token_attribute & 0xbf) | (data[position] << 6);
                 position++;
                 continue;
             
             case SPECSCII.CURSOR:
-                // implementation untested
                 position++;
                 const set_y = data[position];
                 position++;
@@ -818,32 +830,46 @@ function processTokens(data, default_attribute) {
             
             case SPECSCII.INK:
                 position++;
-                current_page_attribute = (current_page_attribute & 0xf8) | data[position];
+                token_attribute = (token_attribute & 0xf8) | data[position];
+                position++;
+                continue;
+            
+            case SPECSCII.INVERT:
+                position++;
+                mode_inverted = data[position] > 0;
                 position++;
                 continue;
 
             case SPECSCII.FLASH:
                 position++;
-                current_page_attribute = (current_page_attribute & 0x7f) | (data[position] << 7);
+                token_attribute = (token_attribute & 0x7f) | (data[position] << 7);
                 position++;
                 continue;
 
             case SPECSCII.PAPER:
                 position++;
-                current_page_attribute = (current_page_attribute & 0xc7) | (data[position] << 3);
+                token_attribute = (token_attribute & 0xc7) | (data[position] << 3);
                 position++;
                 continue;
         }
 
         if (current_byte >= 0x20 && current_byte <= 0x7f) {
-            zx_setAttribute(current_page_attribute);
+            if (mode_inverted) {
+                zx_setAttribute(zx_swapAttribute(token_attribute));
+            } else {
+                zx_setAttribute(token_attribute);
+            }
             zx_printASCII(current_byte);
             position++;
             continue;
         }
 
         if (current_byte >= 0x80) {
-            zx_setAttribute(current_page_attribute);
+            if (mode_inverted) {
+                zx_setAttribute(zx_swapAttribute(token_attribute));
+            } else {
+                zx_setAttribute(token_attribute);
+            }
             zx_printGlyph(data[position]);
             position++;
             continue;
