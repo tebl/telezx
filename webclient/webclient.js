@@ -469,7 +469,8 @@ function getDateString() {
         String(d.getDate()).padStart(2, " ") + "." +
         String(d.getMonth() + 1).padStart(2, "0") + " " +
         String(d.getHours()).padStart(2, "0") + ":" +
-        String(d.getMinutes()).padStart(2, "0")
+        String(d.getMinutes()).padStart(2, "0") + ":" +
+        String(d.getSeconds()).padStart(2, "0")
     )
 }
 
@@ -507,9 +508,13 @@ function zx_overlayHeaders() {
         zx_setAttributeAt(i, 0, zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE));
     }
     zx_setCursor(0, 0);
-    zx_printString(String(current_page).padStart(4), -1);
+    zx_printString("P", -1);
     zx_printASCII(ASCII_SPACE);
-    zx_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.GREEN)));
+    if (current_input == '') {
+        zx_printString(String(current_page).padStart(4), -1);
+    } else {
+        zx_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.GREEN)));
+    }
     zx_printASCII(ASCII_SPACE);
     zx_printASCII(ASCII_SPACE);
     zx_printASCII(ASCII_SPACE);
@@ -580,8 +585,8 @@ function periodicRefresh() {
     if (canvas_flash_timer > 31) {
         canvas_flash_timer = 0;
         canvas_flash_value = !canvas_flash_value;
-        requestRenderScreen();
     }
+    requestRenderScreen();
 }
 
 function clearStatus() {
