@@ -202,7 +202,6 @@ class ZXDocument:
     def to_rgb(self):
         return self.zx_screen.to_rgb()
 
-
 class Cell:
     def __init__(self, char_x, char_y, char_code=ZXDocument.UNDEFINED, char_attribute=ZXDocument.UNDEFINED, char_inverted=ZXDocument.UNDEFINED):
         self.char_x = char_x

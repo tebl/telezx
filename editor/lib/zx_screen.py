@@ -166,21 +166,19 @@ class ZXScreen:
         }
     
     @classmethod
-    def to_described_attribute(cls, attribute):
+    def to_tokens(cls, attribute):
         parsed = cls.to_parsed_attribute(attribute)
         parts = []
         if parsed['flash']:
-            parts.append('flashing')
+            parts.append('FLASH')
         if parsed['bright']:
-            parts.append('bright')
-        parts.append(cls.to_described_colour(parsed['ink']))
-        parts.append('on')
-        parts.append(cls.to_described_colour(parsed['paper']))
-        parts.append('paper')
-        return ' '.join(parts)
+            parts.append('BRIGHT')
+        parts.append(cls.to_colour_token(parsed['ink']))
+        parts.append(cls.to_colour_token(parsed['paper']))
+        return parts
 
     @classmethod
-    def to_described_colour(cls, colour):
+    def to_colour_token(cls, colour):
         match colour:
             case cls.BLACK:
                 return 'BLACK'

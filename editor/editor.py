@@ -28,6 +28,7 @@ class ZXEditor(ttk.Frame):
         self.cursor_y = 0
 
         self.zx_document = ZXDocument()
+        self.copied_format = None
 
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
@@ -56,6 +57,8 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)
         self.master.bind("<Control-KeyPress-q>", self.clicked_quit)
         self.master.bind("<Control-KeyPress-i>", self.clicked_invert)
+        self.master.bind("<Control-KeyPress-C>", self.clicked_copy_attribute)
+        self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
         self.master.bind("<Key>", self.keyboard_event)
 
         self.update_title_periodic()
@@ -162,6 +165,26 @@ class ZXEditor(ttk.Frame):
         self.set_status(f'Document saved: {self.zx_document.document_path}')
         return 'break'
 
+    def clicked_copy_attribute(self, event=None):
+        self.copied_format = self.sidebar.palette.get_dataset()
+        self.set_status(f"Copied {self.copied_format}")
+
+    def clicked_paste_attribute(self, event=None):
+        if not self.zx_document.is_defined(self.cursor_x, self.cursor_y):
+            self.set_status("Character cell is UNDEFINED")
+            return
+        if not self.copied_format:
+            self.set_status('Copy attribute data first')
+            return
+        
+        changed = self.zx_document.set_attribute(self.cursor_x, self.cursor_y, self.copied_format.attribute)
+        if self.zx_document.set_inverted(self.cursor_x, self.cursor_y, self.copied_format.is_inverted):
+            changed = True
+        if changed:
+            self.move_cursor(self.cursor_x, self.cursor_y)
+        self.set_status(f"Pasted {self.copied_format}")
+        return 'break'
+        
     def clicked_toggle_sticky(self, event=None):
         self.set_sticky(not self.is_sticky_enabled)
         if event is not None:
@@ -710,9 +733,6 @@ class Palette(ttk.Frame):
             self.ink_widgets.append(widget)
 
 
-        # lbl = ttk.Label(self, text="Modifier")
-        # lbl.grid(row=0, column=2, sticky=NW)
-
         frame = ttk.Frame(self)
         frame.grid(row=1, column=2, sticky=NSEW, padx=10)
 
@@ -804,7 +824,6 @@ class Palette(ttk.Frame):
         self.current_ink = parsed['ink']
         self.current_paper = parsed['paper']
         self.is_inverted = is_inverted
-        print(f'from_data: {self.is_inverted}')
         self.refresh()
 
     def get_attribute(self):
@@ -814,7 +833,15 @@ class Palette(ttk.Frame):
             self.current_paper, 
             self.current_ink)
     
+    def get_dataset(self):
+        return PaletteData(self.get_attribute(), self.get_inverted())
+
     def get_inverted(self):
+        '''
+        While scripts may care otherwise, the editor only deals with inverted
+        as either on or not defined at all. This was done in order to ensure
+        that we're not flipping things in invisible cells.
+        '''
         if self.is_inverted:
             return True
         return ZXDocument.UNDEFINED
@@ -836,7 +863,25 @@ class Palette(ttk.Frame):
             widget.refresh()
         for widget in self.paper_widgets:
             widget.refresh()
-            
+    
+
+class PaletteData():
+    def __init__(self, attribute, is_inverted):
+        self.attribute = attribute
+        self.is_inverted = is_inverted
+
+    def __str__(self):
+        token_string = ' '.join(str(x) for x in self.to_tokens())
+        return "{} ({})".format(
+            'format',
+            token_string
+        )
+
+    def to_tokens(self):
+        if not self.is_inverted == ZXDocument.UNDEFINED:
+            return [f"INVERTED={int(self.is_inverted)}"] + ZXScreen.to_tokens(self.attribute)
+        return ZXScreen.to_tokens(self.attribute)
+    
 
 class PaletteColour(Canvas):
     TYPE_INK = 0
