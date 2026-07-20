@@ -1,14 +1,14 @@
+import numpy
 import traceback
-import ttkbootstrap as ttk
 from tkinter import filedialog
 from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.constants import *
 from ttkbootstrap import colorutils
+import ttkbootstrap as ttk
 from pathlib import Path
-import numpy
+from PIL import Image, ImageTk
 
 from lib import ZXScreen, ZXFont, ZXGlyph, ZXDocument
-from PIL import Image, ImageTk
 
 
 class ZXEditor(ttk.Frame):
@@ -33,7 +33,7 @@ class ZXEditor(ttk.Frame):
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
 
-        self.menu = Menu(self)
+        self.menu = Menu(self, zx_editor=self)
         self.menu.grid(row=0, column=0, columnspan=3, sticky=EW)
 
         self.sidebar = Sidebar(self)
@@ -42,7 +42,7 @@ class ZXEditor(ttk.Frame):
         self.main = Main(self)
         self.main.grid(row=1, column=0, sticky=NW)
 
-        self.status = Status(self, self)
+        self.status = Status(self, zx_editor=self)
         self.status.grid(row=3, column=0, columnspan=3, sticky=EW)
 
         self.__load_font()
@@ -81,6 +81,23 @@ class ZXEditor(ttk.Frame):
         if event is not None:
             self.main.focus_set()
         return 'break'
+
+    def clicked_save_screenshot(self, event=None):
+        try:
+            filetypes = [
+                ("PNG", ('*.png')),
+                ("BMP", ('*.bmp')), 
+                ("JPG", ('*.jpg')), 
+                ("PPM", ('*.ppm')), 
+                ("All images", "*.bmp *.jpg *.png")
+            ]
+            filename = filedialog.asksaveasfilename(parent=self, title='Save screenshot', filetypes=filetypes, defaultextension='.png', confirmoverwrite=True)
+            if filename:
+                self.zx_document.export_screenshot(filename)
+                self.set_status(f'Exported screenshot: {filename}')
+        except Exception as e:
+            Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
+            self.set_status(f'{e}')
 
     def clicked_export_scr(self, event=None):
         try:
@@ -381,9 +398,9 @@ class ZXEditor(ttk.Frame):
 
 
 class Menu(ttk.Frame):
-    def __init__(self, master):
+    def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(master, style='primary.TFrame')
-        self.zx_editor = master
+        self.zx_editor = zx_editor
 
         ## New...
         btn = ttk.Button(
@@ -458,6 +475,8 @@ class Menu(ttk.Frame):
         export_options = ttk.Menu(self)
         export_options.add_command(label="Export to SCR", command=self.zx_editor.clicked_export_scr)
         export_options.add_command(label="Export to SPECSCII", command=self.zx_editor.clicked_export_specscii)
+        export_options.add_separator()
+        export_options.add_command(label="Save screenshot", command=self.zx_editor.clicked_save_screenshot)
         btn = ttk.Menubutton(
             master=self,
             text="Export",

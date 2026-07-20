@@ -1,6 +1,7 @@
 import yaml
 import numpy
 import collections.abc
+from PIL import Image
 from .zx_screen import ZXScreen
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
@@ -38,6 +39,10 @@ class ZXDocument:
     def __clear_fonts(self):
         self.set_selected_font(self.DEFAULT_FONT_PATH)
         self.set_selected_glyph(self.DEFAULT_GLYPH_PATH)
+
+    def export_screenshot(self, screenshot_path):
+        image = Image.fromarray(self.to_rgb())
+        image.save(screenshot_path)
 
     def export_to_scr(self, scr_path):
         with open(scr_path, 'wb') as file:
