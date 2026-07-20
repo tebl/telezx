@@ -66,7 +66,7 @@ class ZXScreen:
         attr_idx = self.calculate_offset_attribute(char_x, char_y)
         return self.memory[attr_idx]
 
-    def to_rgb(self):
+    def to_rgb(self, flash_value=False):
         pixels = numpy.zeros(shape=(self.SCREEN_HEIGHT_PIXELS, self.SCREEN_WIDTH_PIXELS, 3), dtype=numpy.uint8)
         for pos_x in range(self.SCREEN_WIDTH_CHARS):
             for pos_y in range(self.SCREEN_HEIGHT_CHARS):
@@ -80,7 +80,8 @@ class ZXScreen:
                     for bit_idx in range(8):
                         pixels[pos_y*8 + line, pos_x*8 + bit_idx] = self.to_attribute_rgb(
                             self.__check_bits(data_value, bit_idx),
-                            attr_value
+                            attr_value,
+                            flash_value
                         )
         return pixels
     
@@ -152,9 +153,14 @@ class ZXScreen:
         )
 
     @classmethod
-    def to_attribute_rgb(cls, is_on, parsed_attribute):
-        colour = parsed_attribute['ink'] if is_on else parsed_attribute['paper']
-        return cls.colour_to_rgb(colour, parsed_attribute['bright'])
+    def to_attribute_rgb(cls, is_on, parsed_attribute, flash_value):
+        base_colour = parsed_attribute['ink'] if is_on else parsed_attribute['paper']
+        if parsed_attribute['flash'] and flash_value:
+            base_colour = parsed_attribute['paper'] if is_on else parsed_attribute['ink']
+        return cls.colour_to_rgb(
+            base_colour,
+            parsed_attribute['bright']
+        )
 
     @classmethod
     def to_parsed_attribute(cls, attribute):

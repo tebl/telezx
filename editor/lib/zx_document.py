@@ -204,8 +204,8 @@ class ZXDocument:
                 root['cells'][char_y][char_x] = self.cells[char_y][char_x].to_dict()
         return result
 
-    def to_rgb(self):
-        return self.zx_screen.to_rgb()
+    def to_rgb(self, flash_value=False):
+        return self.zx_screen.to_rgb(flash_value)
 
 class Cell:
     def __init__(self, char_x, char_y, char_code=ZXDocument.UNDEFINED, char_attribute=ZXDocument.UNDEFINED, char_inverted=ZXDocument.UNDEFINED):

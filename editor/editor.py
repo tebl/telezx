@@ -14,6 +14,8 @@ from lib import ZXScreen, ZXFont, ZXGlyph, ZXDocument
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
     SCALE_MAX = 5
+    TITLEBAR_REFRESH = 250
+    REFRESH_FLASH = int(1000/50*32)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -21,6 +23,7 @@ class ZXEditor(ttk.Frame):
         self.__load_assets()
 
         self.scale = 3
+        self.flash_value = True
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
         self.is_overwrite_enabled = False
@@ -39,7 +42,7 @@ class ZXEditor(ttk.Frame):
         self.sidebar = Sidebar(self)
         self.sidebar.grid(row=1, column=1, sticky=NE)
 
-        self.main = Main(self)
+        self.main = Main(self, zx_editor=self)
         self.main.grid(row=1, column=0, sticky=NW)
 
         self.status = Status(self, zx_editor=self)
@@ -61,7 +64,8 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
         self.master.bind("<Key>", self.keyboard_event)
 
-        self.update_title_periodic()
+        self.update_flash_periodic(initial_setup=True)
+        self.update_title_periodic(initial_setup=True)
 
     def clicked_background(self, event=None):
         try:
@@ -366,9 +370,15 @@ class ZXEditor(ttk.Frame):
         self.is_overwrite_enabled = value
         self.sidebar.palette.notify_overwrite_changed(value)
 
-    def update_title_periodic(self):
+    def update_flash_periodic(self, initial_setup=False):
+        if not initial_setup:
+            self.flash_value = not self.flash_value
+            self.refresh()
+        self.after(self.REFRESH_FLASH, self.update_flash_periodic)
+
+    def update_title_periodic(self, initial_setup=False):
         self.update_title()
-        self.after(250, self.update_title_periodic)
+        self.after(self.TITLEBAR_REFRESH, self.update_title_periodic)
 
     def update_title(self):
         self.master.title(
@@ -538,9 +548,9 @@ class Main(ttk.Frame):
     HIGHLIGHT_EFFECT_AVERAGE = 0
     HIGHLIGHT_EFFECT_DARKEN = 1
 
-    def __init__(self, master):
+    def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(master)
-        self.zx_editor = master
+        self.zx_editor = zx_editor
         self.default_fill = colorutils.color_to_rgb(master.master.style.colors.get('bg'))
         self.grid_colour = colorutils.color_to_rgb(master.master.style.colors.get('dark'))
         self.highlight_colour = colorutils.color_to_rgb(master.master.style.colors.get('danger'))
@@ -625,7 +635,7 @@ class Main(ttk.Frame):
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
 
-        rgb_data = self.zx_editor.zx_document.to_rgb()
+        rgb_data = self.zx_editor.zx_document.to_rgb(self.zx_editor.flash_value)
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
