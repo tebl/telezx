@@ -473,10 +473,10 @@ class Menu(ttk.Frame):
 
         ## Export options
         export_options = ttk.Menu(self)
-        export_options.add_command(label="Export to SCR", command=self.zx_editor.clicked_export_scr)
-        export_options.add_command(label="Export to SPECSCII", command=self.zx_editor.clicked_export_specscii)
+        export_options.add_command(label="SCR", command=self.zx_editor.clicked_export_scr)
+        export_options.add_command(label="SPECSCII", command=self.zx_editor.clicked_export_specscii)
         export_options.add_separator()
-        export_options.add_command(label="Save screenshot", command=self.zx_editor.clicked_save_screenshot)
+        export_options.add_command(label="Screenshot", command=self.zx_editor.clicked_save_screenshot)
         btn = ttk.Menubutton(
             master=self,
             text="Export",
