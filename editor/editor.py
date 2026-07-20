@@ -2,6 +2,7 @@ import numpy
 import traceback
 from tkinter import filedialog
 from ttkbootstrap.dialogs import Messagebox
+from ttkbootstrap.widgets import ToolTip
 from ttkbootstrap.constants import *
 from ttkbootstrap import colorutils
 import ttkbootstrap as ttk
@@ -16,6 +17,7 @@ class ZXEditor(ttk.Frame):
     SCALE_MAX = 5
     TITLEBAR_REFRESH = 250
     REFRESH_FLASH = int(1000/50*32)
+    TOOLTIP_DELAY = 1000
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,6 +67,7 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-v>", self.clicked_paste_cell)
         self.master.bind("<Control-KeyPress-C>", self.clicked_copy_attribute)
         self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
+        self.master.bind("<Control-KeyPress-F>", self.clicked_swap_attribute)
         self.master.bind("<Key>", self.keyboard_event)
 
         self.update_flash_periodic(initial_setup=True)
@@ -221,6 +224,10 @@ class ZXEditor(ttk.Frame):
         self.set_status(f"Pasted {self.copied_format}")
         return 'break'
         
+    def clicked_swap_attribute(self, event=None):
+        self.sidebar.palette.swap_attributes()
+        return 'break'
+
     def clicked_toggle_sticky(self, event=None):
         self.set_sticky(not self.is_sticky_enabled)
         if event is not None:
@@ -809,6 +816,7 @@ class Palette(ttk.Frame):
             variable=self.is_inverted_var,
             command=lambda: self.changed_inverted(self.is_inverted_var.get()))
         self.btn_inverted.grid(row=2, column=0, sticky=NW)
+        ToolTip(self.btn_inverted, text="Enable to invert palette for the selected cell, swapping ink/paper when screen is rendered.\n\nKeyboard: Ctrl+i", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
 
         # When enabled we ignore updates to the palette when inserting data,
         # allowing us to lock a style for data entered.
@@ -821,6 +829,7 @@ class Palette(ttk.Frame):
             variable=self.is_sticky_enabled_var,
             command=lambda: self.zx_editor.set_sticky(self.is_sticky_enabled_var.get()))
         btn.grid(row=3, column=0, sticky=NW, pady=(10, 0))
+        ToolTip(btn, text="Palette will automatically update to reflect newly selected cell contents, set to enabled to keep current attribute active.\n\nKeyboard: Ctrl+f", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
 
         # Determines if we're overwriting the current highlighted cell or
         # advancing to the next position on write.
@@ -833,6 +842,7 @@ class Palette(ttk.Frame):
             variable=self.is_overwrite_enabled_var,
             command=lambda: self.zx_editor.set_overwrite(self.is_overwrite_enabled_var.get()))
         btn.grid(row=4, column=0, sticky=NW)
+        ToolTip(btn, text="Enable to overwrite current selected cell, when not enabled it will automatically move onto next available cell.\n\nKeyboard: Insert", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
 
     def changed_bright(self, value):
         self.is_bright = value
@@ -907,6 +917,12 @@ class Palette(ttk.Frame):
             widget.refresh()
         for widget in self.paper_widgets:
             widget.refresh()
+
+    def swap_attributes(self):
+        self.current_ink, self.current_paper = self.current_paper, self.current_ink
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
 
 class PaletteData():
     def __init__(self, attribute, is_inverted):
