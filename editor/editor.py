@@ -31,6 +31,7 @@ class ZXEditor(ttk.Frame):
         self.cursor_y = 0
 
         self.zx_document = ZXDocument()
+        self.copied_cell = None
         self.copied_format = None
 
         self.rowconfigure(2, weight=1)
@@ -60,6 +61,8 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)
         self.master.bind("<Control-KeyPress-q>", self.clicked_quit)
         self.master.bind("<Control-KeyPress-i>", self.clicked_invert)
+        self.master.bind("<Control-KeyPress-c>", self.clicked_copy_cell)
+        self.master.bind("<Control-KeyPress-v>", self.clicked_paste_cell)
         self.master.bind("<Control-KeyPress-C>", self.clicked_copy_attribute)
         self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
         self.master.bind("<Key>", self.keyboard_event)
@@ -186,21 +189,33 @@ class ZXEditor(ttk.Frame):
         self.set_status(f'Document saved: {self.zx_document.document_path}')
         return 'break'
 
+    def clicked_copy_cell(self, event=None):
+        self.copied_cell = self.zx_document.get_cell(self.cursor_x, self.cursor_y)
+        self.set_status(f"Copied {self.copied_cell}")
+        return 'break'
+
+    def clicked_paste_cell(self, event=None):
+        if self.copied_cell:
+            if self.zx_document.set_cell(self.cursor_x, self.cursor_y, cell_copy=self.copied_cell):
+                self.move_cursor(self.cursor_x, self.cursor_y)
+                self.set_status(f"Pasted {self.copied_cell}")
+        return 'break'
+
     def clicked_copy_attribute(self, event=None):
         self.copied_format = self.sidebar.palette.get_dataset()
         self.set_status(f"Copied {self.copied_format}")
+        return 'break'
 
     def clicked_paste_attribute(self, event=None):
+        # Check if cell is defined
         if not self.zx_document.is_defined(self.cursor_x, self.cursor_y):
-            self.set_status("Character cell is UNDEFINED")
-            return
+            return 'break'
+        # Check if we have an attribute
         if not self.copied_format:
-            self.set_status('Copy attribute data first')
-            return
+            return 'break'
         
         changed = self.zx_document.set_attribute(self.cursor_x, self.cursor_y, self.copied_format.attribute)
-        if self.zx_document.set_inverted(self.cursor_x, self.cursor_y, self.copied_format.is_inverted):
-            changed = True
+        changed = True if self.zx_document.set_inverted(self.cursor_x, self.cursor_y, self.copied_format.is_inverted) else False
         if changed:
             self.move_cursor(self.cursor_x, self.cursor_y)
         self.set_status(f"Pasted {self.copied_format}")
@@ -384,7 +399,7 @@ class ZXEditor(ttk.Frame):
         self.master.title(
             "{} ({})".format(
                 self.PROGRAM_TITLE, 
-                self.zx_document.get_description()
+                self.zx_document.get_title()
             )
         )
 
@@ -892,7 +907,6 @@ class Palette(ttk.Frame):
             widget.refresh()
         for widget in self.paper_widgets:
             widget.refresh()
-    
 
 class PaletteData():
     def __init__(self, attribute, is_inverted):
