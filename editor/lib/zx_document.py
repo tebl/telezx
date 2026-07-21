@@ -1,6 +1,7 @@
 import yaml
 import numpy
 import collections.abc
+import os.path
 from PIL import Image
 from typing import Optional
 from .zx_screen import ZXScreen
@@ -11,8 +12,8 @@ class ZXDocument:
     UNDEFINED = -1
     UNSPECIFIED = -2
     DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
-    DEFAULT_FONT_PATH = 'font_default.bin'
-    DEFAULT_GLYPH_PATH = 'font_glyphs.bin'
+    DEFAULT_FONT_PATH = os.path.join('fonts', 'font_default.bin')
+    DEFAULT_GLYPH_PATH = os.path.join('fonts', 'font_glyphs.bin')
 
     def __init__(self):
         self.zx_screen = ZXScreen()
@@ -227,13 +228,16 @@ class ZXDocument:
         result = self.__yaml_defaults()
         root = result[self.__class__.__name__]
         root['attribute'] = self.current_attribute
-        root['background'] = self.background
-        root['font'] = self.font_path
-        root['glyph'] = self.glyph_path
+        root['background'] = self.__get_relative_path(self.background)
+        root['font'] = self.__get_relative_path(self.font_path)
+        root['glyph'] = self.__get_relative_path(self.glyph_path)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 root['cells'][char_y][char_x] = self.__lookup_cell(char_x, char_y).to_dict()
         return result
+    
+    def __get_relative_path(self, path):
+        return os.path.relpath(path, os.path.dirname(self.document_path)) if path else None
 
     def to_rgb(self, flash_value=False):
         return self.zx_screen.to_rgb(flash_value)
