@@ -204,7 +204,7 @@ class ZXDocument:
         return result
 
     def set_string(self, start_x, start_y, string, char_attribute=UNDEFINED, char_inverted=UNDEFINED) -> bool:
-        position = ZXScreenIterator(start_x, start_y)
+        position = ZXScreenIterator(start_x, start_y, allow_looping=True)
         for character in string:
             current_x, current_y = next(position)
             self.set_cell(current_x, current_y, char_code=ord(character), char_attribute=char_attribute, char_inverted=char_inverted)

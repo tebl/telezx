@@ -206,7 +206,7 @@ class ZXScreen:
 
 
 class ZXScreenIterator:
-    def __init__(self, char_x, char_y, allow_looping=True):
+    def __init__(self, char_x, char_y, allow_looping=False):
         self.char_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
         self.char_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
         self.allow_looping = allow_looping
