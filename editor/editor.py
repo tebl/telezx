@@ -96,6 +96,10 @@ class ZXEditor(ttk.Frame):
         AboutDialog(self).show()
         return 'break'
 
+    def clicked_keyboard(self, event=None):
+        KeyboardDialog(self).show()
+        return 'break'
+
     def clicked_license(self, event=None):
         LicenseDialog(self).show()
         return 'break'
@@ -493,6 +497,54 @@ class AboutDialog(CustomDialog):
         lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_y, self.custom_pad_border))
 
 
+class KeyboardDialog(CustomDialog):
+    def __init__(self, master):
+        super().__init__(master, title="Keyboard")
+
+    def create_body(self, master):
+        lbl = ttk.Label(master, text="Overview", justify=CENTER)
+        lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
+
+        frame = ttk.Frame(master)
+        frame.pack(padx=self.custom_pad_x, pady=(self.custom_pad_y, self.custom_pad_border), fill=BOTH, expand=True)
+
+        items = [
+            ('Ctrl', None, 'n', 'New document'),
+            ('Ctrl', None, 'o', 'Open document'),
+            ('Ctrl', None, 's', 'Save document'),
+            ('Ctrl', None, 'b', 'Set background'),
+            ('Ctrl', None, 'g', 'Toggle grid display'),
+            ('Ctrl', None, 'f', 'Follow attribute memory'),
+            ('Ctrl', None, 'q', 'Quit'),
+            ('Ctrl', None, 'i', 'Invert cell'),
+            ('Ctrl', None, 'c', 'Copy cell'),
+            ('Ctrl', None, 'v', 'Paste cell'),
+            ('Ctrl', 'Shift', 'c', 'Copy cell attribute'),
+            ('Ctrl', 'Shift', 'v', 'Paste cell attribute'),
+            ('Ctrl', 'Shift', 'f', 'Swap ink/paper')
+        ]
+        for idx, item in enumerate(items):
+            key_1, key_2, key_3, description = item
+
+            lbl = ttk.Label(frame, text=' ' + key_1, style="inverse-dark", relief="groove")
+            lbl.grid(row=idx, column=0, padx=0, ipadx=self.custom_pad_y, ipady=2)
+
+            if key_2:
+                lbl = ttk.Label(frame, text='+', style="secondary")
+                lbl.grid(row=idx, column=1, padx=0)
+
+                lbl = ttk.Label(frame, text=' ' + key_2, style="inverse-dark", relief="groove")
+                lbl.grid(row=idx, column=2, padx=0, ipadx=self.custom_pad_y, ipady=2)
+
+            lbl = ttk.Label(frame, text='+', style="secondary")
+            lbl.grid(row=idx, column=3, padx=0, sticky=W)
+            lbl = ttk.Label(frame, text=' ' + key_3, style="inverse-dark", relief="groove")
+            lbl.grid(row=idx, column=4, padx=0, ipadx=self.custom_pad_y, ipady=2)
+
+            lbl = ttk.Label(frame, text=description)
+            lbl.grid(row=idx, column=6, sticky=W, padx=self.custom_pad_x)
+
+
 class LicenseDialog(CustomDialog):
     def __init__(self, master):
         super().__init__(master, title="License")
@@ -609,6 +661,8 @@ class Menu(ttk.Frame):
         about_options = ttk.Menu(self)
         about_options.add_command(label="About", command=self.zx_editor.clicked_about)
         about_options.add_command(label="License", command=self.zx_editor.clicked_license)
+        about_options.add_separator()
+        about_options.add_command(label="Keyboard", command=self.zx_editor.clicked_keyboard)
         btn = ttk.Menubutton(
             master=self,
             text="About",
