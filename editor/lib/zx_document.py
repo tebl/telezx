@@ -4,7 +4,7 @@ import collections.abc
 import os.path
 from PIL import Image
 from typing import Optional
-from .zx_screen import ZXScreen
+from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
 
@@ -15,18 +15,34 @@ class ZXDocument:
     DEFAULT_FONT_PATH = os.path.join('fonts', 'font_default.bin')
     DEFAULT_GLYPH_PATH = os.path.join('fonts', 'font_glyphs.bin')
 
-    def __init__(self):
+    def __init__(self, boot_screen=False):
         self.zx_screen = ZXScreen()
-        self.clear(attribute=self.DEFAULT_ATTRIBUTE)
+        self.clear(attribute=self.DEFAULT_ATTRIBUTE, boot_screen=boot_screen)
 
-    def clear(self, attribute):
+    def clear(self, attribute, boot_screen=False):
         self.current_attribute = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
         self.__clear_cells()
         self.__clear_fonts()
         self.set_document(None)
+
+        if boot_screen:
+            self.__create_boot_screen()
         self.changes = False
+
+    def __create_boot_screen(self):
+        start_x = 11
+        self.set_string(start_x + 1, 9, "ZX Editor")
+
+        start_y = 11
+        for idx, colour in enumerate([ZXScreen.RED, ZXScreen.YELLOW, ZXScreen.GREEN, ZXScreen.BLUE]):
+            self.set_cell(start_x + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.set_cell(start_x + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.set_cell(start_x + 1 + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.set_cell(start_x + 1 + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.__render_cells()
+        self.set_string(7, start_y + 3, "(Ctrl + n to clear)")
 
     def __clear_background(self):
         self.background = None
@@ -187,6 +203,12 @@ class ZXDocument:
             self.changes = True
         return result
 
+    def set_string(self, start_x, start_y, string, char_attribute=UNDEFINED, char_inverted=UNDEFINED) -> bool:
+        position = ZXScreenIterator(start_x, start_y)
+        for character in string:
+            current_x, current_y = next(position)
+            self.set_cell(current_x, current_y, char_code=ord(character), char_attribute=char_attribute, char_inverted=char_inverted)
+
     def set_character(self, char_x, char_y, char_code=UNDEFINED):
         result = self.__lookup_cell(char_x, char_y).set_character(self, char_code)
         if result:
@@ -223,7 +245,7 @@ class ZXDocument:
             self.changes = False
             return
         raise Exception('No document set')
-        
+
     def to_dict(self):
         result = self.__yaml_defaults()
         root = result[self.__class__.__name__]

@@ -51,7 +51,7 @@ class ZXEditor(ttk.Frame):
         self.cursor_x = 0
         self.cursor_y = 0
 
-        self.zx_document = ZXDocument()
+        self.zx_document = ZXDocument(boot_screen=True)
         self.copied_cell = None
         self.copied_format = None
 
@@ -77,6 +77,7 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-o>", self.clicked_open)
         self.master.bind("<Control-KeyPress-s>", self.clicked_save)
         self.master.bind("<Control-KeyPress-b>", self.clicked_background)
+        self.master.bind("<Control-KeyPress-h>", self.clicked_keyboard)
         self.master.bind("<Control-KeyPress-g>", self.clicked_grid)
         self.master.bind("<Control-KeyPress-z>", self.move_cursor_left)
         self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)

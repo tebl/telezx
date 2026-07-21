@@ -203,3 +203,27 @@ class ZXScreen:
             case cls.WHITE:
                 return 'WHITE'
         raise ValueError(f'Invalid colour {colour}')
+
+
+class ZXScreenIterator:
+    def __init__(self, char_x, char_y, allow_looping=True):
+        self.char_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
+        self.char_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
+        self.allow_looping = allow_looping
+        self.flag_looped = False
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        if self.flag_looped and not self.allow_looping:
+            raise StopIteration
+        result = (self.char_x, self.char_y)
+        self.char_x += 1
+        if self.char_x >= ZXScreen.SCREEN_WIDTH_CHARS:
+            self.char_x = 0
+            self.char_y += 1
+        if self.char_y >= ZXScreen.SCREEN_HEIGHT_CHARS:
+            self.char_y = 0
+            self.flag_looped = True
+        return result
