@@ -1,11 +1,12 @@
 import numpy
 import traceback
 from tkinter import filedialog
-from ttkbootstrap.dialogs import Messagebox
+from ttkbootstrap.dialogs import Messagebox, Dialog
 from ttkbootstrap.widgets import ToolTip
 from ttkbootstrap.constants import *
 from ttkbootstrap import colorutils
 import ttkbootstrap as ttk
+import webbrowser
 from pathlib import Path
 from PIL import Image, ImageTk
 
@@ -14,6 +15,24 @@ from lib import ZXScreen, ZXFont, ZXGlyph, ZXDocument
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
+    PROGRAM_URL = 'https://github.com/tebl/telezx'
+    PROGRAM_COPYRIGHT = "Copyright © 2026 Tor-Eirik Bakke Lunde"
+    PROGRAM_LICENSE_URL = f'{PROGRAM_URL}/blob/main/LICENSE.md'
+    PROGRAM_LICENSE = "This application comes with absolutely no warranty.\nSee the GNU General Public Licence, version 3 or later for details."
+    PROGRAM_LICENSE_FULL = '''\
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.'''
+
     SCALE_MAX = 5
     TITLEBAR_REFRESH = 250
     REFRESH_FLASH = int(1000/50*32)
@@ -72,6 +91,14 @@ class ZXEditor(ttk.Frame):
 
         self.update_flash_periodic(initial_setup=True)
         self.update_title_periodic(initial_setup=True)
+
+    def clicked_about(self, event=None):
+        AboutDialog(self).show()
+        return 'break'
+
+    def clicked_license(self, event=None):
+        LicenseDialog(self).show()
+        return 'break'
 
     def clicked_background(self, event=None):
         try:
@@ -419,7 +446,9 @@ class ZXEditor(ttk.Frame):
             'set-scale': 'zx-scale.png',
             'grid-enabled': 'zx-grid.png',
             'grid-disabled': 'zx-grid-disabled.png',
-            'export': 'zx-export.png'
+            'export': 'zx-export.png',
+            'about': 'zx-about.png',
+            'logo': 'zx-export.png'
         }
 
         self.photoimages = []
@@ -427,6 +456,64 @@ class ZXEditor(ttk.Frame):
         for key, val in image_files.items():
             _path = imgpath / val
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
+
+
+class CustomDialog(Dialog):
+    def __init__(self, master, title):
+        super().__init__(master, title=title)
+        self.custom_pad_y = 3
+        self.custom_pad_x = 10
+        self.custom_pad_border = 20
+
+    def create_buttonbox(self, master):
+        pass
+
+    def open_url(self, url_path):
+        webbrowser.open(url_path)
+
+
+class AboutDialog(CustomDialog):
+    def __init__(self, master):
+        super().__init__(master, title="About")
+
+    def create_body(self, master):
+        lbl = ttk.Label(master, image='logo', justify=CENTER)
+        lbl.pack(expand=True, padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
+
+        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_TITLE)
+        lbl.pack(padx=self.custom_pad_x, pady=self.custom_pad_y)
+
+        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_COPYRIGHT)
+        lbl.pack(padx=self.custom_pad_x, pady=0)
+
+        lbl = ttk.Button(master, text=ZXEditor.PROGRAM_URL, style="info link", command=lambda: self.open_url(ZXEditor.PROGRAM_URL))
+        lbl.pack(padx=self.custom_pad_x, pady=0)
+
+        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_LICENSE, justify=CENTER)
+        lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_y, self.custom_pad_border))
+
+
+class LicenseDialog(CustomDialog):
+    def __init__(self, master):
+        super().__init__(master, title="License")
+
+    def create_body(self, master):
+        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_TITLE, justify=CENTER)
+        lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
+
+        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_COPYRIGHT)
+        lbl.pack(padx=self.custom_pad_x, pady=0)
+
+        lbl = ttk.Label(master, text=self.get_license_text())
+        lbl.pack(padx=self.custom_pad_x, pady=0)
+
+        lbl = ttk.Button(master, text="Open LICENSE.md", style="info link", command=lambda: self.open_url(ZXEditor.PROGRAM_LICENSE_URL))
+        lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_y, self.custom_pad_border))
+
+    def get_license_text(self):
+        return "\n".join(
+            [line.strip() for line in ZXEditor.PROGRAM_LICENSE_FULL.splitlines()]
+        )
 
 
 class Menu(ttk.Frame):
@@ -517,6 +604,19 @@ class Menu(ttk.Frame):
             menu=export_options
         )
         btn.grid(row=0, column=6)        
+
+        ## Export options
+        about_options = ttk.Menu(self)
+        about_options.add_command(label="About", command=self.zx_editor.clicked_about)
+        about_options.add_command(label="License", command=self.zx_editor.clicked_license)
+        btn = ttk.Menubutton(
+            master=self,
+            text="About",
+            image='about',
+            compound=LEFT,
+            menu=about_options
+        )
+        btn.grid(row=0, column=7)        
 
     def notify_grid_changed(self, value):
         img_name = 'grid-disabled' if value else 'grid-enabled'
