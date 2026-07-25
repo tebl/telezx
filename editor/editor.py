@@ -10,7 +10,7 @@ import webbrowser
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXDocument
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXPage
 
 
 class ZXEditor(ttk.Frame):
@@ -51,7 +51,7 @@ class ZXEditor(ttk.Frame):
         self.cursor_x = 0
         self.cursor_y = 0
 
-        self.zx_document = ZXDocument(boot_screen=True)
+        self.zx_page = ZXPage(boot_screen=True)
         self.copied_cell = None
         self.copied_format = None
 
@@ -109,7 +109,7 @@ class ZXEditor(ttk.Frame):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Set background', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
             if filename:
-                self.zx_document.set_background(filename)
+                self.zx_page.set_background(filename)
                 self.refresh()
                 self.set_status(f'Background loaded: {filename}')
         except Exception as e:
@@ -135,7 +135,7 @@ class ZXEditor(ttk.Frame):
             ]
             filename = filedialog.asksaveasfilename(parent=self, title='Save screenshot', filetypes=filetypes, defaultextension='.png', confirmoverwrite=True)
             if filename:
-                self.zx_document.export_screenshot(filename)
+                self.zx_page.export_screenshot(filename)
                 self.set_status(f'Exported screenshot: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
@@ -145,7 +145,7 @@ class ZXEditor(ttk.Frame):
         try:
             filename = filedialog.asksaveasfilename(parent=self, title='Export to SCR', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], defaultextension='.scr', confirmoverwrite=True)
             if filename:
-                self.zx_document.export_to_scr(scr_path=filename)
+                self.zx_page.export_to_scr(scr_path=filename)
                 self.set_status(f'Exported SCR: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
@@ -156,7 +156,7 @@ class ZXEditor(ttk.Frame):
         try:
             filename = filedialog.asksaveasfilename(parent=self, title='Export to SPECSCII', filetypes=[("TeleZX Token", ('*.tkn')), ("SPECSCII", ('*.specscii')), ("All files", "*.*")], defaultextension='.tkn', confirmoverwrite=True)
             if filename:
-                self.zx_document.export_to_specscii(specscii_path=filename)
+                self.zx_page.export_to_specscii(specscii_path=filename)
                 self.set_status(f'Exported SPECSCII: {filename}')
         except Exception as e:
             traceback.print_exc()
@@ -166,7 +166,7 @@ class ZXEditor(ttk.Frame):
 
     def clicked_invert(self, event=None):
         prev_sticky = self.is_sticky_enabled
-        is_inverted = (self.sidebar.palette.get_inverted() == ZXDocument.UNDEFINED)
+        is_inverted = (self.sidebar.palette.get_inverted() == ZXPage.UNDEFINED)
         self.sidebar.palette.changed_inverted(is_inverted)
         self.set_sticky(prev_sticky)
         if event is not None:
@@ -174,10 +174,10 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def clicked_new(self, event=None):
-        if self.zx_document.has_changes():
+        if self.zx_page.has_changes():
             if not self.__allow_discard('Document unsaved') == 'OK':
                 return
-        self.zx_document.clear(ZXDocument.DEFAULT_ATTRIBUTE)
+        self.zx_page.clear(ZXPage.DEFAULT_ATTRIBUTE)
         self.__load_font()
         self.__load_glyph()
         self.refresh()
@@ -190,13 +190,13 @@ class ZXEditor(ttk.Frame):
 
     def clicked_open(self, event=None):
         try:
-            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], multiple=False)
+            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("ZXDocument", ('*.zxpage')), ("All files", "*.*")], multiple=False)
             if filename:
-                if not self.zx_document.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
-                    self.zx_document.load(filename)
+                if not self.zx_page.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
+                    self.zx_page.load(filename)
                     self.__load_font()
                     self.__load_glyph()
-            self.set_status(f'Document loaded: {self.zx_document.document_path}')
+            self.set_status(f'Document loaded: {self.zx_page.document_path}')
         except Exception as e:
             traceback.print_exc()
             Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
@@ -206,32 +206,32 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def __load_font(self):
-        self.sidebar.symbols.notify_font_changed(self.zx_document.font_path)
+        self.sidebar.symbols.notify_font_changed(self.zx_page.font_path)
 
     def __load_glyph(self):
-        self.sidebar.symbols.notify_glyph_changed(self.zx_document.glyph_path)
+        self.sidebar.symbols.notify_glyph_changed(self.zx_page.glyph_path)
 
     def clicked_save(self, event=None):
-        if self.zx_document.is_blank():
+        if self.zx_page.is_blank():
             try:
-                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("TeleZX", ('*.telezx')), ("All files", "*.*")], defaultextension='.telezx', confirmoverwrite=True)
+                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("ZXDocument", ('*.zxpage')), ("All files", "*.*")], defaultextension='.telezx', confirmoverwrite=True)
                 if not filename:
                     return
-                self.zx_document.set_document(filename)
+                self.zx_page.set_document(filename)
             except Exception as e:
                 Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
-        self.zx_document.save()
-        self.set_status(f'Document saved: {self.zx_document.document_path}')
+        self.zx_page.save()
+        self.set_status(f'Document saved: {self.zx_page.document_path}')
         return 'break'
 
     def clicked_copy_cell(self, event=None):
-        self.copied_cell = self.zx_document.get_cell(self.cursor_x, self.cursor_y)
+        self.copied_cell = self.zx_page.get_cell(self.cursor_x, self.cursor_y)
         self.set_status(f"Copied {self.copied_cell}")
         return 'break'
 
     def clicked_paste_cell(self, event=None):
         if self.copied_cell:
-            if self.zx_document.set_cell(self.cursor_x, self.cursor_y, cell_copy=self.copied_cell):
+            if self.zx_page.set_cell(self.cursor_x, self.cursor_y, cell_copy=self.copied_cell):
                 self.move_cursor(self.cursor_x, self.cursor_y)
                 self.set_status(f"Pasted {self.copied_cell}")
         return 'break'
@@ -243,14 +243,14 @@ class ZXEditor(ttk.Frame):
 
     def clicked_paste_attribute(self, event=None):
         # Check if cell is defined
-        if not self.zx_document.is_defined(self.cursor_x, self.cursor_y):
+        if not self.zx_page.is_defined(self.cursor_x, self.cursor_y):
             return 'break'
         # Check if we have an attribute
         if not self.copied_format:
             return 'break'
         
-        changed = self.zx_document.set_attribute(self.cursor_x, self.cursor_y, self.copied_format.attribute)
-        changed = True if self.zx_document.set_inverted(self.cursor_x, self.cursor_y, self.copied_format.is_inverted) else False
+        changed = self.zx_page.set_attribute(self.cursor_x, self.cursor_y, self.copied_format.attribute)
+        changed = True if self.zx_page.set_inverted(self.cursor_x, self.cursor_y, self.copied_format.is_inverted) else False
         if changed:
             self.move_cursor(self.cursor_x, self.cursor_y)
         self.set_status(f"Pasted {self.copied_format}")
@@ -307,17 +307,17 @@ class ZXEditor(ttk.Frame):
                         if char_y > 0:
                             char_x = 0
                             char_y -= 1
-                    self.zx_document.set_inverted(char_x, char_y, ZXDocument.UNDEFINED)
-                    self.zx_document.set_character(char_x, char_y, ZXDocument.UNDEFINED)
-                    self.zx_document.set_attribute(char_x, char_y, ZXDocument.UNDEFINED)
+                    self.zx_page.set_inverted(char_x, char_y, ZXPage.UNDEFINED)
+                    self.zx_page.set_character(char_x, char_y, ZXPage.UNDEFINED)
+                    self.zx_page.set_attribute(char_x, char_y, ZXPage.UNDEFINED)
                     self.move_cursor(char_x, char_y)
                     self.refresh()
                 case 'Shift_L' | 'Shift_R' | 'Control_L' | 'Control_R':
                     pass
                 case 'Delete' | 'KP_Delete':
-                    self.zx_document.set_inverted(self.cursor_x, self.cursor_y, ZXDocument.UNDEFINED)
-                    self.zx_document.set_character(self.cursor_x, self.cursor_y, ZXDocument.UNDEFINED)
-                    self.zx_document.set_attribute(self.cursor_x, self.cursor_y, ZXDocument.UNDEFINED)
+                    self.zx_page.set_inverted(self.cursor_x, self.cursor_y, ZXPage.UNDEFINED)
+                    self.zx_page.set_character(self.cursor_x, self.cursor_y, ZXPage.UNDEFINED)
+                    self.zx_page.set_attribute(self.cursor_x, self.cursor_y, ZXPage.UNDEFINED)
                     self.move_cursor(self.cursor_x, self.cursor_y)
                     self.refresh()
                 case 'Insert' | 'KP_Insert':
@@ -333,7 +333,7 @@ class ZXEditor(ttk.Frame):
     def move_cursor(self, char_x, char_y):
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
         self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
-        self.zx_document.debug_cell(self.cursor_x, self.cursor_y)
+        self.zx_page.debug_cell(self.cursor_x, self.cursor_y)
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed(self.cursor_x, self.cursor_y)
 
@@ -365,7 +365,7 @@ class ZXEditor(ttk.Frame):
             self.move_cursor(0, self.cursor_y + 1)
 
     def on_quit(self, root):
-        if not self.zx_document.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
+        if not self.zx_page.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
             root.destroy()
 
     def refresh(self):
@@ -373,14 +373,14 @@ class ZXEditor(ttk.Frame):
 
     def set_cursor_character(self, char_code):
         changed = False
-        if self.zx_document.set_character(self.cursor_x, self.cursor_y, char_code):
+        if self.zx_page.set_character(self.cursor_x, self.cursor_y, char_code):
             changed = True
-        if self.zx_document.set_attribute(
+        if self.zx_page.set_attribute(
             self.cursor_x, 
             self.cursor_y, 
             self.sidebar.palette.get_attribute()):
             changed = True
-        if self.zx_document.set_inverted(self.cursor_x, self.cursor_y, self.sidebar.palette.get_inverted()):
+        if self.zx_page.set_inverted(self.cursor_x, self.cursor_y, self.sidebar.palette.get_inverted()):
             changed = True
 
         if not self.is_overwrite_enabled:
@@ -390,17 +390,17 @@ class ZXEditor(ttk.Frame):
 
     def set_cursor_attribute(self, attribute):
         self.set_sticky(True)
-        if not self.zx_document.is_defined(self.cursor_x, self.cursor_y):
+        if not self.zx_page.is_defined(self.cursor_x, self.cursor_y):
             return
-        changed = self.zx_document.set_attribute(self.cursor_x, self.cursor_y, attribute)
+        changed = self.zx_page.set_attribute(self.cursor_x, self.cursor_y, attribute)
         if changed:
             self.refresh()
 
     def set_cursor_inverted(self, is_inverted):
         self.set_sticky(True)
-        if not self.zx_document.is_defined(self.cursor_x, self.cursor_y):
+        if not self.zx_page.is_defined(self.cursor_x, self.cursor_y):
             return
-        changed = self.zx_document.set_inverted(self.cursor_x, self.cursor_y, is_inverted)
+        changed = self.zx_page.set_inverted(self.cursor_x, self.cursor_y, is_inverted)
         if changed:
             self.refresh()
 
@@ -438,7 +438,7 @@ class ZXEditor(ttk.Frame):
         self.master.title(
             "{} ({})".format(
                 self.PROGRAM_TITLE, 
-                self.zx_document.get_title()
+                self.zx_page.get_title()
             )
         )
 
@@ -796,8 +796,8 @@ class Main(ttk.Frame):
         pass
 
     def notify_cursor_changed(self, cursor_x, cursor_y):
-        attr = self.zx_editor.zx_document.get_attribute(cursor_x, cursor_y)
-        is_inverted = not self.zx_editor.zx_document.get_inverted(cursor_x, cursor_y) == ZXDocument.UNDEFINED
+        attr = self.zx_editor.zx_page.get_attribute(cursor_x, cursor_y)
+        is_inverted = not self.zx_editor.zx_page.get_inverted(cursor_x, cursor_y) == ZXPage.UNDEFINED
         self.zx_editor.sidebar.palette.from_data(attr, is_inverted)
         self.refresh()
 
@@ -812,7 +812,7 @@ class Main(ttk.Frame):
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
 
-        rgb_data = self.zx_editor.zx_document.to_rgb(self.zx_editor.flash_value)
+        rgb_data = self.zx_editor.zx_page.to_rgb(self.zx_editor.flash_value)
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -1053,7 +1053,7 @@ class Palette(ttk.Frame):
         '''
         if self.is_inverted:
             return True
-        return ZXDocument.UNDEFINED
+        return ZXPage.UNDEFINED
 
     def notify_scale_changed(self, value):
         pass
@@ -1092,7 +1092,7 @@ class PaletteData():
         )
 
     def to_tokens(self):
-        if not self.is_inverted == ZXDocument.UNDEFINED:
+        if not self.is_inverted == ZXPage.UNDEFINED:
             return [f"INVERTED={int(self.is_inverted)}"] + ZXScreen.to_tokens(self.attribute)
         return ZXScreen.to_tokens(self.attribute)
     

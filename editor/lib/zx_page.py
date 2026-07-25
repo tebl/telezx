@@ -8,7 +8,7 @@ from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
 
-class ZXDocument:
+class ZXPage:
     UNDEFINED = -1
     UNSPECIFIED = -2
     DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
@@ -118,14 +118,12 @@ class ZXDocument:
     
     def is_defined(self, char_x, char_y):
         cell = self.__lookup_cell(char_x, char_y)
-        return not cell.char_code == ZXDocument.UNDEFINED
+        return not cell.char_code == ZXPage.UNDEFINED
 
     def load(self, document_path):
         data = self.__yaml_defaults()
         with open(document_path, 'r') as file:
-            data = self.__update_tree(data, yaml.safe_load(file))
-            if self.__class__.__name__ not in data:
-                raise ValueError("does not look like a telezx file")
+            data = self.__update_tree(data, self.__load_zx_page(file))
         root = data[self.__class__.__name__]
 
         # Clear and set as current file
@@ -151,7 +149,7 @@ class ZXDocument:
                 'glyph': self.DEFAULT_GLYPH_PATH,
                 'cells': {
                     char_y: {
-                        char_x: { 'attribute': ZXDocument.UNDEFINED, 'char_code': ZXDocument.UNDEFINED, 'inverted': ZXDocument.UNDEFINED } 
+                        char_x: { 'attribute': ZXPage.UNDEFINED, 'char_code': ZXPage.UNDEFINED, 'inverted': ZXPage.UNDEFINED } 
                         for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS)} for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS)
                 }
             }
@@ -168,6 +166,12 @@ class ZXDocument:
                 data[key] = self.__update_tree(data.get(key, {}), value)
             else:
                 data[key] = value
+        return data
+
+    def __load_zx_page(self, file):
+        data = yaml.safe_load(file)
+        if self.__class__.__name__ not in data:
+            raise ValueError("does not look like a ZXPage-file")
         return data
 
     def __render_cells(self):
@@ -267,7 +271,7 @@ class ZXDocument:
 class CellCopy():
     UNDEFINED = 'UNDEFINED'
 
-    def __init__(self, char_code=ZXDocument.UNDEFINED, char_attribute=ZXDocument.UNDEFINED, char_inverted=ZXDocument.UNDEFINED):
+    def __init__(self, char_code=ZXPage.UNDEFINED, char_attribute=ZXPage.UNDEFINED, char_inverted=ZXPage.UNDEFINED):
         self.char_code = char_code
         self.char_attribute = char_attribute
         self.char_inverted = char_inverted
@@ -279,22 +283,22 @@ class CellCopy():
         )
 
     def __format_char(self):
-        if self.char_code == ZXDocument.UNDEFINED:
+        if self.char_code == ZXPage.UNDEFINED:
             return self.UNDEFINED
         return "0x{0:02x}".format(self.char_code)
 
     def __to_tokens(self):
         tokens = []
-        if not self.char_code == ZXDocument.UNDEFINED:
+        if not self.char_code == ZXPage.UNDEFINED:
             tokens += ZXScreen.to_tokens(self.char_attribute)
-        if not self.char_inverted == ZXDocument.UNDEFINED:
+        if not self.char_inverted == ZXPage.UNDEFINED:
             tokens += [f"INVERTED={int(self.char_inverted)}"]
         if not tokens:
             return [self.UNDEFINED]
         return tokens
 
     @classmethod
-    def from_values(cls, char_code=ZXDocument.UNDEFINED, char_attribute=ZXDocument.UNDEFINED, char_inverted=ZXDocument.UNDEFINED) -> CellCopy:
+    def from_values(cls, char_code=ZXPage.UNDEFINED, char_attribute=ZXPage.UNDEFINED, char_inverted=ZXPage.UNDEFINED) -> CellCopy:
         return cls(char_code, char_attribute, char_inverted)
     
     @classmethod
@@ -307,26 +311,26 @@ class CellCopy():
 
 
 class Cell:
-    def __init__(self, char_x, char_y, char_code=ZXDocument.UNDEFINED, char_attribute=ZXDocument.UNDEFINED, char_inverted=ZXDocument.UNDEFINED):
+    def __init__(self, char_x, char_y, char_code=ZXPage.UNDEFINED, char_attribute=ZXPage.UNDEFINED, char_inverted=ZXPage.UNDEFINED):
         self.char_x = char_x
         self.char_y = char_y
         self.char_code = char_code
         self.char_attribute = char_attribute
         self.char_inverted = char_inverted
 
-    def debug(self, zx_document: ZXDocument):
+    def debug(self, zx_document: ZXPage):
         print(f'Cell X={self.char_x},Y={self.char_y}:')
 
-        if not self.char_code == ZXDocument.UNDEFINED:
+        if not self.char_code == ZXPage.UNDEFINED:
             print(f'  char_code      = {self.char_code} ({chr(self.char_code)})')
         else:
             print(f'  char_code      = UNDEFINED')
 
-        if not self.char_attribute == ZXDocument.UNDEFINED:
+        if not self.char_attribute == ZXPage.UNDEFINED:
             print("  char_attribute = {0} (0x{1:02x})".format(self.char_attribute, self.char_attribute))
         else:
             print(f'  char_attribute = UNDEFINED')
-        if not self.char_inverted == ZXDocument.UNDEFINED:
+        if not self.char_inverted == ZXPage.UNDEFINED:
             print(f'  char_inverted  = {self.char_inverted}')
         else:
             print(f'  char_inverted  = UNDEFINED')
@@ -338,7 +342,7 @@ class Cell:
                 print("  memory         = {0} (0x{1:04x})".format(s_value, ZXScreen.calculate_offset_data(self.char_x, self.char_y, row=idx)))
             else:
                 print("                   {0} (0x{1:04x})".format(s_value, ZXScreen.calculate_offset_data(self.char_x, self.char_y, row=idx)))
-        source = ZXScreen.__name__ if self.char_attribute == ZXDocument.UNDEFINED else ZXDocument.__name__
+        source = ZXScreen.__name__ if self.char_attribute == ZXPage.UNDEFINED else ZXPage.__name__
         s_value = "{:08b}".format(self.get_attribute(zx_document))
         print(        "  attribute      = {0} (0x{1:04x}) from {2}".format(
             s_value,
@@ -346,8 +350,8 @@ class Cell:
             source))
         print()
 
-    def render_character(self, zx_document: ZXDocument):
-        if self.char_code == ZXDocument.UNDEFINED:
+    def render_character(self, zx_document: ZXPage):
+        if self.char_code == ZXPage.UNDEFINED:
             return
 
         if self.char_code >= ZXFont.ASCII_SPACE and self.char_code <= ZXFont.ASCII_COPYRIGHT:
@@ -365,15 +369,15 @@ class Cell:
                 self.__select_attribute(self.char_attribute)
             )
 
-    def get_attribute(self, zx_document: ZXDocument):
-        if self.char_attribute == ZXDocument.UNDEFINED:
+    def get_attribute(self, zx_document: ZXPage):
+        if self.char_attribute == ZXPage.UNDEFINED:
             return zx_document.zx_screen.get_attribute_at(self.char_x, self.char_y)
         return self.char_attribute
 
-    def sync_screen(self, zx_document: ZXDocument):
+    def sync_screen(self, zx_document: ZXPage):
         # Pixels are either rendered from a specified character, or we attempt
         # to recover the original pixels from the background image.
-        if self.char_code == ZXDocument.UNDEFINED:
+        if self.char_code == ZXPage.UNDEFINED:
             if zx_document.has_background():
                 zx_document.zx_screen.write_cell(
                     self.char_x, 
@@ -404,7 +408,7 @@ class Cell:
         # Sync attribute information. Note that without a character present, we
         # will effectively ignore the value set (giving priority to original
         # value).
-        if self.char_code == ZXDocument.UNDEFINED:
+        if self.char_code == ZXPage.UNDEFINED:
             if zx_document.has_background():
                 # We don't have a character, but a background so we restore it
                 # from there.
@@ -423,7 +427,7 @@ class Cell:
         else:
             # character included
 
-            if self.char_attribute == ZXDocument.UNDEFINED:
+            if self.char_attribute == ZXPage.UNDEFINED:
                 # No attribute
 
                 if zx_document.has_background():
@@ -446,14 +450,14 @@ class Cell:
                     self.char_y, 
                     self.__select_attribute(self.char_attribute))
 
-    def set_attribute(self, zx_document: ZXDocument, char_attribute=ZXDocument.UNDEFINED, sync_screen=True):
+    def set_attribute(self, zx_document: ZXPage, char_attribute=ZXPage.UNDEFINED, sync_screen=True):
         changed = (not self.char_attribute == char_attribute)
         self.char_attribute = char_attribute
         if sync_screen:
             self.sync_screen(zx_document)
         return changed
 
-    def set_inverted(self, zx_document: ZXDocument, char_inverted=ZXDocument.UNDEFINED, sync_screen=True):
+    def set_inverted(self, zx_document: ZXPage, char_inverted=ZXPage.UNDEFINED, sync_screen=True):
         changed = (not self.char_inverted == char_inverted)
         self.char_inverted = char_inverted
         if sync_screen:
@@ -461,7 +465,7 @@ class Cell:
         return changed
     
     def __select_attribute(self, attribute):
-        if self.char_inverted == ZXDocument.UNDEFINED or not self.char_inverted:
+        if self.char_inverted == ZXPage.UNDEFINED or not self.char_inverted:
             return attribute
         parsed = ZXScreen.to_parsed_attribute(attribute)
         return ZXScreen.to_attribute(
@@ -471,7 +475,7 @@ class Cell:
             paper=parsed['ink']
         )
 
-    def set_character(self, zx_document: ZXDocument, char_code=ZXDocument.UNDEFINED, sync_screen=True):
+    def set_character(self, zx_document: ZXPage, char_code=ZXPage.UNDEFINED, sync_screen=True):
         changed = (not self.char_code == char_code)
         self.char_code = char_code
         if sync_screen:
@@ -504,7 +508,7 @@ class SpecsciiFormat:
     GLYPH_START = ZXGlyph.GLYPH_OFFSET
     GLYPH_LAST = 0xff
 
-    def __init__(self, zx_document: ZXDocument):
+    def __init__(self, zx_document: ZXPage):
         self.zx_document = zx_document
         self.current_attribute = zx_document.current_attribute
 
@@ -526,24 +530,24 @@ class SpecsciiFormat:
                     cell = self.zx_document.cells[char_y][char_x]
 
                     # Skip if there's no content
-                    if cell.char_code == ZXDocument.UNDEFINED:
+                    if cell.char_code == ZXPage.UNDEFINED:
                         continue
 
                     # Move cursor to match
                     self.__write_cursor(file, char_x, char_y)
 
                     # Update attribute at location
-                    if not cell.char_attribute == ZXDocument.UNDEFINED:
+                    if not cell.char_attribute == ZXPage.UNDEFINED:
                         self.__set_attribute(file, cell.char_attribute)
 
                     self.__write_inverted(file, self.__get_inverted(cell.char_inverted))
 
                     # Output a character
-                    if not cell.char_code == ZXDocument.UNDEFINED:
+                    if not cell.char_code == ZXPage.UNDEFINED:
                         self.__write_character(file, cell.char_code)
     
     def __get_inverted(self, value):
-        if value == ZXDocument.UNDEFINED:
+        if value == ZXPage.UNDEFINED:
             return False
         return bool(value)
 
