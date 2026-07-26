@@ -467,7 +467,7 @@ class ZXEditor(ttk.Frame):
             'grid-disabled': 'zx-grid-disabled.png',
             'export': 'zx-export.png',
             'about': 'zx-about.png',
-            'logo': 'zx-export.png'
+            'logo': 'zx-logo.png'
         }
 
         self.photoimages = []
