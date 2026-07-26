@@ -38,7 +38,7 @@ class ZXToken:
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             self.cells[char_y] = {}
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                self.cells[char_y][char_x] = Cell(char_x, char_y, self.UNDEFINED, self.UNDEFINED)
+                self.cells[char_y][char_x] = ZXTokenCell(char_x, char_y, self.UNDEFINED, self.UNDEFINED)
 
     def __clear_fonts(self):
         self.set_selected_font(self.DEFAULT_FONT_PATH)
@@ -77,7 +77,7 @@ class ZXToken:
     def get_cell(self, char_x, char_y) -> CellCopy:
         return CellCopy.from_cell(self.__lookup_cell(char_x, char_y))
 
-    def __lookup_cell(self, char_x, char_y) -> Cell:
+    def __lookup_cell(self, char_x, char_y) -> ZXTokenCell:
         return self.cells[char_y][char_x]
 
     def get_title(self):
@@ -156,7 +156,7 @@ class ZXToken:
     def __load_zx_page(self, file):
         data = yaml.safe_load(file)
         if self.__class__.__name__ not in data:
-            raise ValueError("does not look like a ZXPage-file")
+            raise ValueError("does not look like a {}-file".format(self.__class__.__name__))
         return data
 
     def render_cells(self):
@@ -164,7 +164,7 @@ class ZXToken:
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__lookup_cell(char_x, char_y).sync_screen(self)
 
-    def set_attribute(self, char_x, char_y, char_attribute=UNDEFINED):
+    def set_attribute(self, char_x, char_y, char_attribute=UNDEFINED) -> bool:
         result = self.__lookup_cell(char_x, char_y).set_attribute(self, char_attribute)
         if result:
             self.changes = True
@@ -198,7 +198,7 @@ class ZXToken:
             current_x, current_y = next(position)
             self.set_cell(current_x, current_y, char_code=ord(character), char_attribute=char_attribute, char_inverted=char_inverted)
 
-    def set_character(self, char_x, char_y, char_code=UNDEFINED):
+    def set_character(self, char_x, char_y, char_code=UNDEFINED) -> bool:
         result = self.__lookup_cell(char_x, char_y).set_character(self, char_code)
         if result:
             self.changes = True
@@ -207,7 +207,7 @@ class ZXToken:
     def set_document(self, document_path):
         self.document_path = document_path
 
-    def set_inverted(self, char_x, char_y, char_inverted=UNDEFINED):
+    def set_inverted(self, char_x, char_y, char_inverted=UNDEFINED) -> bool:
         result = self.__lookup_cell(char_x, char_y).set_inverted(self, char_inverted)
         if result:
             self.changes = True
@@ -254,6 +254,13 @@ class ZXToken:
         return self.zx_screen.to_rgb(flash_value)
 
 
+    @classmethod
+    def from_file(cls, document_path):
+        zx_token = ZXToken()
+        zx_token.load(document_path)
+        return zx_token
+
+
 class CellCopy():
     UNDEFINED = 'UNDEFINED'
 
@@ -288,7 +295,7 @@ class CellCopy():
         return cls(char_code, char_attribute, char_inverted)
     
     @classmethod
-    def from_cell(cls, cell: Cell) -> CellCopy:
+    def from_cell(cls, cell: ZXTokenCell) -> CellCopy:
         return cls(
             cell.char_code,
             cell.char_attribute,
@@ -296,7 +303,7 @@ class CellCopy():
         )
 
 
-class Cell:
+class ZXTokenCell:
     def __init__(self, char_x, char_y, char_code=ZXToken.UNDEFINED, char_attribute=ZXToken.UNDEFINED, char_inverted=ZXToken.UNDEFINED):
         self.char_x = char_x
         self.char_y = char_y
