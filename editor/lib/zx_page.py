@@ -8,6 +8,7 @@ from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
 
+
 class ZXPage:
     UNDEFINED = -1
     UNSPECIFIED = -2
@@ -15,34 +16,18 @@ class ZXPage:
     DEFAULT_FONT_PATH = os.path.join('fonts', 'font_default.bin')
     DEFAULT_GLYPH_PATH = os.path.join('fonts', 'font_glyphs.bin')
 
-    def __init__(self, boot_screen=False):
+    def __init__(self):
         self.zx_screen = ZXScreen()
-        self.clear(attribute=self.DEFAULT_ATTRIBUTE, boot_screen=boot_screen)
+        self.clear(attribute=self.DEFAULT_ATTRIBUTE)
 
-    def clear(self, attribute, boot_screen=False):
+    def clear(self, attribute):
         self.current_attribute = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
         self.__clear_cells()
         self.__clear_fonts()
         self.set_document(None)
-
-        if boot_screen:
-            self.__create_boot_screen()
         self.changes = False
-
-    def __create_boot_screen(self):
-        start_x = 11
-        self.set_string(start_x + 1, 9, "ZX Editor")
-
-        start_y = 11
-        for idx, colour in enumerate([ZXScreen.RED, ZXScreen.YELLOW, ZXScreen.GREEN, ZXScreen.BLUE]):
-            self.set_cell(start_x + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.set_cell(start_x + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.set_cell(start_x + 1 + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.set_cell(start_x + 1 + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.__render_cells()
-        self.set_string(7, start_y + 3, "(Ctrl + n to clear)")
 
     def __clear_background(self):
         self.background = None
@@ -137,7 +122,7 @@ class ZXPage:
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.cells[char_y][char_x].from_dict(root['cells'][char_y][char_x])
-        self.__render_cells()
+        self.render_cells()
         self.changes = False
     
     def __yaml_defaults(self):
@@ -174,7 +159,7 @@ class ZXPage:
             raise ValueError("does not look like a ZXPage-file")
         return data
 
-    def __render_cells(self):
+    def render_cells(self):
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__lookup_cell(char_x, char_y).sync_screen(self)
@@ -189,7 +174,7 @@ class ZXPage:
         self.background_data = numpy.fromfile(background_path, dtype='uint8')
         self.background = background_path
         self.zx_screen.flip_memory(self.background_data)
-        self.__render_cells()
+        self.render_cells()
         self.changes = True
 
     def set_cell(self, char_x, char_y, cell_copy: Optional[CellCopy]=None, char_code=UNDEFINED, char_attribute=UNDEFINED, char_inverted=UNDEFINED) -> bool:
@@ -267,6 +252,7 @@ class ZXPage:
 
     def to_rgb(self, flash_value=False):
         return self.zx_screen.to_rgb(flash_value)
+
 
 class CellCopy():
     UNDEFINED = 'UNDEFINED'

@@ -51,7 +51,8 @@ class ZXEditor(ttk.Frame):
         self.cursor_x = 0
         self.cursor_y = 0
 
-        self.zx_page = ZXPage(boot_screen=True)
+        self.zx_page = ZXPage()
+        self.__create_boot_screen()
         self.copied_cell = None
         self.copied_format = None
 
@@ -92,6 +93,19 @@ class ZXEditor(ttk.Frame):
 
         self.update_flash_periodic(initial_setup=True)
         self.update_title_periodic(initial_setup=True)
+
+    def __create_boot_screen(self):
+        start_x = 11
+        self.zx_page.set_string(start_x + 1, 9, "ZX Editor")
+
+        start_y = 11
+        for idx, colour in enumerate([ZXScreen.RED, ZXScreen.YELLOW, ZXScreen.GREEN, ZXScreen.BLUE]):
+            self.zx_page.set_cell(start_x + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.zx_page.set_cell(start_x + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.zx_page.set_cell(start_x + 1 + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.zx_page.set_cell(start_x + 1 + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
+            self.zx_page.render_cells()
+        self.zx_page.set_string(7, start_y + 3, "(Ctrl + n to clear)")
 
     def clicked_about(self, event=None):
         AboutDialog(self).show()
