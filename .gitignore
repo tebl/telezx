@@ -2,3 +2,5 @@ resources/
 __pycache__
 *.telezx
 *.zxpage
+*.tkn
+*.specscii
