@@ -228,7 +228,7 @@ class ZXEditor(ttk.Frame):
     def clicked_save(self, event=None):
         if self.zx_token.is_blank():
             try:
-                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], defaultextension='.telezx', confirmoverwrite=True)
+                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], defaultextension='.zxtoken', confirmoverwrite=True)
                 if not filename:
                     return
                 self.zx_token.set_document(filename)

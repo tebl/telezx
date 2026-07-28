@@ -1,13 +1,12 @@
 import yaml
 import numpy
-import collections.abc
 import os.path
 from PIL import Image
 from typing import Optional
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
-
+from .utilities import update_tree
 
 class ZXToken:
     UNDEFINED = -1
@@ -108,7 +107,7 @@ class ZXToken:
     def load(self, document_path):
         data = self.__yaml_defaults()
         with open(document_path, 'r') as file:
-            data = self.__update_tree(data, self.__load_zx_page(file))
+            data = update_tree(data, self.__load_zx_page(file))
         root = data[self.__class__.__name__]
 
         # Clear and set as current file
@@ -139,19 +138,6 @@ class ZXToken:
                 }
             }
         }
-
-    def __update_tree(self, data, update):
-        '''
-        Recursively update dictionary structure, allowing us to ensure that
-        default values exist after loading data that may or may not be
-        complete.
-        '''
-        for key, value in update.items():
-            if isinstance(value, collections.abc.Mapping):
-                data[key] = self.__update_tree(data.get(key, {}), value)
-            else:
-                data[key] = value
-        return data
 
     def __load_zx_page(self, file):
         data = yaml.safe_load(file)
