@@ -2,11 +2,13 @@ import yaml
 from pathlib import Path
 from .utilities import update_tree, format_padded_id
 from .zx_registry import ZXRegistry
+from .zx_logger import ZXLogger
 
 class ZXDocument:
     FILE_EXTENSION = '.idx'
 
     def __init__(self, document_path, document_id=0, description=None, abbreviation=None, link_a=None, link_a_txt=None, link_b=None, link_b_txt=None, link_c=None, link_c_txt=None):
+        self.logger = ZXLogger.get_instance()
         self.document_path = Path(document_path)
         self.working_path = self.document_path.parent.resolve()
         self.document_id = document_id
@@ -38,7 +40,7 @@ class ZXDocument:
         return True
 
     def export(self, output_directory: Path, registry: ZXRegistry=None):
-        print('export', self.get_output_path(output_directory))
+        self.logger.info('export', self.document_path, '->', self.get_output_path(output_directory))
         for page_idx, page in enumerate(self.pages):
             page.export(self.get_output_base(output_directory), page_idx)
         if registry:
@@ -143,6 +145,7 @@ class ZXDocument:
 
 class ZXPage:
     def __init__(self, parent: ZXDocument):
+        self.logger = ZXLogger.get_instance()
         self.parent = parent
         self.parent.add_page(self)
 
@@ -163,6 +166,9 @@ class ZXPage:
 class ZXPageSCR(ZXPage):
     SCR_EXTENSION = '.scr'
     ABOUT_EXTENSION = '.about'
+    scr_path: Path
+    parent: ZXDocument
+    scr_about: dict
 
     def __init__(self, parent: ZXDocument, scr_path, scr_about):
         super().__init__(parent)
@@ -171,12 +177,29 @@ class ZXPageSCR(ZXPage):
         self.scr_about = scr_about
 
     def export(self, output_base, page_idx):
-        # looses page_idx as with_suffix overrides it :-()
-        print('export', self.get_output_base(output_base, page_idx).with_suffix(self.SCR_EXTENSION))
-        print('export', self.get_output_base(output_base, page_idx).with_suffix(self.ABOUT_EXTENSION))
+        self.__copy_scr(self.get_export_path(output_base, page_idx, self.SCR_EXTENSION))
+        self.__export_about(self.get_export_path(output_base, page_idx, self.ABOUT_EXTENSION))
 
-    def get_output_base(self, output_base: Path, page_idx):
-        return output_base.with_suffix('.' + format_padded_id(page_idx, width=2)) #.with_suffix(self.FILE_EXTENSION)
+    def __copy_scr(self, target_path: Path):
+        self.logger.debug('copy', self.scr_path, '->', target_path)
+        self.scr_path.copy(target=target_path)
+
+    def __export_about(self, file_path: Path):
+        self.logger.debug('create', file_path)
+        with open(file_path, 'w') as file:
+            self.__export_about_field(file, 'title')
+            self.__export_about_field(file, 'author')
+            self.__export_about_field(file, 'source')
+            self.__export_about_field(file, 'license')
+
+    def __export_about_field(self, file, key: str):
+        title = f'{key.capitalize()}:'
+        file.write(title.ljust(10))
+        file.write(self.scr_about[key])
+        file.write('\n')
+
+    def get_export_path(self, output_base: Path, page_idx: int, extension):
+        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), extension))
 
     def to_dict(self, page_idx):
         result = super().to_dict(page_idx)
@@ -196,7 +219,7 @@ class ZXPageSCR(ZXPage):
         result = cls.__yaml_defaults()
         result = update_tree(result, data)
         root = result[cls.__name__]
-        return cls(
+        return ZXPageSCR(
             parent, 
             parent.get_asset_path(root['scr_path']), 
             root['scr_about'])
