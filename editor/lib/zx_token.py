@@ -297,7 +297,7 @@ class ZXTokenCell:
         self.char_attribute = char_attribute
         self.char_inverted = char_inverted
 
-    def debug(self, zx_document: ZXToken):
+    def debug(self, zx_token: ZXToken):
         print(f'Cell X={self.char_x},Y={self.char_y}:')
 
         if not self.char_code == ZXToken.UNDEFINED:
@@ -314,7 +314,7 @@ class ZXTokenCell:
         else:
             print(f'  char_inverted  = UNDEFINED')
 
-        memory = zx_document.zx_screen.read_cell(self.char_x, self.char_y)
+        memory = zx_token.zx_screen.read_cell(self.char_x, self.char_y)
         for idx, value in enumerate(memory):
             s_value = "{:08b}".format(value)
             if idx == 0:
@@ -322,125 +322,125 @@ class ZXTokenCell:
             else:
                 print("                   {0} (0x{1:04x})".format(s_value, ZXScreen.calculate_offset_data(self.char_x, self.char_y, row=idx)))
         source = ZXScreen.__name__ if self.char_attribute == ZXToken.UNDEFINED else ZXToken.__name__
-        s_value = "{:08b}".format(self.get_attribute(zx_document))
+        s_value = "{:08b}".format(self.get_attribute(zx_token))
         print(        "  attribute      = {0} (0x{1:04x}) from {2}".format(
             s_value,
             ZXScreen.calculate_offset_attribute(self.char_x, self.char_y),
             source))
         print()
 
-    def render_character(self, zx_document: ZXToken):
+    def render_character(self, zx_token: ZXToken):
         if self.char_code == ZXToken.UNDEFINED:
             return
 
         if self.char_code >= ZXFont.ASCII_SPACE and self.char_code <= ZXFont.ASCII_COPYRIGHT:
-            zx_document.zx_screen.write_cell(
+            zx_token.zx_screen.write_cell(
                 self.char_x, 
                 self.char_y, 
-                zx_document.font.get_offset(self.char_code - ZXFont.ASCII_SPACE),
+                zx_token.font.get_offset(self.char_code - ZXFont.ASCII_SPACE),
                 self.__select_attribute(self.char_attribute)
             )
         if self.char_code >= ZXGlyph.GLYPH_OFFSET:
-            zx_document.zx_screen.write_cell(
+            zx_token.zx_screen.write_cell(
                 self.char_x, 
                 self.char_y, 
-                zx_document.glyph.get_offset(self.char_code - ZXGlyph.GLYPH_OFFSET),
+                zx_token.glyph.get_offset(self.char_code - ZXGlyph.GLYPH_OFFSET),
                 self.__select_attribute(self.char_attribute)
             )
 
-    def get_attribute(self, zx_document: ZXToken):
+    def get_attribute(self, zx_token: ZXToken):
         if self.char_attribute == ZXToken.UNDEFINED:
-            return zx_document.zx_screen.get_attribute_at(self.char_x, self.char_y)
+            return zx_token.zx_screen.get_attribute_at(self.char_x, self.char_y)
         return self.char_attribute
 
-    def sync_screen(self, zx_document: ZXToken):
+    def sync_screen(self, zx_token: ZXToken):
         # Pixels are either rendered from a specified character, or we attempt
         # to recover the original pixels from the background image.
         if self.char_code == ZXToken.UNDEFINED:
-            if zx_document.has_background():
-                zx_document.zx_screen.write_cell(
+            if zx_token.has_background():
+                zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y,
-                    ZXScreen.exctract_cell(self.char_x, self.char_y, zx_document.background_data)
+                    ZXScreen.exctract_cell(self.char_x, self.char_y, zx_token.background_data)
                 )
             else:
                 # no character, overwrite screen memory with empty space
-                zx_document.zx_screen.write_cell(
+                zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y, 
-                    zx_document.font.get_offset(0)
+                    zx_token.font.get_offset(0)
                 )
         else:
             if self.char_code >= ZXFont.ASCII_SPACE and self.char_code <= ZXFont.ASCII_COPYRIGHT:
-                zx_document.zx_screen.write_cell(
+                zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y, 
-                    zx_document.font.get_offset(self.char_code - ZXFont.ASCII_SPACE)
+                    zx_token.font.get_offset(self.char_code - ZXFont.ASCII_SPACE)
                 )
             if self.char_code >= ZXGlyph.GLYPH_OFFSET:
-                zx_document.zx_screen.write_cell(
+                zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y, 
-                    zx_document.glyph.get_offset(self.char_code - ZXGlyph.GLYPH_OFFSET)
+                    zx_token.glyph.get_offset(self.char_code - ZXGlyph.GLYPH_OFFSET)
                 )
 
         # Sync attribute information. Note that without a character present, we
         # will effectively ignore the value set (giving priority to original
         # value).
         if self.char_code == ZXToken.UNDEFINED:
-            if zx_document.has_background():
+            if zx_token.has_background():
                 # We don't have a character, but a background so we restore it
                 # from there.
                 bg_index = ZXScreen.calculate_offset_attribute(self.char_x, self.char_y)
-                bg_attribute = zx_document.background_data[bg_index]
-                zx_document.zx_screen.write_attribute(
+                bg_attribute = zx_token.background_data[bg_index]
+                zx_token.zx_screen.write_attribute(
                     self.char_x, 
                     self.char_y, 
                     self.__select_attribute(bg_attribute))                
             else:
                 # There was no background so we'll use value from the document.
-                zx_document.zx_screen.write_attribute(
+                zx_token.zx_screen.write_attribute(
                     self.char_x, 
                     self.char_y, 
-                    zx_document.current_attribute)
+                    zx_token.current_attribute)
         else:
             # character included
 
             if self.char_attribute == ZXToken.UNDEFINED:
                 # No attribute
 
-                if zx_document.has_background():
+                if zx_token.has_background():
                     # restore from background
                     bg_index = ZXScreen.calculate_offset_attribute(self.char_x, self.char_y)
-                    bg_attribute = zx_document.background_data[bg_index]
-                    zx_document.zx_screen.write_attribute(
+                    bg_attribute = zx_token.background_data[bg_index]
+                    zx_token.zx_screen.write_attribute(
                         self.char_x, 
                         self.char_y, 
                         self.__select_attribute(bg_attribute))                
                 else:
                     # restore default attribute
-                    zx_document.zx_screen.write_attribute(
+                    zx_token.zx_screen.write_attribute(
                         self.char_x, 
                         self.char_y, 
-                        zx_document.current_attribute)
+                        zx_token.current_attribute)
             else:
-                zx_document.zx_screen.write_attribute(
+                zx_token.zx_screen.write_attribute(
                     self.char_x, 
                     self.char_y, 
                     self.__select_attribute(self.char_attribute))
 
-    def set_attribute(self, zx_document: ZXToken, char_attribute=ZXToken.UNDEFINED, sync_screen=True):
+    def set_attribute(self, zx_token: ZXToken, char_attribute=ZXToken.UNDEFINED, sync_screen=True):
         changed = (not self.char_attribute == char_attribute)
         self.char_attribute = char_attribute
         if sync_screen:
-            self.sync_screen(zx_document)
+            self.sync_screen(zx_token)
         return changed
 
-    def set_inverted(self, zx_document: ZXToken, char_inverted=ZXToken.UNDEFINED, sync_screen=True):
+    def set_inverted(self, zx_token: ZXToken, char_inverted=ZXToken.UNDEFINED, sync_screen=True):
         changed = (not self.char_inverted == char_inverted)
         self.char_inverted = char_inverted
         if sync_screen:
-            self.sync_screen(zx_document)
+            self.sync_screen(zx_token)
         return changed
     
     def __select_attribute(self, attribute):
@@ -454,11 +454,11 @@ class ZXTokenCell:
             paper=parsed['ink']
         )
 
-    def set_character(self, zx_document: ZXToken, char_code=ZXToken.UNDEFINED, sync_screen=True):
+    def set_character(self, zx_token: ZXToken, char_code=ZXToken.UNDEFINED, sync_screen=True):
         changed = (not self.char_code == char_code)
         self.char_code = char_code
         if sync_screen:
-            self.sync_screen(zx_document)
+            self.sync_screen(zx_token)
         return changed
 
     def to_dict(self):
@@ -472,6 +472,7 @@ class ZXTokenCell:
         self.char_code = data['char_code']
         self.char_attribute = data['attribute']
         self.char_inverted = int(data['inverted'])
+
 
 class SpecsciiFormat:
     SET_INK = 0x10
@@ -487,9 +488,9 @@ class SpecsciiFormat:
     GLYPH_START = ZXGlyph.GLYPH_OFFSET
     GLYPH_LAST = 0xff
 
-    def __init__(self, zx_document: ZXToken):
-        self.zx_document = zx_document
-        self.current_attribute = zx_document.current_attribute
+    def __init__(self, zx_token: ZXToken):
+        self.zx_token = zx_token
+        self.current_attribute = zx_token.current_attribute
 
         parsed = ZXScreen.to_parsed_attribute(self.current_attribute)
         self.last_ink = parsed['ink']
@@ -506,7 +507,7 @@ class SpecsciiFormat:
         with open(specscii_path, 'wb') as file:
             for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
                 for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                    cell = self.zx_document.cells[char_y][char_x]
+                    cell = self.zx_token.cells[char_y][char_x]
 
                     # Skip if there's no content
                     if cell.char_code == ZXToken.UNDEFINED:
@@ -640,5 +641,5 @@ class SpecsciiFormat:
         self.cursor_y = 0
 
     @classmethod
-    def write_document(cls, zx_document, specscii_path):
-        SpecsciiFormat(zx_document).write_formatted(specscii_path)
+    def write_document(cls, zx_token: ZXToken, specscii_path):
+        SpecsciiFormat(zx_token).write_formatted(specscii_path)

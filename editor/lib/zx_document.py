@@ -63,10 +63,10 @@ class ZXDocument:
         self.logger.info('export', self.document_path, '->', self.get_output_path(output_directory))
         with open(self.get_output_path(output_directory), 'w') as file:
             file.write('IDX')
-            self.__write_digits(file, len(self.pages))
-            self.__write_link(file, self.link_a, self.link_a_txt, registry)
-            self.__write_link(file, self.link_b, self.link_b_txt, registry)
-            self.__write_link(file, self.link_c, self.link_c_txt, registry)
+            self.__export_digits(file, len(self.pages))
+            self.__export_link(file, self.link_a, self.link_a_txt, registry)
+            self.__export_link(file, self.link_b, self.link_b_txt, registry)
+            self.__export_link(file, self.link_c, self.link_c_txt, registry)
 
             # Align byte boundary so that records start at position 64 (0x40),
             # giving us around 20 bytes of overhead that we can fill if we find
@@ -75,29 +75,29 @@ class ZXDocument:
 
             for page_idx, page in enumerate(self.pages):
                 type, parameter = page.get_index_data()
-                self.__write_hex(file, type)
-                self.__write_hex(file, parameter)
+                self.__export_hex(file, type)
+                self.__export_hex(file, parameter)
 
-        # Export assets
+        # Export page assets
         for page_idx, page in enumerate(self.pages):
             page.export(self.get_output_base(output_directory), page_idx)
         registry.sync_record(self.document_id, self.description, self.abbreviation)
 
-    def __write_record(self, file, value, pad_to_size, pad_chr):
+    def __export_record(self, file, value, pad_to_size, pad_chr):
         file.write(self.__pad_record(value, pad_to_size, pad_chr))
 
-    def __write_digits(self, file, value):
+    def __export_digits(self, file, value):
         file.write(f'{value:02d}')
 
-    def __write_hex(self, file, value):
+    def __export_hex(self, file, value):
         file.write(f'{value:02X}')
 
-    def __write_link(self, file, link, link_txt, registry: ZXRegistry):
+    def __export_link(self, file, link, link_txt, registry: ZXRegistry):
         if link is not None:
             file.write(f'{link:04d}')
             if link_txt is None:
                 link_txt = registry.lookup_abbreviation(link)
-            self.__write_record(file, link_txt, (ZXRegistry.ABBREVIATION_CHARS + 1), '\0')
+            self.__export_record(file, link_txt, (ZXRegistry.ABBREVIATION_CHARS + 1), '\0')
         else:
             file.write('0000')
             file.write('\0'*(ZXRegistry.ABBREVIATION_CHARS + 1))
