@@ -228,6 +228,9 @@ class ZXPage:
     INDEX_TYPE_TKN = 0xAA
     BLANK_PARAMETER = 0x00
 
+    logger: ZXLogger
+    parent: ZXDocument
+
     def __init__(self, parent: ZXDocument):
         self.logger = ZXLogger.get_instance()
         self.parent = parent
@@ -254,15 +257,18 @@ class ZXPage:
 
 
 class ZXPage_SCR(ZXPage):
-    scr_path: Path
     parent: ZXDocument
+    scr_path: Path
     scr_about: dict
 
-    def __init__(self, parent: ZXDocument, scr_path, scr_about):
+    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about):
         super().__init__(parent)
         self.scr_path = scr_path
         self.parent.check_file_exists(self.scr_path)
         self.scr_about = scr_about
+
+    def __str__(self):
+        return f'{self.__class__.__name__} (input={self.scr_path.name})'
 
     def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
         self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
@@ -327,7 +333,11 @@ class ZXPage_SCR(ZXPage):
 
 
 class ZXPage_TeleZX(ZXPage):
-    def __init__(self, parent: ZXDocument, telezx_path, export_as):
+    parent: ZXDocument
+    telezx_path: Path
+    export_as: str
+
+    def __init__(self, parent: ZXDocument, telezx_path: Path, export_as):
         super().__init__(parent)
         self.telezx_path = telezx_path
         self.parent.check_file_exists(self.telezx_path)
@@ -336,7 +346,7 @@ class ZXPage_TeleZX(ZXPage):
             raise ValueError(f"{self.export_as} not recognized")
 
     def __str__(self):
-        return f'{self.__class__.__name__} (export_as={self.export_as})'
+        return f'{self.__class__.__name__} (input={self.telezx_path.name}, export_as={self.export_as})'
 
     def export(self, output_base, page_idx, log_indent=0):
         self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
