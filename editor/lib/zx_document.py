@@ -6,7 +6,10 @@ from .zx_logger import ZXLogger
 from .zx_token import ZXToken, ZXScreenIterator
 
 class ZXDocument:
-    FILE_EXTENSION = '.idx'
+    EXTENSION_INDEX = '.idx'
+    EXTENSION_TOKEN = '.tkn'
+    EXTENSION_SCR = '.scr'
+    EXTENSION_ABOUT = '.about'
 
     def __init__(self, document_path, document_id=0, description=None, abbreviation=None, link_a=None, link_a_txt=None, link_b=None, link_b_txt=None, link_c=None, link_c_txt=None):
         self.logger = ZXLogger.get_instance()
@@ -40,7 +43,25 @@ class ZXDocument:
             return False
         return True
 
-    def export(self, output_directory: Path, registry: ZXRegistry):
+    def clean(self, output_directory: Path, indent=0):
+        path = self.get_output_base(output_directory)
+        self.logger.info('cleaning', path, 'assets', indent=indent)
+        for asset in self.__asset_list(directory=path.parent, basename=path.name):
+            self.logger.debug('delete', asset, indent=(indent+1))
+            asset.unlink()
+
+    def __asset_list(self, directory: Path, basename):
+        results = []
+        results.extend(directory.glob(f'{basename}{self.EXTENSION_INDEX}'))
+        results.extend(directory.glob(f'{basename}.*{self.EXTENSION_TOKEN}'))
+        results.extend(directory.glob(f'{basename}.*{self.EXTENSION_SCR}'))
+        results.extend(directory.glob(f'{basename}.*{self.EXTENSION_ABOUT}'))
+        return sorted(
+            results,
+            key=lambda path: path.name
+        )
+
+    def export(self, output_directory: Path, registry: ZXRegistry, log_indent=0):
         '''
         Create index file from registered pages, using the data structure as
         listed below. Note that with room for 99 subpages we should leave
@@ -61,7 +82,8 @@ class ZXDocument:
             0x40 Page 0 type (hex)  2
             0x42 Page 0 parameter   2
         '''
-        self.logger.info('export', self.document_path, '->', self.get_output_path(output_directory))
+        self.logger.info('export', self.document_path, '->', self.get_output_path(output_directory), indent=log_indent)
+        self.clean(output_directory, indent=(log_indent+1))
         with open(self.get_output_path(output_directory), 'w') as file:
             file.write('IDX')
             self.__export_digits(file, len(self.pages))
@@ -74,8 +96,9 @@ class ZXDocument:
             # a need for them.
             file.write('\0'*(64 - file.tell()))
 
+            page: ZXPage
             for page_idx, page in enumerate(self.pages):
-                type, parameter = page.export(self.get_output_base(output_directory), page_idx)
+                type, parameter = page.export(self.get_output_base(output_directory), page_idx, log_indent=(log_indent+1))
                 self.__export_hex(file, type)
                 self.__export_hex(file, parameter)
 
@@ -104,7 +127,7 @@ class ZXDocument:
         return value.ljust(pad_to_size, pad_chr)[0:(pad_to_size + 1)]
 
     def get_output_path(self, output_directory: Path):
-        return self.get_output_base(output_directory).with_suffix(self.FILE_EXTENSION)
+        return self.get_output_base(output_directory).with_suffix(self.EXTENSION_INDEX)
 
     def get_output_base(self, output_directory: Path):
         if isinstance(output_directory, str):
@@ -204,23 +227,20 @@ class ZXPage:
     INDEX_TYPE_SCR = 0x55
     INDEX_TYPE_TKN = 0xAA
     BLANK_PARAMETER = 0x00
-    EXTENSION_TOKEN = '.tkn'
-    EXTENSION_SCR = '.scr'
-    EXTENSION_ABOUT = '.about'
 
     def __init__(self, parent: ZXDocument):
         self.logger = ZXLogger.get_instance()
         self.parent = parent
         self.parent.add_page(self)
 
-    def export(self, output_base, page_idx):
+    def __str__(self):
+        return self.__class__.__name__
+
+    def export(self, output_base, page_idx, log_indent=0):
         raise NotImplementedError()
 
     def get_export_path(self, output_base: Path, page_idx: int, file_extension):
         return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), file_extension))
-
-    def __get_index_data(self):
-        raise NotImplementedError()
 
     def to_dict(self, page_idx) -> dict:
         return { self.__class__.__name__: {} }
@@ -244,17 +264,18 @@ class ZXPage_SCR(ZXPage):
         self.parent.check_file_exists(self.scr_path)
         self.scr_about = scr_about
 
-    def export(self, output_base, page_idx) -> tuple[int, int]:
-        self.__copy_scr(self.get_export_path(output_base, page_idx, self.EXTENSION_SCR))
-        self.__export_about(self.get_export_path(output_base, page_idx, self.EXTENSION_ABOUT))
+    def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
+        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
+        self.__copy_scr(self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR), log_indent=log_indent+1)
+        self.__export_about(self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
         return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
 
-    def __copy_scr(self, target_path: Path):
-        self.logger.debug('copy', self.scr_path, '->', target_path)
+    def __copy_scr(self, target_path: Path, log_indent=0):
+        self.logger.debug('copy', self.scr_path, '->', target_path, indent=log_indent)
         self.scr_path.copy(target=target_path)
 
-    def __export_about(self, file_path: Path):
-        self.logger.debug('create', file_path)
+    def __export_about(self, file_path: Path, log_indent=0):
+        self.logger.debug('create', file_path, indent=log_indent)
         with open(file_path, 'w') as file:
             self.__export_about_field(file, 'title')
             self.__export_about_field(file, 'author')
@@ -314,17 +335,21 @@ class ZXPage_TeleZX(ZXPage):
         if self.export_as not in [ 'SCR', 'TKN' ]:
             raise ValueError(f"{self.export_as} not recognized")
 
-    def export(self, output_base, page_idx) -> tuple[int, int]:
+    def __str__(self):
+        return f'{self.__class__.__name__} (export_as={self.export_as})'
+
+    def export(self, output_base, page_idx, log_indent=0):
+        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
         zx_token = ZXToken.from_file(self.telezx_path)
         match self.export_as:
             case 'TKN':
-                target_path = self.get_export_path(output_base, page_idx, self.EXTENSION_TOKEN)
-                self.logger.debug('create', self.telezx_path, '->', target_path)
+                target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN)
+                self.logger.debug('create', self.telezx_path, '->', target_path, indent=(log_indent+1))
                 zx_token.export_to_specscii(target_path)
                 return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
             case _:
-                target_path = self.get_export_path(output_base, page_idx, self.EXTENSION_SCR)
-                self.logger.debug('create', self.telezx_path, '->', target_path)
+                target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR)
+                self.logger.debug('create', self.telezx_path, '->', target_path, indent=(log_indent+1))
                 zx_token.export_to_scr(target_path)
                 return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
 

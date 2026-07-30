@@ -1,4 +1,5 @@
 class ZXLogger:
+    INDENT_WIDTH = 2
     LOG_ERR = 3
     LOG_WARNING = 4
     LOG_INFO = 6
@@ -12,20 +13,23 @@ class ZXLogger:
         if self.check_priority(priority):
             print(self.format_message(message, priority))
 
-    def error(self, *segments):
-        self.log(self.__join_segments(segments), self.LOG_ERR)
+    def error(self, *segments, indent=0):
+        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_ERR)
 
-    def warning(self, *segments):
-        self.log(self.__join_segments(segments), self.LOG_WARNING)
+    def warning(self, *segments, indent=0):
+        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_WARNING)
 
-    def info(self, *segments):
-        self.log(self.__join_segments(segments), self.LOG_INFO)
+    def info(self, *segments, indent=0):
+        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_INFO)
 
-    def debug(self, *segments):
-        self.log(self.__join_segments(segments), self.LOG_DEBUG)
+    def debug(self, *segments, indent=0):
+        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_DEBUG)
 
     def __join_segments(self, segments):
         return ' '.join(map(str, segments))
+
+    def __indent(self, string, indent):
+        return ' '*(indent*self.INDENT_WIDTH) + string
 
     def check_priority(self, priority) -> bool:
         return (priority <= self.log_level)
