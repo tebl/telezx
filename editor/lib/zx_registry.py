@@ -1,14 +1,22 @@
 import yaml
 from pathlib import Path
 from .utilities import format_padded_id, update_tree
+from .zx_logger import ZXLogger
 
 class ZXRegistry:
     FILE_EXTENSION = '.registry'
+    ABBREVIATION_CHARS = 8
     register: dict[str, ZXRegistryEntry]
 
     def __init__(self, registry_path):
         self.registry_path = Path(registry_path)
         self.register = {}
+
+    def lookup(self, document_id):
+        registry_key = format_padded_id(document_id, width=4)
+        if registry_key in self.register:
+            return self.register[registry_key]
+        return None
 
     def save(self) -> bool:
         with open(self.registry_path, 'w') as file:
@@ -23,14 +31,14 @@ class ZXRegistry:
 
     def sync_record(self, document_id, description=None, abbreviation=None) -> bool:
         registry_key = format_padded_id(document_id, width=4)
-        record = self.__get_record(registry_key, document_id, description, abbreviation)
+        record = self.__get_updated_record(registry_key, document_id, description, abbreviation)
         if record.is_valid():
             self.register[registry_key] = record
             return True
         self.__delete_record(registry_key)
         return False
 
-    def __get_record(self, registry_key, document_id, description=None, abbreviation=None) -> ZXRegistryEntry:
+    def __get_updated_record(self, registry_key, document_id, description=None, abbreviation=None) -> ZXRegistryEntry:
         if registry_key in self.register:
             record = self.register[registry_key]
             record.description = description
@@ -49,6 +57,12 @@ class ZXRegistry:
         for index, (document_id, entry) in enumerate(self.register.items()):
             entries[entry.get_padded_id()] = entry.to_dict()
         return result
+
+    def lookup_abbreviation(self, document_id):
+        record = self.lookup(document_id)
+        if record and record.abbreviation:
+            return record.abbreviation[0:self.ABBREVIATION_CHARS]
+        return "[{}]".format(format_padded_id(document_id, width=4).ljust(self.ABBREVIATION_CHARS - 2))
 
     @classmethod
     def from_dict(cls, registry_path, data) -> ZXRegistry:
@@ -73,7 +87,11 @@ class ZXRegistry:
         return cls.from_dict(document_path, cls.__yaml_defaults())
 
     @classmethod
-    def from_file(cls, document_path) -> ZXRegistry:
+    def from_file(cls, document_path, allow_create=True) -> ZXRegistry:
+        logger = ZXLogger.get_instance()
+        if not Path(document_path).is_file() and allow_create:
+            logger.warning(f'Creating {cls.__name__} ({document_path})')
+            return cls.create_file(document_path, allow_overwrite=False)
         data = cls.__yaml_defaults()
         data = update_tree(data, cls.__get_yaml(document_path))
         return cls.from_dict(document_path, data)

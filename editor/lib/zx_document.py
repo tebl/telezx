@@ -39,12 +39,71 @@ class ZXDocument:
             return False
         return True
 
-    def export(self, output_directory: Path, registry: ZXRegistry=None):
+    def export(self, output_directory: Path, registry: ZXRegistry):
+        '''
+        Create index file from registered pages, using the data structure as
+        listed below. Note that with room for 99 subpages we should leave
+        roughly a space for 512 bytes in total to account for any future
+        additions. Strings are terminated with an added \0.
+
+        Index structure:
+            ADDR Field              Bytes
+            0x00 IDX                3
+            0x03 Page count (hex)   2
+            0x05 Link A             4
+            0x09 Link A TXT (8+\0)  9
+            0x12 Link B             4
+            0x16 Link B TXT (8+\0)  9
+            0x1f Link C             4
+            0x23 Link C TXT (8+\0)  9
+            0x2c <unused>           20
+            0x40 Page 0 type (hex)  2
+            0x42 Page 0 parameter   2
+        '''
         self.logger.info('export', self.document_path, '->', self.get_output_path(output_directory))
+        with open(self.get_output_path(output_directory), 'w') as file:
+            file.write('IDX')
+            self.__write_digits(file, len(self.pages))
+            self.__write_link(file, self.link_a, self.link_a_txt, registry)
+            self.__write_link(file, self.link_b, self.link_b_txt, registry)
+            self.__write_link(file, self.link_c, self.link_c_txt, registry)
+
+            # Align byte boundary so that records start at position 64 (0x40),
+            # giving us around 20 bytes of overhead that we can fill if we find
+            # a need for them.
+            file.write('\0'*(64 - file.tell()))
+
+            for page_idx, page in enumerate(self.pages):
+                type, parameter = page.get_index_data()
+                self.__write_hex(file, type)
+                self.__write_hex(file, parameter)
+
+        # Export assets
         for page_idx, page in enumerate(self.pages):
             page.export(self.get_output_base(output_directory), page_idx)
-        if registry:
-            registry.sync_record(self.document_id, self.description, self.abbreviation)
+        registry.sync_record(self.document_id, self.description, self.abbreviation)
+
+    def __write_record(self, file, value, pad_to_size, pad_chr):
+        file.write(self.__pad_record(value, pad_to_size, pad_chr))
+
+    def __write_digits(self, file, value):
+        file.write(f'{value:02d}')
+
+    def __write_hex(self, file, value):
+        file.write(f'{value:02X}')
+
+    def __write_link(self, file, link, link_txt, registry: ZXRegistry):
+        if link is not None:
+            file.write(f'{link:04d}')
+            if link_txt is None:
+                link_txt = registry.lookup_abbreviation(link)
+            self.__write_record(file, link_txt, (ZXRegistry.ABBREVIATION_CHARS + 1), '\0')
+        else:
+            file.write('0000')
+            file.write('\0'*(ZXRegistry.ABBREVIATION_CHARS + 1))
+
+    def __pad_record(self, value, pad_to_size, pad_chr):
+        return value.ljust(pad_to_size, pad_chr)[0:(pad_to_size + 1)]
 
     def get_output_path(self, output_directory: Path):
         return self.get_output_base(output_directory).with_suffix(self.FILE_EXTENSION)
@@ -152,6 +211,9 @@ class ZXPage:
     def export(self, output_base, page_idx):
         raise NotImplementedError()
 
+    def get_index_data(self):
+        raise NotImplementedError()
+
     def to_dict(self, page_idx) -> dict:
         return { self.__class__.__name__: {} }
 
@@ -164,6 +226,9 @@ class ZXPage:
 
 
 class ZXPageSCR(ZXPage):
+    INDEX_TYPE = 0x55
+    INDEX_PARAMETER = 0x00
+
     SCR_EXTENSION = '.scr'
     ABOUT_EXTENSION = '.about'
     scr_path: Path
@@ -200,6 +265,9 @@ class ZXPageSCR(ZXPage):
 
     def get_export_path(self, output_base: Path, page_idx: int, extension):
         return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), extension))
+
+    def get_index_data(self):
+        return (self.INDEX_TYPE, self.INDEX_PARAMETER)
 
     def to_dict(self, page_idx):
         result = super().to_dict(page_idx)
