@@ -3,6 +3,7 @@ from pathlib import Path
 from .utilities import update_tree, format_padded_id
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
+from .zx_token import ZXToken, ZXScreenIterator
 
 class ZXDocument:
     FILE_EXTENSION = '.idx'
@@ -74,13 +75,10 @@ class ZXDocument:
             file.write('\0'*(64 - file.tell()))
 
             for page_idx, page in enumerate(self.pages):
-                type, parameter = page.get_index_data()
+                type, parameter = page.export(self.get_output_base(output_directory), page_idx)
                 self.__export_hex(file, type)
                 self.__export_hex(file, parameter)
 
-        # Export page assets
-        for page_idx, page in enumerate(self.pages):
-            page.export(self.get_output_base(output_directory), page_idx)
         registry.sync_record(self.document_id, self.description, self.abbreviation)
 
     def __export_record(self, file, value, pad_to_size, pad_chr):
@@ -203,6 +201,13 @@ class ZXDocument:
             return data
 
 class ZXPage:
+    INDEX_TYPE_SCR = 0x55
+    INDEX_TYPE_TKN = 0xAA
+    BLANK_PARAMETER = 0x00
+    EXTENSION_TOKEN = '.tkn'
+    EXTENSION_SCR = '.scr'
+    EXTENSION_ABOUT = '.about'
+
     def __init__(self, parent: ZXDocument):
         self.logger = ZXLogger.get_instance()
         self.parent = parent
@@ -211,7 +216,10 @@ class ZXPage:
     def export(self, output_base, page_idx):
         raise NotImplementedError()
 
-    def get_index_data(self):
+    def get_export_path(self, output_base: Path, page_idx: int, file_extension):
+        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), file_extension))
+
+    def __get_index_data(self):
         raise NotImplementedError()
 
     def to_dict(self, page_idx) -> dict:
@@ -225,12 +233,7 @@ class ZXPage:
         raise ValueError("failed to find suitable implementation of page type")
 
 
-class ZXPageSCR(ZXPage):
-    INDEX_TYPE = 0x55
-    INDEX_PARAMETER = 0x00
-
-    SCR_EXTENSION = '.scr'
-    ABOUT_EXTENSION = '.about'
+class ZXPage_SCR(ZXPage):
     scr_path: Path
     parent: ZXDocument
     scr_about: dict
@@ -241,9 +244,10 @@ class ZXPageSCR(ZXPage):
         self.parent.check_file_exists(self.scr_path)
         self.scr_about = scr_about
 
-    def export(self, output_base, page_idx):
-        self.__copy_scr(self.get_export_path(output_base, page_idx, self.SCR_EXTENSION))
-        self.__export_about(self.get_export_path(output_base, page_idx, self.ABOUT_EXTENSION))
+    def export(self, output_base, page_idx) -> tuple[int, int]:
+        self.__copy_scr(self.get_export_path(output_base, page_idx, self.EXTENSION_SCR))
+        self.__export_about(self.get_export_path(output_base, page_idx, self.EXTENSION_ABOUT))
+        return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
 
     def __copy_scr(self, target_path: Path):
         self.logger.debug('copy', self.scr_path, '->', target_path)
@@ -263,12 +267,6 @@ class ZXPageSCR(ZXPage):
         file.write(self.scr_about[key])
         file.write('\n')
 
-    def get_export_path(self, output_base: Path, page_idx: int, extension):
-        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), extension))
-
-    def get_index_data(self):
-        return (self.INDEX_TYPE, self.INDEX_PARAMETER)
-
     def to_dict(self, page_idx):
         result = super().to_dict(page_idx)
         root = result[self.__class__.__name__]
@@ -287,7 +285,7 @@ class ZXPageSCR(ZXPage):
         result = cls.__yaml_defaults()
         result = update_tree(result, data)
         root = result[cls.__name__]
-        return ZXPageSCR(
+        return ZXPage_SCR(
             parent, 
             parent.get_asset_path(root['scr_path']), 
             root['scr_about'])
@@ -303,5 +301,61 @@ class ZXPageSCR(ZXPage):
                     'source': '',
                     'license': ''
                 }
+            }
+        }
+
+
+class ZXPage_TeleZX(ZXPage):
+    def __init__(self, parent: ZXDocument, telezx_path, export_as):
+        super().__init__(parent)
+        self.telezx_path = telezx_path
+        self.parent.check_file_exists(self.telezx_path)
+        self.export_as = export_as
+        if self.export_as not in [ 'SCR', 'TKN' ]:
+            raise ValueError(f"{self.export_as} not recognized")
+
+    def export(self, output_base, page_idx) -> tuple[int, int]:
+        zx_token = ZXToken.from_file(self.telezx_path)
+        match self.export_as:
+            case 'TKN':
+                target_path = self.get_export_path(output_base, page_idx, self.EXTENSION_TOKEN)
+                self.logger.debug('create', self.telezx_path, '->', target_path)
+                zx_token.export_to_specscii(target_path)
+                return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
+            case _:
+                target_path = self.get_export_path(output_base, page_idx, self.EXTENSION_SCR)
+                self.logger.debug('create', self.telezx_path, '->', target_path)
+                zx_token.export_to_scr(target_path)
+                return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
+
+    def to_dict(self, page_idx):
+        result = super().to_dict(page_idx)
+        root = result[self.__class__.__name__]
+        root['telezx_path'] = str(self.parent.get_relative_path(self.telezx_path))
+        root['export_as'] = self.export_as
+        return result
+
+    @classmethod
+    def from_dataset(cls, parent: ZXDocument, data):
+        '''
+        Reconstructs object from a dictionary structure. Could quite possibly
+        have named it from_dict as it serves the same structure, but didn't
+        want to have it recursively call itself when I forgot to add the
+        function.
+        '''
+        result = cls.__yaml_defaults()
+        result = update_tree(result, data)
+        root = result[cls.__name__]
+        return ZXPage_TeleZX(
+            parent, 
+            parent.get_asset_path(root['telezx_path']),
+            root['export_as'])
+
+    @classmethod
+    def __yaml_defaults(cls) -> dict:
+        return {
+            cls.__name__: {
+                'telezx_path': None,
+                'export_as': 'SCR'
             }
         }
