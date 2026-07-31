@@ -1,9 +1,9 @@
 import yaml
 from pathlib import Path
-from .utilities import update_tree, format_padded_id
+from .utilities import update_tree, format_padded_id, QuotedYAML
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
-from .zx_token import ZXToken, ZXScreenIterator
+from .zx_token import ZXToken, ZXScreenIterator, ZXScreen
 
 class ZXDocument:
     EXTENSION_INDEX = '.idx'
@@ -43,12 +43,13 @@ class ZXDocument:
             return False
         return True
 
-    def clean(self, output_directory: Path, indent=0):
+    def clean(self, output_directory: Path, indent=0) -> True:
         path = self.get_output_base(output_directory)
         self.logger.info('cleaning', path, 'assets', indent=indent)
         for asset in self.__asset_list(directory=path.parent, basename=path.name):
             self.logger.debug('delete', asset, indent=(indent+1))
             asset.unlink()
+        return True
 
     def __asset_list(self, directory: Path, basename):
         results = []
@@ -394,3 +395,74 @@ class ZXPage_TeleZX(ZXPage):
                 'export_as': 'SCR'
             }
         }
+
+class ZXPage_ClearText(ZXPage):
+    parent: ZXDocument
+    frame_path: Path
+    lines: list[str]
+
+    def __init__(self, parent: ZXDocument, frame_path: Path, lines):
+        super().__init__(parent)
+        self.frame_path = frame_path
+        if self.frame_path:
+            self.parent.check_file_exists(self.frame_path)
+        self.lines = lines
+
+    def __str__(self):
+        return f'{self.__class__.__name__} (frame={self.frame_path.name if self.frame_path else None})'
+
+    def export(self, output_base, page_idx, log_indent=0):
+        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
+        target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN)
+        self.logger.debug('create', target_path, indent=(log_indent+1))
+
+        zx_token = self.__get_zx_token()
+        for char_y, line in enumerate(self.lines):
+            char_x = len(line) - len(line.lstrip())
+            if char_x == ZXScreen.SCREEN_WIDTH_CHARS:
+                continue
+            zx_token.set_string(char_x, char_y, line.strip())
+        zx_token.export_to_specscii(target_path)
+        zx_token.export_screenshot(str(target_path) + '.png')
+        return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
+
+    def __get_zx_token(self) -> ZXToken:
+        if self.frame_path:
+            return ZXToken.from_file(self.frame_path)
+        return ZXToken()
+
+    def to_dict(self, page_idx):
+        result = super().to_dict(page_idx)
+        root = result[self.__class__.__name__]
+        root['frame_path'] = str(self.parent.get_relative_path(self.frame_path)) if self.frame_path else None
+        root['lines'] = [ QuotedYAML(line) for line in self.lines]
+        return result
+
+    @classmethod
+    def from_dataset(cls, parent: ZXDocument, data):
+        '''
+        Reconstructs object from a dictionary structure. Could quite possibly
+        have named it from_dict as it serves the same structure, but didn't
+        want to have it recursively call itself when I forgot to add the
+        function.
+        '''
+        result = cls.__yaml_defaults()
+        result = update_tree(result, data)
+        root = result[cls.__name__]
+        return ZXPage_ClearText(
+            parent, 
+            parent.get_asset_path(root['frame_path']) if root['frame_path'] else None,
+            root['lines'])
+
+    @classmethod
+    def __yaml_defaults(cls) -> dict:
+        return {
+            cls.__name__: {
+                'frame_path': None,
+                'lines': cls.blank_lines()
+            }
+        }
+
+    @classmethod
+    def blank_lines(cls):
+        return [ QuotedYAML(' ' * ZXScreen.SCREEN_WIDTH_CHARS) ] * ZXScreen.SCREEN_HEIGHT_CHARS

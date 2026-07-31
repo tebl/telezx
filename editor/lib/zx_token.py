@@ -170,15 +170,18 @@ class ZXToken:
             char_attribute = cell_copy.char_attribute
             char_inverted = cell_copy.char_inverted
         result = False
-        result = True if cell.set_character(self, char_code, sync_screen=False) else result
-        result = True if cell.set_attribute(self, char_attribute, sync_screen=False) else result
-        result = True if cell.set_inverted(self, char_inverted, sync_screen=False) else result
+        if not char_code == self.UNSPECIFIED:
+            result = True if cell.set_character(self, char_code, sync_screen=False) else result
+        if not char_attribute == self.UNSPECIFIED:
+            result = True if cell.set_attribute(self, char_attribute, sync_screen=False) else result
+        if not char_inverted == self.UNSPECIFIED:
+            result = True if cell.set_inverted(self, char_inverted, sync_screen=False) else result
         if result:
             cell.sync_screen(self)
             self.changes = True
         return result
 
-    def set_string(self, start_x, start_y, string, char_attribute=UNDEFINED, char_inverted=UNDEFINED) -> bool:
+    def set_string(self, start_x, start_y, string, char_attribute=UNSPECIFIED, char_inverted=UNSPECIFIED) -> bool:
         position = ZXScreenIterator(start_x, start_y, allow_looping=True)
         for character in string:
             current_x, current_y = next(position)

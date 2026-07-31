@@ -1,3 +1,4 @@
+import yaml
 import collections.abc
 
 def format_padded_id(document_id, width=4):
@@ -15,3 +16,15 @@ def update_tree(data, update):
         else:
             data[key] = value
     return data
+
+class QuotedYAML(str):
+    '''
+    Wrapper class used in order to force yaml to use double-quotes within
+    dumps. Must be wrapped around values before performing the dump.
+    '''
+    pass
+
+def quoted_yaml_presenter(dumper, data):
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+yaml.add_representer(QuotedYAML, quoted_yaml_presenter)
