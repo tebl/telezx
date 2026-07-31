@@ -423,7 +423,6 @@ class ZXPage_ClearText(ZXPage):
                 continue
             zx_token.set_string(char_x, char_y, line.strip())
         zx_token.export_to_specscii(target_path)
-        zx_token.export_screenshot(str(target_path) + '.png')
         return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
 
     def __get_zx_token(self) -> ZXToken:
@@ -435,8 +434,38 @@ class ZXPage_ClearText(ZXPage):
         result = super().to_dict(page_idx)
         root = result[self.__class__.__name__]
         root['frame_path'] = str(self.parent.get_relative_path(self.frame_path)) if self.frame_path else None
-        root['lines'] = [ QuotedYAML(line) for line in self.lines]
+        root['lines'] = self.__get_lines()
         return result
+
+    def __get_lines(self):
+        '''
+        Ensures that we have lines of characters corresponding to a full ZX
+        Spectrum screen. Missing blank lines will be added, any overflow will
+        be violently thrown into logger and promptly forgotten about.
+        '''
+        # Add missing lines
+        if len(self.lines) < ZXScreen.SCREEN_HEIGHT_CHARS:
+            lines_added = ZXScreen.SCREEN_HEIGHT_CHARS - len(self.lines)
+            if lines_added:
+                for n in range(lines_added):
+                    self.lines.append(' ' * ZXScreen.SCREEN_WIDTH_CHARS)
+                self.logger.warning(f'{lines_added} blank lines added to', str(self))
+
+        # Chop off any extras
+        if len(self.lines) > ZXScreen.SCREEN_HEIGHT_CHARS:
+            for line in self.lines[ZXScreen.SCREEN_HEIGHT_CHARS:]:
+                self.logger.warning('Line', f'"{line}"', 'removed from', str(self), 'due to length')
+        self.lines = self.lines[0:ZXScreen.SCREEN_HEIGHT_CHARS]
+
+        return [ self.__get_quoted_line(line) for line in self.lines ]
+
+    def __get_quoted_line(self, original_line):
+        # Chop off longer strings, pad out with spaces if characters missing
+        result = original_line[0:ZXScreen.SCREEN_WIDTH_CHARS]
+        result = result.ljust(ZXScreen.SCREEN_WIDTH_CHARS, ' ')
+        if not original_line == result:
+            self.logger.warning('Line', f'"{original_line}"', 'changed to', f'"{result}"')
+        return QuotedYAML(result)
 
     @classmethod
     def from_dataset(cls, parent: ZXDocument, data):
