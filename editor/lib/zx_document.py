@@ -10,6 +10,9 @@ class ZXDocument:
     EXTENSION_TOKEN = '.tkn'
     EXTENSION_SCR = '.scr'
     EXTENSION_ABOUT = '.about'
+    EXTENSION_SCREENSHOT = '.png'
+
+    enable_preview = True
 
     def __init__(self, document_path, document_id=0, description=None, abbreviation=None, link_a=None, link_a_txt=None, link_b=None, link_b_txt=None, link_c=None, link_c_txt=None):
         self.logger = ZXLogger.get_instance()
@@ -55,7 +58,11 @@ class ZXDocument:
         results = []
         results.extend(directory.glob(f'{basename}{self.EXTENSION_INDEX}'))
         results.extend(directory.glob(f'{basename}.*{self.EXTENSION_TOKEN}'))
+        if self.enable_preview:
+            results.extend(directory.glob(f'{basename}.*{self.EXTENSION_TOKEN}{self.EXTENSION_SCREENSHOT}'))
         results.extend(directory.glob(f'{basename}.*{self.EXTENSION_SCR}'))
+        if self.enable_preview:
+            results.extend(directory.glob(f'{basename}.*{self.EXTENSION_SCR}{self.EXTENSION_SCREENSHOT}'))
         results.extend(directory.glob(f'{basename}.*{self.EXTENSION_ABOUT}'))
         return sorted(
             results,
@@ -357,11 +364,15 @@ class ZXPage_TeleZX(ZXPage):
                 target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN)
                 self.logger.debug('create', self.telezx_path, '->', target_path, indent=(log_indent+1))
                 zx_token.export_to_specscii(target_path)
+                if self.parent.enable_preview:
+                    zx_token.export_screenshot(str(target_path) + '.png')
                 return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
             case _:
                 target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR)
                 self.logger.debug('create', self.telezx_path, '->', target_path, indent=(log_indent+1))
                 zx_token.export_to_scr(target_path)
+                if self.parent.enable_preview:
+                    zx_token.export_screenshot(str(target_path) + '.png')
                 return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
 
     def to_dict(self, page_idx):
@@ -423,6 +434,8 @@ class ZXPage_ClearText(ZXPage):
                 continue
             zx_token.set_string(char_x, char_y, line.strip())
         zx_token.export_to_specscii(target_path)
+        if self.parent.enable_preview:
+            zx_token.export_screenshot(str(target_path) + '.png')
         return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
 
     def __get_zx_token(self) -> ZXToken:
