@@ -3,6 +3,7 @@ import numpy
 import os.path
 from PIL import Image
 from typing import Optional
+from pathlib import Path
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
@@ -12,8 +13,8 @@ class ZXToken:
     UNDEFINED = -1
     UNSPECIFIED = -2
     DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
-    DEFAULT_FONT_PATH = os.path.join('fonts', 'font_default.bin')
-    DEFAULT_GLYPH_PATH = os.path.join('fonts', 'font_glyphs.bin')
+    DEFAULT_FONT = 'font_default'
+    DEFAULT_GLYPH = 'font_glyphs'
 
     def __init__(self):
         self.zx_screen = ZXScreen()
@@ -40,8 +41,8 @@ class ZXToken:
                 self.cells[char_y][char_x] = ZXTokenCell(char_x, char_y, self.UNDEFINED, self.UNDEFINED)
 
     def __clear_fonts(self):
-        self.set_selected_font(self.DEFAULT_FONT_PATH)
-        self.set_selected_glyph(self.DEFAULT_GLYPH_PATH)
+        self.set_selected_font(self.DEFAULT_FONT)
+        self.set_selected_glyph(self.DEFAULT_GLYPH)
 
     def debug_cell(self, char_x, char_y):
         self.__lookup_cell(char_x, char_y).debug(self)
@@ -129,8 +130,8 @@ class ZXToken:
             self.__class__.__name__: {
                 'attribute': ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK),
                 'background': None,
-                'font': self.DEFAULT_FONT_PATH,
-                'glyph': self.DEFAULT_GLYPH_PATH,
+                'font': self.DEFAULT_FONT,
+                'glyph': self.DEFAULT_GLYPH,
                 'cells': {
                     char_y: {
                         char_x: { 'attribute': ZXToken.UNDEFINED, 'char_code': ZXToken.UNDEFINED, 'inverted': ZXToken.UNDEFINED } 
@@ -202,13 +203,18 @@ class ZXToken:
             self.changes = True
         return result
 
-    def set_selected_font(self, font_path):
-        self.font_path = font_path
+    def set_selected_font(self, font_name):
+        self.font_name = font_name
+        self.font_path = self.get_font_path(font_name)
         self.font = ZXFont.from_file(self.font_path)
 
-    def set_selected_glyph(self, glyph_path):
-        self.glyph_path = glyph_path
+    def set_selected_glyph(self, glyph_name):
+        self.glyph_name = glyph_name
+        self.glyph_path = self.get_font_path(glyph_name)
         self.glyph = ZXGlyph.from_file(self.glyph_path)
+
+    def get_font_path(self, font_name):
+        return Path('.') / 'fonts' / f'{font_name}.bin'
 
     def save(self):
         if self.document_path:
@@ -229,8 +235,8 @@ class ZXToken:
         root = result[self.__class__.__name__]
         root['attribute'] = self.current_attribute
         root['background'] = self.__get_relative_path(self.background)
-        root['font'] = self.__get_relative_path(self.font_path)
-        root['glyph'] = self.__get_relative_path(self.glyph_path)
+        root['font'] = self.font_name
+        root['glyph'] = self.glyph_name
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 root['cells'][char_y][char_x] = self.__lookup_cell(char_x, char_y).to_dict()

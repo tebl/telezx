@@ -3098,5 +3098,5 @@ ZXToken:
                 attribute: 6
                 char_code: 51
                 inverted: -1
-    font: fonts/font_default.bin
-    glyph: fonts/font_glyphs.bin
+    font: font_default
+    glyph: font_glyphs
