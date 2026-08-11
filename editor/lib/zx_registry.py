@@ -12,11 +12,45 @@ class ZXRegistry:
         self.registry_path = Path(registry_path)
         self.register = {}
 
+    def generate_TOC_AZ(self):
+        results = []
+        cur_group = '#'
+        cur_list = []
+        results.append([cur_group, cur_list])
+        for (document_id, data) in self.__sorted_description():
+            if not data.description:
+                continue
+            group = data.description[0].upper() if data.description[0].isalpha() else '#'
+            if not group == cur_group:
+                cur_list = []
+                cur_group = group
+                results.append([cur_group, cur_list])
+            cur_list.append([data.description, document_id])
+        return results
+
+    def __sorted_description(self):
+        return sorted(
+            self.register.items(),
+            key = lambda entry: entry[1].description
+        )
+
+    def __sorted_id(self):
+        return sorted(
+            self.register.items(),
+            key = lambda entry: entry[0]
+        )
+
     def lookup(self, document_id):
         registry_key = format_padded_id(document_id, width=4)
         if registry_key in self.register:
             return self.register[registry_key]
         return None
+
+    def lookup_abbreviation(self, document_id):
+        record = self.lookup(document_id)
+        if record and record.abbreviation:
+            return record.abbreviation[0:self.ABBREVIATION_CHARS]
+        return "[{}]".format(format_padded_id(document_id, width=4).ljust(self.ABBREVIATION_CHARS - 2))
 
     def save(self) -> bool:
         with open(self.registry_path, 'w') as file:
@@ -57,12 +91,6 @@ class ZXRegistry:
         for index, (document_id, entry) in enumerate(self.register.items()):
             entries[entry.get_padded_id()] = entry.to_dict()
         return result
-
-    def lookup_abbreviation(self, document_id):
-        record = self.lookup(document_id)
-        if record and record.abbreviation:
-            return record.abbreviation[0:self.ABBREVIATION_CHARS]
-        return "[{}]".format(format_padded_id(document_id, width=4).ljust(self.ABBREVIATION_CHARS - 2))
 
     @classmethod
     def from_dict(cls, registry_path, data) -> ZXRegistry:
@@ -118,6 +146,9 @@ class ZXRegistryEntry:
         self.document_id = document_id
         self.description = description
         self.abbreviation = abbreviation
+
+    def __str__(self):
+        return self.description
 
     def get_padded_id(self):
         return format_padded_id(self.document_id, width=4)

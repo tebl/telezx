@@ -11,6 +11,8 @@ class ZXDocument:
     EXTENSION_SCR = '.scr'
     EXTENSION_ABOUT = '.about'
     EXTENSION_SCREENSHOT = '.png'
+    EXTENSION_DOCUMENT = '.telezx'
+    EXTENSION_DOCUMENT_TMP = EXTENSION_DOCUMENT + '-tmp'
 
     enable_preview = True
 
@@ -31,13 +33,6 @@ class ZXDocument:
 
     def __iter__(self):
         return iter(self.pages)
-
-    def add_page(self, page) -> int:
-        if not isinstance(page, ZXPage):
-            raise TypeError("{} does not appear to a page-type object".format(page))
-        page_id = len(self.pages)
-        self.pages.append(page)
-        return page_id
 
     def check_file_exists(self, path, raise_exception=True) -> bool:
         if not self.get_asset_path(path).is_file():
@@ -146,10 +141,27 @@ class ZXDocument:
         return self.working_path.joinpath(path).resolve()
 
     def get_relative_path(self, path: Path) -> Path:
-        return Path(path).relative_to(self.working_path, walk_up=True)
+        path = Path(path)
+        if path.is_relative_to(self.working_path):
+            return Path(path).relative_to(self.working_path, walk_up=True)
+        return path
+
+    def register_page(self, page) -> int:
+        if not isinstance(page, ZXPage):
+            raise TypeError("{} does not appear to a page-type object".format(page))
+        page_id = len(self.pages)
+        self.pages.append(page)
+        return page_id
 
     def save(self) -> bool:
-        with open(self.document_path, 'w') as file:
+        '''
+        Creates a new temporary file, and if everything succeeds we'll move
+        that into its final location. This keeps us from accidentally ereasing
+        the contents when an exception is raised.
+        '''
+        self.logger.debug('saving to', self.document_path)
+        tmp_name = self.document_path.with_suffix(self.EXTENSION_DOCUMENT_TMP)
+        with open(tmp_name, 'w') as file:
             yaml.dump(
                 self.to_dict(), 
                 file, 
@@ -157,6 +169,9 @@ class ZXDocument:
                 default_flow_style=False, 
                 sort_keys=True
             )
+
+        # Move into place
+        tmp_name.move(self.document_path)
         return True
 
     def to_dict(self) -> dict:
@@ -185,7 +200,7 @@ class ZXDocument:
 
         zx_document = ZXDocument(
             document_path, 
-            document_id=root['document_id'],
+            document_id=int(root['document_id']),
             description=root['description'],
             abbreviation=root['abbreviation'],
             link_a=root['link_a'],
@@ -227,7 +242,7 @@ class ZXDocument:
     def __get_yaml(cls, yaml_path) -> dict:
         with open(yaml_path, 'r') as file:
             data = yaml.safe_load(file)
-            if cls.__name__ not in data:
+            if data is None or cls.__name__ not in data:
                 raise ValueError("does not look like a {}-file".format(cls.__name__))
             return data
 
@@ -239,10 +254,11 @@ class ZXPage:
     logger: ZXLogger
     parent: ZXDocument
 
-    def __init__(self, parent: ZXDocument):
+    def __init__(self, parent: ZXDocument, register_parent=True):
         self.logger = ZXLogger.get_instance()
         self.parent = parent
-        self.parent.add_page(self)
+        if register_parent:
+            self.parent.register_page(self)
 
     def __str__(self):
         return self.__class__.__name__
@@ -250,45 +266,7 @@ class ZXPage:
     def export(self, output_base, page_idx, log_indent=0):
         raise NotImplementedError()
 
-    def get_export_path(self, output_base: Path, page_idx: int, file_extension):
-        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), file_extension))
-
-    def to_dict(self, page_idx) -> dict:
-        return { self.__class__.__name__: {} }
-
-    @classmethod
-    def from_dict(cls, parent, data) -> ZXPage:
-        for subclass in cls.__subclasses__():
-            if subclass.__name__ in data:
-                return subclass.from_dataset(parent, data)
-        raise ValueError("failed to find suitable implementation of page type")
-
-
-class ZXPage_SCR(ZXPage):
-    parent: ZXDocument
-    scr_path: Path
-    scr_about: dict
-
-    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about):
-        super().__init__(parent)
-        self.scr_path = scr_path
-        self.parent.check_file_exists(self.scr_path)
-        self.scr_about = scr_about
-
-    def __str__(self):
-        return f'{self.__class__.__name__} (input={self.scr_path.name})'
-
-    def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
-        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
-        self.__copy_scr(self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR), log_indent=log_indent+1)
-        self.__export_about(self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
-        return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
-
-    def __copy_scr(self, target_path: Path, log_indent=0):
-        self.logger.debug('copy', self.scr_path, '->', target_path, indent=log_indent)
-        self.scr_path.copy(target=target_path)
-
-    def __export_about(self, file_path: Path, log_indent=0):
+    def _export_about(self, file_path: Path, log_indent=0):
         self.logger.debug('create', file_path, indent=log_indent)
         with open(file_path, 'w') as file:
             self.__export_about_field(file, 'title')
@@ -302,11 +280,108 @@ class ZXPage_SCR(ZXPage):
         file.write(self.scr_about[key])
         file.write('\n')
 
+    def get_export_path(self, output_base: Path, page_idx: int, file_extension):
+        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), file_extension))
+
+    def to_dict(self, page_idx) -> dict:
+        return { self.__class__.__name__: {} }
+
+    def _get_text(self):
+        '''
+        Ensures that we have lines of characters corresponding to a full ZX
+        Spectrum screen. Missing blank lines will be added, any overflow will
+        be violently thrown into logger and promptly forgotten about.
+        '''
+        # Add missing lines
+        if len(self.text) < ZXScreen.SCREEN_HEIGHT_CHARS:
+            lines_added = ZXScreen.SCREEN_HEIGHT_CHARS - len(self.text)
+            if lines_added:
+                for n in range(lines_added):
+                    self.text.append(' ' * ZXScreen.SCREEN_WIDTH_CHARS)
+                self.logger.warning(f'{lines_added} blank lines added to', str(self))
+
+        # Chop off any extras
+        if len(self.text) > ZXScreen.SCREEN_HEIGHT_CHARS:
+            for line in self.text[ZXScreen.SCREEN_HEIGHT_CHARS:]:
+                self.logger.warning('Line', f'"{line}"', 'removed from', str(self), 'due to length')
+        self.text = self.text[0:ZXScreen.SCREEN_HEIGHT_CHARS]
+
+        return [ self.__get_quoted_line(line) for line in self.text ]
+
+    def __get_quoted_line(self, original_line):
+        # Chop off longer strings, pad out with spaces if characters missing
+        result = original_line[0:ZXScreen.SCREEN_WIDTH_CHARS]
+        result = result.ljust(ZXScreen.SCREEN_WIDTH_CHARS, ' ')
+        if not original_line == result:
+            self.logger.warning('Line', f'"{original_line}"', 'changed to', f'"{result}"')
+        return QuotedYAML(result)
+
+    def _overlay_text(self, zx_token: ZXToken, text_lines: list[str]) -> bool:
+        for char_y, line in enumerate(text_lines):
+            char_x = len(line) - len(line.lstrip())
+            if char_x == ZXScreen.SCREEN_WIDTH_CHARS:
+                continue
+            zx_token.set_string(char_x, char_y, line.strip())
+        return True
+
+    @classmethod
+    def blank_about(cls) -> dict:
+        return {
+            'title': '',
+            'author': '',
+            'source': '',
+            'license': ''
+        }
+
+    @classmethod
+    def blank_text(cls):
+        return [ QuotedYAML(' ' * ZXScreen.SCREEN_WIDTH_CHARS) ] * ZXScreen.SCREEN_HEIGHT_CHARS
+
+    @classmethod
+    def from_dict(cls, parent, data) -> ZXPage:
+        for subclass in cls.__subclasses__():
+            if subclass.__name__ in data:
+                return subclass.from_dataset(parent, data)
+        raise ValueError("failed to find suitable implementation of page type")
+
+
+class ZXPage_Overlay(ZXPage):
+    parent: ZXDocument
+    scr_path: Path
+    scr_about: dict
+    text: list[str]
+
+    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about, text=None, register_parent=True):
+        super().__init__(parent, register_parent)
+        self.scr_path = scr_path
+        self.parent.check_file_exists(self.scr_path)
+        self.scr_about = scr_about
+        self.text = text
+
+    def __str__(self):
+        return f'{self.__class__.__name__} (input={self.scr_path.name})'
+
+    def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
+        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
+        target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR)
+        self.logger.debug('create', target_path, indent=(log_indent+1))
+
+        zx_token = ZXToken()
+        zx_token.set_background(self.scr_path)
+        self._overlay_text(zx_token, self.text)
+
+        zx_token.export_to_scr(target_path)
+        if self.parent.enable_preview:
+            zx_token.export_screenshot(str(target_path) + '.png')
+        self._export_about(self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
+        return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
+
     def to_dict(self, page_idx):
         result = super().to_dict(page_idx)
         root = result[self.__class__.__name__]
         root['scr_path'] = str(self.parent.get_relative_path(self.scr_path))
         root['scr_about'] = self.scr_about
+        root['text'] = self._get_text()
         return result
 
     @classmethod
@@ -320,22 +395,19 @@ class ZXPage_SCR(ZXPage):
         result = cls.__yaml_defaults()
         result = update_tree(result, data)
         root = result[cls.__name__]
-        return ZXPage_SCR(
+        return ZXPage_Overlay(
             parent, 
             parent.get_asset_path(root['scr_path']), 
-            root['scr_about'])
+            root['scr_about'],
+            root['text'])
 
     @classmethod
     def __yaml_defaults(cls) -> dict:
         return {
             cls.__name__: {
                 'scr_path': None,
-                'scr_about': {
-                    'title': '',
-                    'author': '',
-                    'source': '',
-                    'license': ''
-                }
+                'scr_about': cls.blank_about(),
+                'text': cls.blank_text()
             }
         }
 
@@ -345,8 +417,8 @@ class ZXPage_TeleZX(ZXPage):
     telezx_path: Path
     export_as: str
 
-    def __init__(self, parent: ZXDocument, telezx_path: Path, export_as):
-        super().__init__(parent)
+    def __init__(self, parent: ZXDocument, telezx_path: Path, export_as, register_parent=True):
+        super().__init__(parent, register_parent)
         self.telezx_path = telezx_path
         self.parent.check_file_exists(self.telezx_path)
         self.export_as = export_as
@@ -407,17 +479,20 @@ class ZXPage_TeleZX(ZXPage):
             }
         }
 
+
 class ZXPage_ClearText(ZXPage):
     parent: ZXDocument
     frame_path: Path
-    lines: list[str]
+    text: list[str]
+    text_attribute: int
 
-    def __init__(self, parent: ZXDocument, frame_path: Path, lines):
-        super().__init__(parent)
+    def __init__(self, parent: ZXDocument, frame_path: Path, text, text_attribute=ZXToken.UNDEFINED, register_parent=True):
+        super().__init__(parent, register_parent)
         self.frame_path = frame_path
         if self.frame_path:
             self.parent.check_file_exists(self.frame_path)
-        self.lines = lines
+        self.text = text
+        self.text_attribute = text_attribute
 
     def __str__(self):
         return f'{self.__class__.__name__} (frame={self.frame_path.name if self.frame_path else None})'
@@ -428,17 +503,19 @@ class ZXPage_ClearText(ZXPage):
         self.logger.debug('create', target_path, indent=(log_indent+1))
 
         zx_token = self.__get_zx_token()
-        for char_y, line in enumerate(self.lines):
-            char_x = len(line) - len(line.lstrip())
-            if char_x == ZXScreen.SCREEN_WIDTH_CHARS:
-                continue
-            zx_token.set_string(char_x, char_y, line.strip())
+        self._overlay_text(zx_token, self.text)
+            
         zx_token.export_to_specscii(target_path)
         if self.parent.enable_preview:
             zx_token.export_screenshot(str(target_path) + '.png')
         return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
 
     def __get_zx_token(self) -> ZXToken:
+        '''
+        Export function expects to work within a ZXToken-document, either a
+        blank one created automatically - or - we can use an existing one as
+        a starting point (referenced to as a frame).
+        '''
         if self.frame_path:
             return ZXToken.from_file(self.frame_path)
         return ZXToken()
@@ -447,38 +524,8 @@ class ZXPage_ClearText(ZXPage):
         result = super().to_dict(page_idx)
         root = result[self.__class__.__name__]
         root['frame_path'] = str(self.parent.get_relative_path(self.frame_path)) if self.frame_path else None
-        root['lines'] = self.__get_lines()
+        root['text'] = self._get_text()
         return result
-
-    def __get_lines(self):
-        '''
-        Ensures that we have lines of characters corresponding to a full ZX
-        Spectrum screen. Missing blank lines will be added, any overflow will
-        be violently thrown into logger and promptly forgotten about.
-        '''
-        # Add missing lines
-        if len(self.lines) < ZXScreen.SCREEN_HEIGHT_CHARS:
-            lines_added = ZXScreen.SCREEN_HEIGHT_CHARS - len(self.lines)
-            if lines_added:
-                for n in range(lines_added):
-                    self.lines.append(' ' * ZXScreen.SCREEN_WIDTH_CHARS)
-                self.logger.warning(f'{lines_added} blank lines added to', str(self))
-
-        # Chop off any extras
-        if len(self.lines) > ZXScreen.SCREEN_HEIGHT_CHARS:
-            for line in self.lines[ZXScreen.SCREEN_HEIGHT_CHARS:]:
-                self.logger.warning('Line', f'"{line}"', 'removed from', str(self), 'due to length')
-        self.lines = self.lines[0:ZXScreen.SCREEN_HEIGHT_CHARS]
-
-        return [ self.__get_quoted_line(line) for line in self.lines ]
-
-    def __get_quoted_line(self, original_line):
-        # Chop off longer strings, pad out with spaces if characters missing
-        result = original_line[0:ZXScreen.SCREEN_WIDTH_CHARS]
-        result = result.ljust(ZXScreen.SCREEN_WIDTH_CHARS, ' ')
-        if not original_line == result:
-            self.logger.warning('Line', f'"{original_line}"', 'changed to', f'"{result}"')
-        return QuotedYAML(result)
 
     @classmethod
     def from_dataset(cls, parent: ZXDocument, data):
@@ -494,17 +541,13 @@ class ZXPage_ClearText(ZXPage):
         return ZXPage_ClearText(
             parent, 
             parent.get_asset_path(root['frame_path']) if root['frame_path'] else None,
-            root['lines'])
+            root['text'])
 
     @classmethod
     def __yaml_defaults(cls) -> dict:
         return {
             cls.__name__: {
                 'frame_path': None,
-                'lines': cls.blank_lines()
+                'text': cls.blank_text()
             }
         }
-
-    @classmethod
-    def blank_lines(cls):
-        return [ QuotedYAML(' ' * ZXScreen.SCREEN_WIDTH_CHARS) ] * ZXScreen.SCREEN_HEIGHT_CHARS
