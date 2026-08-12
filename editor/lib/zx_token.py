@@ -15,6 +15,7 @@ class ZXToken:
     DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
+    FILE_EXTENSION = '.zxtoken'
 
     def __init__(self):
         self.zx_screen = ZXScreen()
@@ -46,6 +47,17 @@ class ZXToken:
 
     def debug_cell(self, char_x, char_y):
         self.__lookup_cell(char_x, char_y).debug(self)
+
+    def export(self, document_path):
+        with open(document_path, 'w') as file:
+            yaml.dump(
+                self.to_dict(), 
+                file, 
+                indent=4, 
+                default_flow_style=False, 
+                sort_keys=True
+            )
+        return True
 
     def export_screenshot(self, screenshot_path):
         image = Image.fromarray(self.to_rgb())
@@ -218,14 +230,7 @@ class ZXToken:
 
     def save(self):
         if self.document_path:
-            with open(self.document_path, 'w') as file:
-                yaml.dump(
-                    self.to_dict(), 
-                    file, 
-                    indent=4, 
-                    default_flow_style=False, 
-                    sort_keys=True
-                )
+            self.export(self.document_path)
             self.changes = False
             return
         raise Exception('No document set')

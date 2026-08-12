@@ -1,8 +1,18 @@
+import re
 import yaml
 import collections.abc
 
 def format_padded_id(document_id, width=4):
     return str(document_id).rjust(width, '0')
+
+def sanitize_filename(filename):
+    return re.sub(r'[^\w_. -]', '', filename)
+
+def page_filename(document_id, description):
+    return "{}-{}".format(
+        format_padded_id(document_id),
+        sanitize_filename(description)
+    )
 
 def update_tree(data, update):
     '''
