@@ -34,6 +34,12 @@ class ZXDocument:
     def __iter__(self):
         return iter(self.pages)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        pass
+
     def check_file_exists(self, path, raise_exception=True) -> bool:
         if not self.get_asset_path(path).is_file():
             if raise_exception:
@@ -424,23 +430,23 @@ class ZXPage_Overlay(ZXPage):
 class ZXPage_Token(ZXPage):
     parent: ZXDocument
     zxtoken_path: Path
-    export_as: str
+    export_format: str
 
-    def __init__(self, parent: ZXDocument, zxtoken_path: Path, export_as, register_parent=True):
+    def __init__(self, parent: ZXDocument, zxtoken_path: Path, export_format, register_parent=True):
         super().__init__(parent, register_parent)
         self.zxtoken_path = Path(zxtoken_path)
         self.parent.check_file_exists(self.zxtoken_path)
-        self.export_as = export_as
-        if self.export_as not in [ 'SCR', 'TKN' ]:
-            raise ValueError(f"{self.export_as} not recognized")
+        self.export_format = export_format
+        if self.export_format not in [ 'SCR', 'TKN' ]:
+            raise ValueError(f"{self.export_format} not recognized")
 
     def __str__(self):
-        return f'{self.__class__.__name__} (input={self.zxtoken_path.name}, export_as={self.export_as})'
+        return f'{self.__class__.__name__} (input={self.zxtoken_path.name}, export_as={self.export_format})'
 
     def export(self, output_base, page_idx, log_indent=0):
         self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
         zx_token = ZXToken.from_file(self.parent.get_asset_path(self.zxtoken_path))
-        match self.export_as:
+        match self.export_format:
             case 'TKN':
                 target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN)
                 self.logger.debug('export', self.zxtoken_path, '->', target_path, indent=(log_indent+1))
@@ -460,7 +466,7 @@ class ZXPage_Token(ZXPage):
         result = super().to_dict(page_idx)
         root = result[self.__class__.__name__]
         root['zxtoken_path'] = str(self.parent.get_relative_path(self.zxtoken_path))
-        root['export_as'] = self.export_as
+        root['export_as'] = self.export_format
         return result
 
     @classmethod

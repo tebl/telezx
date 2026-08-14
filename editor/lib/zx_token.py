@@ -21,6 +21,12 @@ class ZXToken:
         self.zx_screen = ZXScreen()
         self.clear(attribute=self.DEFAULT_ATTRIBUTE)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.save()
+
     def clear(self, attribute):
         self.current_attribute = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)

@@ -6,7 +6,7 @@ def format_padded_id(document_id, width=4):
     return str(document_id).rjust(width, '0')
 
 def sanitize_filename(filename):
-    return re.sub(r'[^\w_. -]', '', filename)
+    return re.sub(r'[^\w_. -\\#]', '', filename)
 
 def suggest_document_name(document_id, path_hint):
     '''
