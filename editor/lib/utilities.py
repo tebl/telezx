@@ -8,10 +8,16 @@ def format_padded_id(document_id, width=4):
 def sanitize_filename(filename):
     return re.sub(r'[^\w_. -]', '', filename)
 
-def page_filename(document_id, description):
+def suggest_document_name(document_id, path_hint):
+    '''
+    Just generates a string with a predictable format, doesn't actually
+    create or check if anything already exist.
+    '''
+    if not path_hint:
+        return format_padded_id(document_id)
     return "{}-{}".format(
         format_padded_id(document_id),
-        sanitize_filename(description)
+        sanitize_filename(path_hint)
     )
 
 def update_tree(data, update):

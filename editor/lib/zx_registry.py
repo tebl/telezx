@@ -1,3 +1,4 @@
+import string
 import yaml
 from pathlib import Path
 from .utilities import format_padded_id, update_tree
@@ -6,26 +7,23 @@ from .zx_logger import ZXLogger
 class ZXRegistry:
     FILE_EXTENSION = '.registry'
     ABBREVIATION_CHARS = 8
+    LETTERS_AZ = f'#{string.ascii_uppercase}'
     register: dict[str, ZXRegistryEntry]
+
 
     def __init__(self, registry_path):
         self.registry_path = Path(registry_path)
         self.register = {}
 
     def generate_TOC_AZ(self):
-        results = []
-        cur_group = '#'
-        cur_list = []
-        results.append([cur_group, cur_list])
+        results = {}
+        for char in self.LETTERS_AZ:
+            results[char] = []
         for (document_id, data) in self.__sorted_description():
             if not data.description:
                 continue
-            group = data.description[0].upper() if data.description[0].isalpha() else '#'
-            if not group == cur_group:
-                cur_list = []
-                cur_group = group
-                results.append([cur_group, cur_list])
-            cur_list.append([data.description, document_id])
+            letter = data.description[0].upper() if data.description[0].isalpha() else '#'
+            results[letter].append([data.description, document_id])
         return results
 
     def __sorted_description(self):
