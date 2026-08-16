@@ -91,9 +91,12 @@ class ZXDocument:
             0x40 Page 0 type (hex)  2
             0x42 Page 0 parameter   2
         '''
-        self.logger.info('export', self.document_path, '->', self.get_output_path(output_directory), indent=log_indent)
-        self.clean(output_directory, indent=(log_indent+1))
-        with open(self.get_output_path(output_directory), 'w') as file:
+        target_directory = Path(output_directory) / format_padded_id(self.document_id)
+        self.logger.info('export', self.document_path, '->', target_directory, indent=log_indent)
+        if not target_directory.is_dir():
+            target_directory.mkdir()
+        self.clean(target_directory, indent=(log_indent+1))
+        with open(self.get_output_path(target_directory), 'w') as file:
             file.write('IDX')
             self.__export_digits(file, len(self.pages))
             self.__export_link(file, self.link_a, self.link_a_txt, registry)
@@ -107,7 +110,7 @@ class ZXDocument:
 
             page: ZXPage
             for page_idx, page in enumerate(self.pages):
-                type, parameter = page.export(self.get_output_base(output_directory), page_idx, log_indent=(log_indent+1))
+                type, parameter = page.export(self.get_output_base(target_directory), page_idx, log_indent=(log_indent+1))
                 self.__export_hex(file, type)
                 self.__export_hex(file, parameter)
 

@@ -31,7 +31,6 @@ class TOCGenerator:
                 page_id = 0
 
                 current_page = self.__get_titlepage(document_id, page_id, f'A-Z ({letter})', target_directory)
-                current_page.set_string(1, current_y, f' {letter} ', ZXScreen.to_attribute(is_bright=True, paper=ZXScreen.BLUE, ink=ZXScreen.WHITE))
 
                 first_item = True
                 for description, link_id in items:
@@ -53,14 +52,20 @@ class TOCGenerator:
                     else:
                         first_item = False
 
-                    current_page.set_string(5, current_y, description[0:21])
-                    current_page.set_string(27, current_y, link_id)
+                    current_page.set_string(1, current_y, self.__pad_entry(description))
+                    current_page.set_string(27, current_y, link_id, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.CYAN))
 
                 current_page.save()
                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path.name, export_format='TKN')
 
                 document.save()
                 document.export(self.output_path, self.registry)
+
+    def __pad_entry(self, string, max_length = 25):
+        string = string[0:max_length]
+        if len(string) < (max_length - 1):
+            return (string + ' ').ljust(max_length, '.')
+        return string
 
     def __create_toc_index(self, document_id):
         page_title = 'Table of contents'
