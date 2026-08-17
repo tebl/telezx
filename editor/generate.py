@@ -1,18 +1,22 @@
+#!/usr/bin/python3
+from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
-ZXLogger.get_instance().set_log_level(ZXLogger.LOG_DEBUG)
+from lib import ZXScreen, ZXDocument, ZXToken, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
 
 class TOCGenerator:
     registry_path: Path
-    pages_path: Path
+    documents_path: Path
     output_path: Path
+
+    TOC_TITLE = 'Table of contents'
+    TOC_ABBREVIATION = 'TOC'
 
     enable_preview = True
 
-    def __init__(self, registry_path: Path, pages_path: Path, output_path: Path):
+    def __init__(self, registry_path: Path, documents_path: Path, output_path: Path):
         self.logger = ZXLogger.get_instance()
         self.registry = ZXRegistry.from_file(registry_path, allow_create=True)
-        self.pages_path = pages_path
+        self.documents_path = documents_path
         self.output_path = output_path
 
     def create_toc(self, document_id_start = 9900):
@@ -24,13 +28,13 @@ class TOCGenerator:
             document_id += 1
             target_directory = self.__create_path(document_id, f'TOC-{letter}')
 
-            with self.__get_document(document_id, f'A-Z ({letter})', f'TOC-{letter}', target_directory) as document:
+            with self.__get_document(document_id, f'{self.TOC_TITLE} ({letter})', f'TOC-{letter}', target_directory) as document:
                 document.link_a = document_id_start
                 items = registry_toc[letter] if letter in registry_toc else []
                 current_y = 4
                 page_id = 0
 
-                current_page = self.__get_titlepage(document_id, page_id, f'A-Z ({letter})', target_directory)
+                current_page = self.__get_titlepage(document_id, page_id, f'{self.TOC_TITLE} ({letter})', target_directory)
 
                 first_item = True
                 for description, link_id in items:
@@ -68,14 +72,12 @@ class TOCGenerator:
         return string
 
     def __create_toc_index(self, document_id):
-        page_title = 'Table of contents'
-        page_abbreviation = 'TOC'
         target_directory = self.__create_path(document_id, 'TOC-Index')
 
-        with self.__get_document(document_id, page_title, page_abbreviation, target_directory) as document:
+        with self.__get_document(document_id, self.TOC_TITLE, self.TOC_ABBREVIATION, target_directory) as document:
             document.link_a = 1000
 
-            with self.__get_titlepage(document_id, 0, page_title, target_directory) as page:
+            with self.__get_titlepage(document_id, 0, self.TOC_TITLE, target_directory) as page:
                 page.set_string(1, 5, 'The corresponding pages have  ')
                 page.set_string(1, 6, 'been generated based on TeleZX')
                 page.set_string(1, 7, 'registry.')
@@ -130,7 +132,7 @@ class TOCGenerator:
         return (ZXScreen.SCREEN_WIDTH_CHARS - len(title)) // 2
 
     def __create_path(self, document_id, path_hint):
-        directory = self.pages_path / utilities.suggest_document_name(document_id, path_hint)
+        directory = self.documents_path / utilities.suggest_document_name(document_id, path_hint)
         directory.mkdir(exist_ok=True)
         return directory
 
@@ -142,12 +144,82 @@ class TOCGenerator:
         )
 
     def __load_frame(self, frame_name, page_path: Path):
-        zx_token = ZXToken.from_file(Path(self.pages_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}')
+        zx_token = ZXToken.from_file(Path(self.documents_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}')
         zx_token.set_document(page_path)
         return zx_token
 
-TOCGenerator(
-    registry_path='pages/telezx.registry', 
-    pages_path=Path('.') / 'pages',
-    output_path=Path('.') / 'output'
-).create_toc()
+def cmd_export(args):
+    logger = ZXLogger.get_instance()
+    documents: list[ZXDocument] = []
+    if args.id:
+        try:
+            documents.append(ZXDocument.from_id(args.id, args.documents))
+        except FileNotFoundError:
+            logger.error(f'ID {args.id} did not correspond to a file')
+            return
+    elif args.all:
+        print('should probably do something here')
+        pass
+
+    if not documents:
+        logger.warning('No documents loaded for export!')
+        return
+
+    registry = None if not args.registry else ZXRegistry.from_file(args.registry)
+    for document in documents:
+        document.export(output_directory=args.output, registry=registry)
+    
+
+def cmd_registry(args):
+    registry = ZXRegistry.from_file(args.registry, allow_create=True)
+    if args.clear:
+        registry.clear()
+    registry.save()
+
+def cmd_toc(args):
+    TOCGenerator(
+        registry_path=args.registry, 
+        documents_path=args.documents,
+        output_path=args.output
+    ).create_toc()
+
+def main():
+    parser = ArgumentParser()
+    parser.description = '''
+    Tools to generate TeleZX content such as index pages.
+    '''
+    parser.add_argument('-v', '--version', action='version', version=VERSION, help="Show version information")
+    parser.add_argument('-d', '--debug', action='store_true', help="Enable debug statements")
+    subparsers = parser.add_subparsers(required=True, dest='command')
+
+    parser_toc = subparsers.add_parser('toc', help='Table of contents')
+    parser_toc.add_argument('-r', '--registry', type=utilities.argument_is_file, required=True, help="Set path to registry")
+    parser_toc.add_argument('-d', '--documents', type=utilities.argument_is_dir, required=True, help="Set path to TeleZX documents")
+    parser_toc.add_argument('-o', '--output', type=utilities.argument_is_dir, required=True, help="Set path to output")
+    parser_toc.set_defaults(function=cmd_toc)
+
+    parser_export = subparsers.add_parser('export', help='Export pages')
+    parser_export.add_argument('-r', '--registry', type=utilities.argument_is_file, help="Set path to registry")
+    parser_export.add_argument('-d', '--documents', type=utilities.argument_is_dir, required=True, help="Set path to TeleZX documents")
+    parser_export.add_argument('-o', '--output', type=utilities.argument_is_dir, required=True, help="Set path to output")
+    export_selection = parser_export.add_mutually_exclusive_group(required=True)
+    export_selection.add_argument('-a', '--all', action='store_true', help="Export all documents")
+    export_selection.add_argument('-i', '--id', type=utilities.argument_is_id, help="Document ID")
+    parser_export.set_defaults(function=cmd_export)
+
+    parser_registry = subparsers.add_parser('registry', help='Create registry')
+    parser_registry.add_argument('-r', '--registry', required=True, help="Set path to registry")
+    parser_registry.add_argument('-c', '--clear', action='store_true', help="Clear contents")
+    parser_registry.set_defaults(function=cmd_registry)
+
+    args = parser.parse_args()
+    if args.debug:
+        ZXLogger.get_instance().set_log_level(ZXLogger.LOG_DEBUG)
+
+    if 'function' in args:
+        args.function(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

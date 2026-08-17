@@ -114,7 +114,8 @@ class ZXDocument:
                 self.__export_hex(file, type)
                 self.__export_hex(file, parameter)
 
-        registry.sync_record(self.document_id, self.description, self.abbreviation)
+        if registry:
+            registry.sync_record(self.document_id, self.description, self.abbreviation)
 
     def __export_record(self, file, value, pad_to_size, pad_chr):
         file.write(self.__pad_record(value, pad_to_size, pad_chr))
@@ -129,7 +130,7 @@ class ZXDocument:
         if link is not None:
             file.write(f'{link:04d}')
             if link_txt is None:
-                link_txt = registry.lookup_abbreviation(link)
+                link_txt = registry.lookup_abbreviation(link) if registry else format_padded_id(link)
             self.__export_record(file, link_txt, (ZXRegistry.ABBREVIATION_CHARS + 1), '\0')
         else:
             file.write('0000')
@@ -230,9 +231,20 @@ class ZXDocument:
 
     @classmethod
     def from_file(cls, document_path) -> ZXDocument:
+        ZXLogger.get_instance().debug('Loading document from', document_path)
         data = cls.__yaml_defaults()
         data = update_tree(data, cls.__get_yaml(document_path))
         return cls.from_dict(document_path, data)
+
+    @classmethod
+    def from_id(cls, id, documents_repository) -> ZXDocument:
+        documents_repository = Path(documents_repository)
+        padded_id = format_padded_id(id)
+        for child in documents_repository.iterdir():
+            if child.is_dir() and child.name.startswith(padded_id):
+                path = child / f'{padded_id}{ZXDocument.EXTENSION_DOCUMENT}'
+                return cls.from_file(path)
+        raise FileNotFoundError('document id did not correspond to an existing file')
 
     @classmethod
     def __yaml_defaults(cls) -> dict:

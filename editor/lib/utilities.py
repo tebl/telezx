@@ -1,6 +1,8 @@
 import re
 import yaml
 import collections.abc
+from pathlib import Path
+from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
 
 def format_padded_id(document_id, width=4):
     return str(document_id).rjust(width, '0')
@@ -32,6 +34,36 @@ def update_tree(data, update):
         else:
             data[key] = value
     return data
+
+def argument_is_dir(path):
+    '''
+    Check the supplied path value to ensure that it is is actually a directory
+    '''
+    path = Path(path)
+    if not path.is_dir():
+        raise ArgumentError(f'is not a valid directory')
+    return path
+
+def argument_is_file(path):
+    '''
+    Check the supplied path value to ensure that it is is actually a file
+    '''
+    path = Path(path)
+    if not path.is_file():
+        raise ArgumentError(f'is not an existing file')
+    return path
+
+def argument_is_id(value):
+    '''
+    Check that the supplied value appears to be an int between 0 and 9999
+    '''
+    try:
+        value = int(value)
+        if value < 0 or value > 9999:
+            raise ArgumentError(f'Does not look like a valid document id')
+        return value
+    except ValueError:
+        raise ArgumentError(f'Does not look like a valid document id')
 
 class QuotedYAML(str):
     '''

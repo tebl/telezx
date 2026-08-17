@@ -15,6 +15,9 @@ class ZXRegistry:
         self.registry_path = Path(registry_path)
         self.register = {}
 
+    def clear(self):
+        self.register.clear()
+
     def generate_TOC_AZ(self):
         results = {}
         for char in self.LETTERS_AZ:
@@ -116,7 +119,7 @@ class ZXRegistry:
     def from_file(cls, document_path, allow_create=True) -> ZXRegistry:
         logger = ZXLogger.get_instance()
         if not Path(document_path).is_file() and allow_create:
-            logger.warning(f'Creating {cls.__name__} ({document_path})')
+            logger.warning(f'Empty registry {cls.__name__} ({document_path})')
             return cls.create_file(document_path, allow_overwrite=False)
         data = cls.__yaml_defaults()
         data = update_tree(data, cls.__get_yaml(document_path))
