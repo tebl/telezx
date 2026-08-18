@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
-from .utilities import update_tree, format_padded_id, QuotedYAML
+from typing import Generator
+from .utilities import update_tree, format_padded_id, QuotedYAML, parse_document_id
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
 from .zx_token import ZXToken, ZXScreenIterator, ZXScreen
@@ -13,6 +14,8 @@ class ZXDocument:
     EXTENSION_SCREENSHOT = '.png'
     EXTENSION_DOCUMENT = '.telezx'
     EXTENSION_DOCUMENT_TMP = EXTENSION_DOCUMENT + '-tmp'
+    DOCUMENT_ID_MIN = 0
+    DOCUMENT_ID_MAX = 9999
 
     enable_preview = True
 
@@ -245,6 +248,27 @@ class ZXDocument:
                 path = child / f'{padded_id}{ZXDocument.EXTENSION_DOCUMENT}'
                 return cls.from_file(path)
         raise FileNotFoundError('document id did not correspond to an existing file')
+
+    @classmethod
+    def scan_documents(cls, documents_repository, min_id=DOCUMENT_ID_MIN, max_id=DOCUMENT_ID_MAX) -> Generator[int, None, None]:
+        '''
+        Scan documents and return an ordered set of document IDs encountered
+        with either of the following two path structures (does not attempt to
+        load the documents themselves): 
+            documents/<ID>/<ID>.telezx
+            documents/<ID>-<DESCRIPTION>/<ID>.telezx
+        '''
+        documents_repository = Path(documents_repository)
+        for child in sorted(documents_repository.iterdir()):
+            if child.is_dir():
+                try:
+                    document_id = parse_document_id(child.name[0:4])
+                    if document_id >= min_id and document_id <= max_id:
+                        document_path = child / f'{format_padded_id(document_id)}{cls.EXTENSION_DOCUMENT}'
+                        if document_path.exists():
+                            yield document_id
+                except ValueError:
+                    pass
 
     @classmethod
     def __yaml_defaults(cls) -> dict:

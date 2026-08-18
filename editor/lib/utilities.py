@@ -53,15 +53,18 @@ def argument_is_file(path):
         raise ArgumentError(f'is not an existing file')
     return path
 
+def parse_document_id(value):
+    value = int(value)
+    if value < 0 or value > 9999:
+        raise ValueError(f'Does not look like a valid document id')
+    return value
+
 def argument_is_id(value):
     '''
     Check that the supplied value appears to be an int between 0 and 9999
     '''
     try:
-        value = int(value)
-        if value < 0 or value > 9999:
-            raise ArgumentError(f'Does not look like a valid document id')
-        return value
+        return parse_document_id(value)
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 

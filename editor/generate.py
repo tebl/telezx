@@ -148,35 +148,42 @@ class TOCGenerator:
         zx_token.set_document(page_path)
         return zx_token
 
-def cmd_export(args):
-    logger = ZXLogger.get_instance()
-    documents: list[ZXDocument] = []
-    if args.id:
-        try:
-            documents.append(ZXDocument.from_id(args.id, args.documents))
-        except FileNotFoundError:
-            logger.error(f'ID {args.id} did not correspond to a file')
-            return
-    elif args.all:
-        print('should probably do something here')
-        pass
-
-    if not documents:
-        logger.warning('No documents loaded for export!')
-        return
-
+def cmd_export(args, parser):
     registry = None if not args.registry else ZXRegistry.from_file(args.registry)
-    for document in documents:
-        document.export(output_directory=args.output, registry=registry)
-    
+    if args.id:
+        print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
+        for document_id in args.id:
+            __export_id(
+                document_id, 
+                args.documents, 
+                args.output,
+                registry)
 
-def cmd_registry(args):
+    if args.start or args.end:
+        start_at = args.start if args.start else ZXDocument.DOCUMENT_ID_MIN
+        stop_at = args.end if args.end else ZXDocument.DOCUMENT_ID_MAX
+        print(f'Export document IDs: {start_at}..{stop_at}')
+        for document_id in ZXDocument.scan_documents(args.documents, min_id=start_at, max_id=stop_at):
+            __export_id(
+                document_id, 
+                args.documents, 
+                args.output,
+                registry)
+
+def __export_id(document_id, documents_path, output_path, registry):
+    try:
+        document = ZXDocument.from_id(document_id, documents_path)
+        document.export(output_directory=output_path, registry=registry)
+    except FileNotFoundError:
+        print('ERROR:', f'ID {document_id} did not correspond to a file')
+
+def cmd_registry(args, parser):
     registry = ZXRegistry.from_file(args.registry, allow_create=True)
     if args.clear:
         registry.clear()
     registry.save()
 
-def cmd_toc(args):
+def cmd_toc(args, parser):
     TOCGenerator(
         registry_path=args.registry, 
         documents_path=args.documents,
@@ -202,9 +209,9 @@ def main():
     parser_export.add_argument('-r', '--registry', type=utilities.argument_is_file, help="Set path to registry")
     parser_export.add_argument('-d', '--documents', type=utilities.argument_is_dir, required=True, help="Set path to TeleZX documents")
     parser_export.add_argument('-o', '--output', type=utilities.argument_is_dir, required=True, help="Set path to output")
-    export_selection = parser_export.add_mutually_exclusive_group(required=True)
-    export_selection.add_argument('-a', '--all', action='store_true', help="Export all documents")
-    export_selection.add_argument('-i', '--id', type=utilities.argument_is_id, help="Document ID")
+    parser_export.add_argument('-s', '--start', type=utilities.argument_is_id, help="First Document ID in export range")
+    parser_export.add_argument('-e', '--end', type=utilities.argument_is_id, help="Last Document ID in export range")
+    parser_export.add_argument('-i', '--id', type=utilities.argument_is_id, action='extend', nargs='*', help="Specific Document ID to be exported")
     parser_export.set_defaults(function=cmd_export)
 
     parser_registry = subparsers.add_parser('registry', help='Create registry')
@@ -217,7 +224,7 @@ def main():
         ZXLogger.get_instance().set_log_level(ZXLogger.LOG_DEBUG)
 
     if 'function' in args:
-        args.function(args)
+        args.function(args, parser)
     else:
         parser.print_help()
 
