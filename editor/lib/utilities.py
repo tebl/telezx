@@ -1,5 +1,6 @@
 import re
 import yaml
+import unicodedata
 import collections.abc
 from pathlib import Path
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
@@ -8,9 +9,12 @@ def format_padded_id(document_id, width=4):
     return str(document_id).rjust(width, '0')
 
 def sanitize_filename(filename):
-    return re.sub(r'[^\w_. -\\#]', '', filename)
+    filename = str(filename)
+    filename = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
+    filename = re.sub(r'[^\w\s-]', '', filename)
+    return re.sub(r'[-\s]+', '-', filename).strip('-_')
 
-def suggest_document_name(document_id, path_hint):
+def suggest_document_name(document_id, path_hint=None):
     '''
     Just generates a string with a predictable format, doesn't actually
     create or check if anything already exist.
