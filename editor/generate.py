@@ -13,11 +13,16 @@ class TOCGenerator:
 
     enable_preview = True
 
-    def __init__(self, registry_path: Path, documents_path: Path, output_path: Path):
+    def __init__(self, repository: Path):
         self.logger = ZXLogger.get_instance()
-        self.registry = ZXRegistry.from_file(registry_path, allow_create=True)
-        self.documents_path = documents_path
-        self.output_path = output_path
+        self.repository = Path(repository)
+        self.documents_path = self.repository / 'src'
+        self.documents_path.mkdir(exist_ok=True)
+        self.output_path = self.repository / 'out'
+        self.output_path.mkdir(exist_ok=True)
+
+        self.registry_path = self.repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
+        self.registry = ZXRegistry.from_file(self.registry_path, allow_create=True)
 
     def create_toc(self, document_id_start = 9900):
         document_id = document_id_start
@@ -63,7 +68,9 @@ class TOCGenerator:
                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path.name, export_format='TKN')
 
                 document.save()
-                document.export(self.output_path, self.registry)
+                document.export(self.output_path, self.registry, sync_registry=False)
+
+        self.registry.save()
 
     def __pad_entry(self, string, max_length = 25):
         string = string[0:max_length]
@@ -100,7 +107,7 @@ class TOCGenerator:
 
             # Save and export
             document.save()
-            document.export(self.output_path, self.registry)
+            document.export(self.output_path, self.registry, sync_registry=True)
 
     def __get_document(self, document_id, description, abbreviation, target_directory):
         return ZXDocument(
@@ -149,26 +156,36 @@ class TOCGenerator:
         return zx_token
 
 def cmd_export(args, parser):
-    registry = None if not args.registry else ZXRegistry.from_file(args.registry)
+    repository: Path = Path(args.repository)
+    documents_path: Path = repository / 'src'
+    documents_path.mkdir(exist_ok=True)
+    output_path: Path = repository / 'out'
+    output_path.mkdir(exist_ok=True)
+
+    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
+    registry = ZXRegistry.from_file(registry_path)
+
     if args.id:
         print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
         for document_id in args.id:
             __export_id(
                 document_id, 
-                args.documents, 
-                args.output,
+                documents_path, 
+                output_path,
                 registry)
 
     if args.start or args.end:
         start_at = args.start if args.start else ZXDocument.DOCUMENT_ID_MIN
         stop_at = args.end if args.end else ZXDocument.DOCUMENT_ID_MAX
         print(f'Export document IDs: {start_at}..{stop_at}')
-        for document_id in ZXDocument.scan_documents(args.documents, min_id=start_at, max_id=stop_at):
+        for document_id in ZXDocument.scan_documents(documents_path, min_id=start_at, max_id=stop_at):
             __export_id(
                 document_id, 
-                args.documents, 
-                args.output,
+                documents_path, 
+                output_path,
                 registry)
+
+    registry.save()
 
 def __export_id(document_id, documents_path, output_path, registry):
     try:
@@ -178,16 +195,17 @@ def __export_id(document_id, documents_path, output_path, registry):
         print('ERROR:', f'ID {document_id} did not correspond to a file')
 
 def cmd_registry(args, parser):
-    registry = ZXRegistry.from_file(args.registry, allow_create=True)
+    repository: Path = Path(args.repository)
+    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
+
+    registry = ZXRegistry.from_file(registry_path, allow_create=True)
     if args.clear:
         registry.clear()
     registry.save()
 
 def cmd_toc(args, parser):
     TOCGenerator(
-        registry_path=args.registry, 
-        documents_path=args.documents,
-        output_path=args.output
+        repository=args.repository
     ).create_toc()
 
 def main():
@@ -200,22 +218,18 @@ def main():
     subparsers = parser.add_subparsers(required=True, dest='command')
 
     parser_toc = subparsers.add_parser('toc', help='Table of contents')
-    parser_toc.add_argument('-r', '--registry', type=utilities.argument_is_file, required=True, help="Set path to registry")
-    parser_toc.add_argument('-d', '--documents', type=utilities.argument_is_dir, required=True, help="Set path to TeleZX documents")
-    parser_toc.add_argument('-o', '--output', type=utilities.argument_is_dir, required=True, help="Set path to output")
+    parser_toc.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
     parser_toc.set_defaults(function=cmd_toc)
 
     parser_export = subparsers.add_parser('export', help='Export pages')
-    parser_export.add_argument('-r', '--registry', type=utilities.argument_is_file, help="Set path to registry")
-    parser_export.add_argument('-d', '--documents', type=utilities.argument_is_dir, required=True, help="Set path to TeleZX documents")
-    parser_export.add_argument('-o', '--output', type=utilities.argument_is_dir, required=True, help="Set path to output")
+    parser_export.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
     parser_export.add_argument('-s', '--start', type=utilities.argument_is_id, help="First Document ID in export range")
     parser_export.add_argument('-e', '--end', type=utilities.argument_is_id, help="Last Document ID in export range")
     parser_export.add_argument('-i', '--id', type=utilities.argument_is_id, action='extend', nargs='*', help="Specific Document ID to be exported")
     parser_export.set_defaults(function=cmd_export)
 
     parser_registry = subparsers.add_parser('registry', help='Create registry')
-    parser_registry.add_argument('-r', '--registry', required=True, help="Set path to registry")
+    parser_registry.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
     parser_registry.add_argument('-c', '--clear', action='store_true', help="Clear contents")
     parser_registry.set_defaults(function=cmd_registry)
 

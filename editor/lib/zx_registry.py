@@ -10,8 +10,8 @@ class ZXRegistry:
     LETTERS_AZ = f'#{string.ascii_uppercase}'
     register: dict[str, ZXRegistryEntry]
 
-
     def __init__(self, registry_path):
+        self.logger = ZXLogger.get_instance()
         self.registry_path = Path(registry_path)
         self.register = {}
 
@@ -65,6 +65,7 @@ class ZXRegistry:
         return True
 
     def sync_record(self, document_id, description=None, abbreviation=None) -> bool:
+        self.logger.debug('sync_record', f'{document_id=}, {description=}, {abbreviation=}')
         registry_key = format_padded_id(document_id, width=4)
         record = self.__get_updated_record(registry_key, document_id, description, abbreviation)
         if record.is_valid():

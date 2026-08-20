@@ -1,0 +1,3 @@
+[submodule "editor/repository"]
+	path = editor/repository
+	url = git@github.com:tebl/telezx-content.git

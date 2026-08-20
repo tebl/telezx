@@ -73,7 +73,7 @@ class ZXDocument:
             key=lambda path: path.name
         )
 
-    def export(self, output_directory: Path, registry: ZXRegistry, log_indent=0):
+    def export(self, output_directory: Path, registry: ZXRegistry, log_indent=0, sync_registry=True):
         '''
         Create index file from registered pages, using the data structure as
         listed below. Note that with room for 99 subpages we should leave
@@ -117,7 +117,7 @@ class ZXDocument:
                 self.__export_hex(file, type)
                 self.__export_hex(file, parameter)
 
-        if registry:
+        if registry and sync_registry:
             registry.sync_record(self.document_id, self.description, self.abbreviation)
 
     def __export_record(self, file, value, pad_to_size, pad_chr):
