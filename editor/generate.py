@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
+from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
 
 class TOCGenerator:
     registry_path: Path
@@ -153,9 +153,13 @@ class TOCGenerator:
         )
 
     def __load_frame(self, frame_name, page_path: Path):
-        zx_token = ZXToken.from_file(Path(self.documents_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}')
+        frame_path = Path(self.documents_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
+        if not frame_path.is_file():
+            frame_path = Path('.') / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
+        zx_token = ZXToken.from_file(frame_path)
         zx_token.set_document(page_path)
         return zx_token
+
 
 def print_repository_details(repository: Path):
     '''
@@ -163,6 +167,26 @@ def print_repository_details(repository: Path):
     see here until I can think of something more suitable.
     '''
     print(f'Repository: {repository.resolve()}')
+
+def cmd_assets(args, parser):
+    '''
+    Handle argumentparser subcommand for assets.
+    '''
+    repository: Path = Path(args.repository)
+    print_repository_details(repository)
+
+    for colour, value, title_value in ZXFrame.frame_colours():
+        frame_path = repository / 'src' / 'assets' / f'frame_{colour}{ZXToken.FILE_EXTENSION}'
+        frame = ZXFrame.create_frame(frame_path)
+        frame.overlay_box(value, title_value)
+        frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
+        frame.save()
+
+        frame_path = repository / 'src' / 'assets' / f'frame_{colour}_title{ZXToken.FILE_EXTENSION}'
+        frame = ZXFrame.create_frame(frame_path)
+        frame.overlay_title_box(value, title_value)
+        frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
+        frame.save()
 
 def cmd_export(args, parser):
     '''
@@ -251,9 +275,9 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help="Enable debug statements")
     subparsers = parser.add_subparsers(required=True, dest='command')
 
-    parser_toc = subparsers.add_parser('toc', help='Table of contents')
-    parser_toc.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
-    parser_toc.set_defaults(function=cmd_toc)
+    parser_assets = subparsers.add_parser('assets', help='Assets')
+    parser_assets.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
+    parser_assets.set_defaults(function=cmd_assets)
 
     parser_export = subparsers.add_parser('export', help='Export pages')
     parser_export.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
@@ -268,6 +292,10 @@ def main():
     parser_registry.add_argument('--remove-ignore', type=utilities.argument_is_id, help="Remove document ID from ignored list")
     parser_registry.add_argument('-c', '--clear', action='store_true', help="Clear contents")
     parser_registry.set_defaults(function=cmd_registry)
+
+    parser_toc = subparsers.add_parser('toc', help='Table of contents')
+    parser_toc.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
+    parser_toc.set_defaults(function=cmd_toc)
 
     args = parser.parse_args()
     if args.debug:

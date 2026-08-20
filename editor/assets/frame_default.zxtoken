@@ -1,0 +1,3102 @@
+ZXToken:
+    attribute: 7
+    background: null
+    cells:
+        0:
+            0:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+        1:
+            0:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            1:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            2:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            3:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            4:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            5:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            6:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            7:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            8:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            9:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            10:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            11:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            12:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            13:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            14:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            15:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            16:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            17:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            18:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            19:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            20:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            21:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            22:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            23:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            24:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            25:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            26:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            27:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            28:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            29:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            30:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 140
+                inverted: -1
+        2:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        3:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        4:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        5:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        6:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        7:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        8:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        9:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        10:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        11:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        12:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        13:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        14:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        15:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        16:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        17:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        18:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        19:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        20:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        21:
+            0:
+                attribute: 1
+                char_code: 138
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 133
+                inverted: -1
+        22:
+            0:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            1:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            2:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            3:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            4:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            5:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            6:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            7:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            8:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            9:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            10:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            11:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            12:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            13:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            14:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            15:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            16:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            17:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            18:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            19:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            20:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            21:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            22:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            23:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            24:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            25:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            26:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            27:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            28:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            29:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            30:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+            31:
+                attribute: 1
+                char_code: 131
+                inverted: -1
+        23:
+            0:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            1:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            2:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            3:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            4:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            5:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            6:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            7:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            8:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            9:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            10:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            11:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            12:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            13:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            14:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            15:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            16:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            17:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            18:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            19:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            20:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            21:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            22:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            23:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            24:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            25:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            26:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            27:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            28:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            29:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            30:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+            31:
+                attribute: -1
+                char_code: -1
+                inverted: -1
+    font: font_default
+    glyph: font_glyphs

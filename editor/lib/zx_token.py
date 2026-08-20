@@ -17,6 +17,9 @@ class ZXToken:
     DEFAULT_GLYPH = 'font_glyphs'
     FILE_EXTENSION = '.zxtoken'
 
+    # Defined so that ZXFrame generates identical files
+    DOCUMENT_TYPE = 'ZXToken'
+
     def __init__(self):
         self.zx_screen = ZXScreen()
         self.clear(attribute=self.DEFAULT_ATTRIBUTE)
@@ -127,7 +130,7 @@ class ZXToken:
         data = self.__yaml_defaults()
         with open(document_path, 'r') as file:
             data = update_tree(data, self.__load_zx_page(file))
-        root = data[self.__class__.__name__]
+        root = data[self.DOCUMENT_TYPE]
 
         # Clear and set as current file
         self.clear(root['attribute'])
@@ -145,7 +148,7 @@ class ZXToken:
     
     def __yaml_defaults(self):
         return {
-            self.__class__.__name__: {
+            self.DOCUMENT_TYPE: {
                 'attribute': ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK),
                 'background': None,
                 'font': self.DEFAULT_FONT,
@@ -160,8 +163,8 @@ class ZXToken:
 
     def __load_zx_page(self, file):
         data = yaml.safe_load(file)
-        if self.__class__.__name__ not in data:
-            raise ValueError("does not look like a {}-file".format(self.__class__.__name__))
+        if self.DOCUMENT_TYPE not in data:
+            raise ValueError("does not look like a {}-file".format(self.DOCUMENT_TYPE))
         return data
 
     def render_cells(self):
@@ -243,7 +246,7 @@ class ZXToken:
 
     def to_dict(self):
         result = self.__yaml_defaults()
-        root = result[self.__class__.__name__]
+        root = result[self.DOCUMENT_TYPE]
         root['attribute'] = self.current_attribute
         root['background'] = self.__get_relative_path(self.background)
         root['font'] = self.font_name
