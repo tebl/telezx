@@ -7,7 +7,7 @@ from pathlib import Path
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
-from .utilities import update_tree
+from .utilities import update_tree, get_project_root
 
 class ZXToken:
     UNDEFINED = -1
@@ -235,7 +235,7 @@ class ZXToken:
         self.glyph = ZXGlyph.from_file(self.glyph_path)
 
     def get_font_path(self, font_name):
-        return Path('.') / 'fonts' / f'{font_name}.bin'
+        return get_project_root() / 'fonts' / f'{font_name}.bin'
 
     def save(self):
         if self.document_path:

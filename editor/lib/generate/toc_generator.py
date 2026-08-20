@@ -154,7 +154,7 @@ class TOCGenerator:
     def __load_frame(self, frame_name, page_path: Path):
         frame_path = Path(self.documents_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
         if not frame_path.is_file():
-            frame_path = Path('.') / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
+            frame_path = utilities.get_project_root() / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
         zx_token = ZXToken.from_file(frame_path)
         zx_token.set_document(page_path)
         return zx_token
