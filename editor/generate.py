@@ -122,14 +122,14 @@ class TOCGenerator:
 
     def __get_page(self, document_id, page_id, target_directory) -> ZXToken:
         return self.__load_frame(
-            'frame_blue',
+            'frame_default',
             self.__page_path(document_id, page_id, target_directory)
         )
 
     def __get_titlepage(self, document_id, page_id, page_title, target_directory) -> ZXToken:
         page_title = page_title[0:(ZXScreen.SCREEN_WIDTH_CHARS-2)]
         zx_token = self.__load_frame(
-            'frame_blue_title',
+            'frame_default_title',
             self.__page_path(document_id, page_id, target_directory)
         )
         zx_token.set_string(self.__centered_position(page_title), 2, page_title)
@@ -155,8 +155,13 @@ class TOCGenerator:
         zx_token.set_document(page_path)
         return zx_token
 
+def print_repository_details(repository: Path):
+    print(f'Repository: {repository.resolve()}')
+
 def cmd_export(args, parser):
     repository: Path = Path(args.repository)
+    print_repository_details(repository)
+
     documents_path: Path = repository / 'src'
     documents_path.mkdir(exist_ok=True)
     output_path: Path = repository / 'out'
@@ -186,6 +191,7 @@ def cmd_export(args, parser):
                 registry)
 
     registry.save()
+    print('Registry saved.')
 
 def __export_id(document_id, documents_path, output_path, registry):
     try:
@@ -196,14 +202,18 @@ def __export_id(document_id, documents_path, output_path, registry):
 
 def cmd_registry(args, parser):
     repository: Path = Path(args.repository)
-    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
+    print_repository_details(repository)
 
+    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
     registry = ZXRegistry.from_file(registry_path, allow_create=True)
     if args.clear:
+        print('Registry cleared.')
         registry.clear()
     registry.save()
+    print('Registry saved.')
 
 def cmd_toc(args, parser):
+    print_repository_details(args.repository)
     TOCGenerator(
         repository=args.repository
     ).create_toc()
