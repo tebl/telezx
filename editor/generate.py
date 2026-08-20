@@ -31,6 +31,7 @@ class TOCGenerator:
         registry_toc = self.registry.generate_TOC_AZ()
         for letter in self.registry.LETTERS_AZ:
             document_id += 1
+            self.registry.set_ignored(document_id, True)
             target_directory = self.__create_path(document_id, f'TOC-{letter}')
 
             with self.__get_document(document_id, f'{self.TOC_TITLE} ({letter})', f'TOC-{letter}', target_directory) as document:
@@ -71,6 +72,7 @@ class TOCGenerator:
                 document.export(self.output_path, self.registry, sync_registry=False)
 
         self.registry.save()
+        print('Registry saved.')
 
     def __pad_entry(self, string, max_length = 25):
         string = string[0:max_length]
@@ -156,9 +158,16 @@ class TOCGenerator:
         return zx_token
 
 def print_repository_details(repository: Path):
+    '''
+    Print details for the repository we're working with, nothing interesting to
+    see here until I can think of something more suitable.
+    '''
     print(f'Repository: {repository.resolve()}')
 
 def cmd_export(args, parser):
+    '''
+    Handle argumentparser subcommand for export.
+    '''
     repository: Path = Path(args.repository)
     print_repository_details(repository)
 
@@ -201,11 +210,23 @@ def __export_id(document_id, documents_path, output_path, registry):
         print('ERROR:', f'ID {document_id} did not correspond to a file')
 
 def cmd_registry(args, parser):
+    '''
+    Handle argumentparser subcommand for registry.
+    '''
     repository: Path = Path(args.repository)
     print_repository_details(repository)
 
     registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
     registry = ZXRegistry.from_file(registry_path, allow_create=True)
+
+    if args.set_ignore:
+        print(f'Registry will now ignore {utilities.format_padded_id(args.set_ignore)}')
+        registry.set_ignored(args.set_ignore, True)
+
+    if args.remove_ignore:
+        print(f'Registry will no longer ignore {utilities.format_padded_id(args.remove_ignore)}')
+        registry.set_ignored(args.remove_ignore, False)
+
     if args.clear:
         print('Registry cleared.')
         registry.clear()
@@ -213,6 +234,9 @@ def cmd_registry(args, parser):
     print('Registry saved.')
 
 def cmd_toc(args, parser):
+    '''
+    Handle argumentparser subcommand for table of contents.
+    '''
     print_repository_details(args.repository)
     TOCGenerator(
         repository=args.repository
@@ -240,6 +264,8 @@ def main():
 
     parser_registry = subparsers.add_parser('registry', help='Create registry')
     parser_registry.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
+    parser_registry.add_argument('--set-ignore', type=utilities.argument_is_id, help="Add document ID to ignored list")
+    parser_registry.add_argument('--remove-ignore', type=utilities.argument_is_id, help="Remove document ID from ignored list")
     parser_registry.add_argument('-c', '--clear', action='store_true', help="Clear contents")
     parser_registry.set_defaults(function=cmd_registry)
 

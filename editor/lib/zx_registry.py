@@ -10,10 +10,11 @@ class ZXRegistry:
     LETTERS_AZ = f'#{string.ascii_uppercase}'
     register: dict[str, ZXRegistryEntry]
 
-    def __init__(self, registry_path):
+    def __init__(self, registry_path, ignored_list):
         self.logger = ZXLogger.get_instance()
         self.registry_path = Path(registry_path)
         self.register = {}
+        self.ignored = ignored_list
 
     def clear(self):
         self.register.clear()
@@ -64,9 +65,21 @@ class ZXRegistry:
             )
         return True
 
-    def sync_record(self, document_id, description=None, abbreviation=None) -> bool:
-        self.logger.debug('sync_record', f'{document_id=}, {description=}, {abbreviation=}')
+    def set_ignored(self, document_id, value: bool):
         registry_key = format_padded_id(document_id, width=4)
+        if value:
+            if registry_key not in self.ignored:
+                self.ignored.append(registry_key)
+        else:
+            while registry_key in self.ignored:
+                self.ignored.remove(registry_key)
+
+    def sync_record(self, document_id, description=None, abbreviation=None) -> bool:
+        registry_key = format_padded_id(document_id, width=4)
+        if registry_key in self.ignored:
+            return False
+        
+        self.logger.debug('sync_record', f'{document_id=}, {description=}, {abbreviation=}')
         record = self.__get_updated_record(registry_key, document_id, description, abbreviation)
         if record.is_valid():
             self.register[registry_key] = record
@@ -88,10 +101,18 @@ class ZXRegistry:
         return True
 
     def to_dict(self):
-        result = { self.__class__.__name__: { 'entries': {} } }
+        result = {
+            self.__class__.__name__: {
+                'entries': {}, 
+                'ignored': self.ignored
+            }
+        }
         entries = result[self.__class__.__name__]['entries']
         for index, (document_id, entry) in enumerate(self.register.items()):
-            entries[entry.get_padded_id()] = entry.to_dict()
+            registry_key = entry.get_padded_id()
+            if registry_key in self.ignored:
+                continue
+            entries[registry_key] = entry.to_dict()
         return result
 
     @classmethod
@@ -102,7 +123,7 @@ class ZXRegistry:
             raise ValueError("does not look like a {}-file".format(cls.__name__))
         root = data[cls.__name__]
 
-        zx_registry = ZXRegistry(registry_path)
+        zx_registry = ZXRegistry(registry_path, ignored_list=root['ignored'])
         for i, (registry_key, data) in enumerate(root['entries'].items()):
             zx_registry.sync_record(
                 int(registry_key), 
@@ -130,7 +151,8 @@ class ZXRegistry:
     def __yaml_defaults(cls) -> dict:
         return {
             cls.__name__: {
-                'entries':  {}
+                'entries':  {},
+                'ignored': []
             }
         }
 
