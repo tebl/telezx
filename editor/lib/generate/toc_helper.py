@@ -1,27 +1,18 @@
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
+from .repository_helper import RepositoryHelper
 from .. import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
 
-class TOCGenerator:
-    registry_path: Path
-    documents_path: Path
-    output_path: Path
-
+class TOCHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
     TOC_ABBREVIATION = 'TOC'
 
     enable_preview = True
 
     def __init__(self, repository: Path):
-        self.logger = ZXLogger.get_instance()
-        self.repository = Path(repository)
-        self.documents_path = self.repository / 'src'
-        self.documents_path.mkdir(exist_ok=True)
-        self.output_path = self.repository / 'out'
-        self.output_path.mkdir(exist_ok=True)
-
-        self.registry_path = self.repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
-        self.registry = ZXRegistry.from_file(self.registry_path, allow_create=True)
+        super().__init__(repository)
+        self.create_path_structure()
+        self.open_registry()
 
     def create_toc(self, document_id_start = 9900):
         document_id = document_id_start
@@ -68,7 +59,7 @@ class TOCGenerator:
                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path.name, export_format='TKN')
 
                 document.save()
-                document.export(self.output_path, self.registry, sync_registry=False)
+                document.export(self.out_path, self.registry, sync_registry=False)
 
         self.registry.save()
         print('Registry saved.')
@@ -108,7 +99,7 @@ class TOCGenerator:
 
             # Save and export
             document.save()
-            document.export(self.output_path, self.registry, sync_registry=True)
+            document.export(self.out_path, self.registry, sync_registry=True)
 
     def __get_document(self, document_id, description, abbreviation, target_directory):
         return ZXDocument(
@@ -140,7 +131,7 @@ class TOCGenerator:
         return (ZXScreen.SCREEN_WIDTH_CHARS - len(title)) // 2
 
     def __create_path(self, document_id, path_hint):
-        directory = self.documents_path / utilities.suggest_document_name(document_id, path_hint)
+        directory = self.src_path / utilities.suggest_document_path(document_id, path_hint)
         directory.mkdir(exist_ok=True)
         return directory
 
@@ -152,7 +143,7 @@ class TOCGenerator:
         )
 
     def __load_frame(self, frame_name, page_path: Path):
-        frame_path = Path(self.documents_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
+        frame_path = Path(self.src_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
         if not frame_path.is_file():
             frame_path = utilities.get_project_root() / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
         zx_token = ZXToken.from_file(frame_path)

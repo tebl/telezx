@@ -14,22 +14,19 @@ class ZXLogger:
             print(self.format_message(message, priority))
 
     def error(self, *segments, indent=0):
-        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_ERR)
+        self.log(self.indent_string(self.__join_segments(segments), indent), self.LOG_ERR)
 
     def warning(self, *segments, indent=0):
-        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_WARNING)
+        self.log(self.indent_string(self.__join_segments(segments), indent), self.LOG_WARNING)
 
     def info(self, *segments, indent=0):
-        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_INFO)
+        self.log(self.indent_string(self.__join_segments(segments), indent), self.LOG_INFO)
 
     def debug(self, *segments, indent=0):
-        self.log(self.__indent(self.__join_segments(segments), indent), self.LOG_DEBUG)
+        self.log(self.indent_string(self.__join_segments(segments), indent), self.LOG_DEBUG)
 
     def __join_segments(self, segments):
         return ' '.join(map(str, segments))
-
-    def __indent(self, string, indent):
-        return ' '*(indent*self.INDENT_WIDTH) + string
 
     def check_priority(self, priority) -> bool:
         return (priority <= self.log_level)
@@ -41,6 +38,17 @@ class ZXLogger:
         self.log_level = log_level
         return self
 
+    @classmethod
+    def get_instance(cls) -> ZXLogger:
+        if cls._instance is None:
+            cls._instance = cls.__new__(cls)
+            cls._instance.set_log_level(cls.LOG_INFO)
+        return cls._instance
+
+    @classmethod
+    def indent_string(cls, string, indent: int):
+        return ' '*(indent*cls.INDENT_WIDTH) + string
+    
     @classmethod
     def to_priority_string(cls, priority):
         match priority:
@@ -54,10 +62,3 @@ class ZXLogger:
                 return 'D'
             case _:
                 return 'U'
-
-    @classmethod
-    def get_instance(cls) -> ZXLogger:
-        if cls._instance is None:
-            cls._instance = cls.__new__(cls)
-            cls._instance.set_log_level(cls.LOG_INFO)
-        return cls._instance

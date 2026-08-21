@@ -1,15 +1,9 @@
 #!/usr/bin/python3
+import subprocess
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
-from lib.generate import TOCGenerator
-
-def print_repository_details(repository: Path):
-    '''
-    Print details for the repository we're working with, nothing interesting to
-    see here until I can think of something more suitable.
-    '''
-    print(f'Repository: {repository.resolve()}')
+from lib.generate import TOCHelper, DocumentHelper
 
 def cmd_assets(args, parser):
     '''
@@ -18,18 +12,93 @@ def cmd_assets(args, parser):
     repository: Path = Path(args.repository)
     print_repository_details(repository)
 
-    for colour, value, title_value in ZXFrame.frame_colours():
-        frame_path = repository / 'src' / 'assets' / f'frame_{colour}{ZXToken.FILE_EXTENSION}'
-        frame = ZXFrame.create_frame(frame_path)
-        frame.overlay_box(value, title_value)
-        frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
-        frame.save()
+    if args.create_frames:
+        print('Creating frames:')
+        for colour, value, title_value in ZXFrame.frame_colours():
+            print(f' - {colour}')
+            frame_path = repository / 'src' / 'assets' / f'frame_{colour}{ZXToken.FILE_EXTENSION}'
+            frame = ZXFrame.create_frame(frame_path)
+            frame.overlay_box(value, title_value)
+            frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
+            frame.save()
 
-        frame_path = repository / 'src' / 'assets' / f'frame_{colour}_title{ZXToken.FILE_EXTENSION}'
-        frame = ZXFrame.create_frame(frame_path)
-        frame.overlay_title_box(value, title_value)
-        frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
-        frame.save()
+            frame_path = repository / 'src' / 'assets' / f'frame_{colour}_title{ZXToken.FILE_EXTENSION}'
+            frame = ZXFrame.create_frame(frame_path)
+            frame.overlay_title_box(value, title_value)
+            frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
+            frame.save()
+    print('Done.')
+
+def cmd_documents(args, parser):
+    '''
+    Handle argumentparser subcommand for managing documents and their
+    various properties. Specifying a document_id of 0 for links will
+    clear the current values. A link should not have a text without a
+    valid document ID.
+    '''
+    repository: Path = Path(args.repository)
+    print_repository_details(repository)
+
+    helper = DocumentHelper(repository)
+    if args.create:
+        try:
+            document = helper.create_document(args.create, args.path_hint)
+            print_document_details(document, action='created')
+        except FileExistsError:
+            print(f'ERROR: Document with ID {args.create} already exists!')
+            return
+
+    if args.open:
+        try:
+            document = helper.open_document(args.open, allow_none=False)
+            print_document_details(document, action='opened')
+        except FileNotFoundError:
+            print(f'ERROR: Document with ID {args.open} could not be loaded!')
+            return
+
+    __update_document(document, args)
+    document.save()
+    print()
+
+    if args.edit_token is not None:
+        page_found = False
+        for page_id, page in enumerate(document):
+            if page_id == args.edit_token and isinstance(page, ZXPage_Token):
+                page_found = True
+                subprocess.run([utilities.get_project_root() / 'editor.py', page.zxtoken_path])
+                break
+        if not page_found:
+            print('ERROR: No editable page found.')
+            return
+
+    print('Done.')
+
+def __update_document(document, args):
+    if args.set_description is not None:
+        document.description = None if args.set_description == '' else args.set_description
+    if args.set_abbreviation is not None:
+        document.abbreviation = None if args.set_abbreviation == '' else args.set_abbreviation
+    if args.set_link_a is not None:
+        if not args.set_link_a == 0:
+            document.link_a = args.set_link_a
+            document.link_a_txt = None
+        else:
+            document.link_a = None
+    document.link_a_txt = args.set_link_a_txt if document.link_a and args.set_link_a_txt else None
+    if args.set_link_b is not None:
+        if not args.set_link_b == 0:
+            document.link_b = args.set_link_b
+            document.link_b_txt = None
+        else:
+            document.link_b = None
+    document.link_b_txt = args.set_link_b_txt if document.link_b and args.set_link_b_txt else None
+    if args.set_link_c is not None:
+        if not args.set_link_c == 0:
+            document.link_c = args.set_link_c
+            document.link_c_txt = None
+        else:
+            document.link_c = None
+    document.link_c_txt = args.set_link_c_txt if document.link_c and args.set_link_c_txt else None
 
 def cmd_export(args, parser):
     '''
@@ -71,7 +140,7 @@ def cmd_export(args, parser):
 
 def __export_id(document_id, documents_path, output_path, registry):
     try:
-        document = ZXDocument.from_id(document_id, documents_path)
+        document = ZXDocument.from_document_id(document_id, documents_path)
         document.export(output_directory=output_path, registry=registry)
     except FileNotFoundError:
         print('ERROR:', f'ID {document_id} did not correspond to a file')
@@ -105,9 +174,38 @@ def cmd_toc(args, parser):
     Handle argumentparser subcommand for table of contents.
     '''
     print_repository_details(args.repository)
-    TOCGenerator(
+    TOCHelper(
         repository=args.repository
     ).create_toc()
+
+def print_repository_details(repository: Path):
+    '''
+    Print details for the repository we're working with, nothing interesting to
+    see here until I can think of something more suitable.
+    '''
+    print(f'Repository: {repository.resolve()}')
+
+def print_document_details(document: ZXDocument, action=None):
+    '''
+    Print details for the specified document
+    '''
+    if action:
+        print(f'Document with ID {document.document_id} {action}:')
+    else:
+        print(f'Document with ID {document.document_id}:')
+
+    print_indented('Page', 'Description')
+    for page_id, page in enumerate(document):
+        print_indented(utilities.format_padded_id(page_id, width=2), page)
+
+def print_indented(*segments, indent_count=1, adjust=5):
+    print(' '*ZXLogger.INDENT_WIDTH*indent_count, end='')
+    if segments:
+        print(segments[0].ljust(adjust), end='')
+        for segment in segments[1:]:
+            print(segment, end='')
+    print()
+
 
 def main():
     parser = ArgumentParser()
@@ -118,9 +216,28 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help="Enable debug statements")
     subparsers = parser.add_subparsers(required=True, dest='command')
 
-    parser_assets = subparsers.add_parser('assets', help='Assets')
+    parser_assets = subparsers.add_parser('assets', help='Manage assets')
     parser_assets.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
+    parser_assets.add_argument('--create-frames', action='store_true', help="Create frames of different colours")
     parser_assets.set_defaults(function=cmd_assets)
+
+    parser_document = subparsers.add_parser('document', help='Manage documents')
+    parser_document.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")
+    group = parser_document.add_mutually_exclusive_group(required=True)
+    group.add_argument('--create', type=utilities.argument_is_id, help="Create document ID")
+    group.add_argument('--open', type=utilities.argument_is_id, help="Open document ID")
+    group = parser_document.add_argument_group()
+    group.add_argument('--path-hint', type=str, help="Path hint appended to document directory upon creation")
+    group.add_argument('--set-abbreviation', type=str, help="Set abbreviation")
+    group.add_argument('--set-description', type=str, help="Set description")
+    group.add_argument('--set-link-a', type=utilities.argument_is_id, help="Set link A")
+    group.add_argument('--set-link-a-txt', type=str, help="Set link A description")
+    group.add_argument('--set-link-b', type=utilities.argument_is_id, help="Set link B")
+    group.add_argument('--set-link-b-txt', type=str, help="Set link B description")
+    group.add_argument('--set-link-c', type=utilities.argument_is_id, help="Set link C")
+    group.add_argument('--set-link-c-txt', type=str, help="Set link C description")
+    group.add_argument('--edit-token', type=int, help="Edit tokens for specific page")
+    parser_document.set_defaults(function=cmd_documents)
 
     parser_export = subparsers.add_parser('export', help='Export pages')
     parser_export.add_argument('-r', '--repository', type=utilities.argument_is_dir, required=True, help="Set path to repository")

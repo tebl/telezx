@@ -43,6 +43,9 @@ class ZXDocument:
     def __exit__(self, exc_type, exc, tb):
         pass
 
+    def __str__(self):
+        return f'{self.document_id}'
+
     def check_file_exists(self, path, raise_exception=True) -> bool:
         if not self.get_asset_path(path).is_file():
             if raise_exception:
@@ -240,9 +243,9 @@ class ZXDocument:
         return cls.from_dict(document_path, data)
 
     @classmethod
-    def from_id(cls, id, documents_repository) -> ZXDocument:
+    def from_document_id(cls, document_id, documents_repository) -> ZXDocument:
         documents_repository = Path(documents_repository)
-        padded_id = format_padded_id(id)
+        padded_id = format_padded_id(document_id)
         for child in documents_repository.iterdir():
             if child.is_dir() and child.name.startswith(padded_id):
                 path = child / f'{padded_id}{ZXDocument.EXTENSION_DOCUMENT}'

@@ -10,9 +10,8 @@ class TestUtilities(unittest.TestCase):
 
     def test_sanitize_filename(self):
         self.assertEqual(utilities.sanitize_filename('test'), 'test')
-        print(utilities.sanitize_filename('test?#"!%&/&'))
-        self.assertEqual(utilities.sanitize_filename('Test?#"!%&/&'), 'test')
+        self.assertEqual(utilities.sanitize_filename('Test?#"!%&/& '), 'Test')
 
-    def test_suggest_document_name(self):
-        self.assertEqual(utilities.suggest_document_name(1), '0001')
-        self.assertEqual(utilities.suggest_document_name(1, 'Test'), '0001-Test')
+    def test_suggest_document_path(self):
+        self.assertEqual(utilities.suggest_document_path(1), '0001')
+        self.assertEqual(utilities.suggest_document_path(1, 'Test'), '0001-Test')

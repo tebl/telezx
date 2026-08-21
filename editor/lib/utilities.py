@@ -56,7 +56,7 @@ def sanitize_filename(filename):
     filename = re.sub(r'[^\w\s-]', '', filename)
     return re.sub(r'[-\s]+', '-', filename).strip('-_')
 
-def suggest_document_name(document_id, path_hint=None):
+def suggest_document_path(document_id, path_hint=None):
     '''
     Just generates a string with a predictable format, doesn't actually
     create or check if anything already exist.
