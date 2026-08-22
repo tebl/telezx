@@ -3,7 +3,7 @@ import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
-from lib.generate import TOCHelper, DocumentHelper
+from lib.generate import AssetHelper, DocumentHelper, TOCHelper
 
 def cmd_assets(args, parser):
     '''
@@ -12,21 +12,9 @@ def cmd_assets(args, parser):
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
 
+    helper = AssetHelper(repository)
     if args.create_frames:
-        print('Creating frames:')
-        for colour, value, title_value in ZXFrame.frame_colours():
-            print(f' - {colour}')
-            frame_path = repository / 'src' / 'assets' / f'frame_{colour}{ZXToken.FILE_EXTENSION}'
-            frame = ZXFrame.create_frame(frame_path)
-            frame.overlay_box(value, title_value)
-            frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
-            frame.save()
-
-            frame_path = repository / 'src' / 'assets' / f'frame_{colour}_title{ZXToken.FILE_EXTENSION}'
-            frame = ZXFrame.create_frame(frame_path)
-            frame.overlay_title_box(value, title_value)
-            frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
-            frame.save()
+        helper.create_frames()
     print('Done.')
 
 def cmd_documents(args, parser: ArgumentParser):
@@ -215,7 +203,6 @@ def print_indented(*segments, indent_count=1, adjust=5):
             print(segment, end='')
     print()
 
-
 def main():
     parser = ArgumentParser()
     parser.description = '''
@@ -227,7 +214,8 @@ def main():
 
     parser_assets = subparsers.add_parser('assets', help='Manage assets')
     parser_assets.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
-    parser_assets.add_argument('--create-frames', action='store_true', help="Create frames of different colours")
+    group = parser_assets.add_mutually_exclusive_group(required=True)
+    group.add_argument('--create-frames', action='store_true', help="Create frames of different colours")
     parser_assets.set_defaults(function=cmd_assets)
 
     parser_document = subparsers.add_parser('document', help='Manage documents')

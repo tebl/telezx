@@ -23,6 +23,12 @@ class ZXFrame(ZXToken):
         self.set_cell(0, 3, char_code=139, char_attribute=char_attribute)
         self.set_cell(31, 3, char_code=135, char_attribute=char_attribute)
 
+    def overlay_title(self, char_attribute, title_attribute):
+        for char_x in range(1, ZXScreen.SCREEN_WIDTH_CHARS - 1):
+            self.set_cell(char_x, 1, char_code=140, char_attribute=char_attribute)
+            self.set_cell(char_x, 2, char_code=32, char_attribute=title_attribute)
+            self.set_cell(char_x, 3, char_code=131, char_attribute=char_attribute)
+
     @classmethod
     def create_frame(cls, document_path):
         zx_frame = ZXFrame()
@@ -54,7 +60,7 @@ class ZXFrame(ZXToken):
         yield (
             'green', 
             ZXScreen.to_attribute(ink=ZXScreen.GREEN), 
-            ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.GREEN)
+            ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.GREEN)
         ) 
         yield (
             'cyan', 

@@ -7,5 +7,5 @@ from .zx_document import ZXDocument, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPag
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
 from .utilities import update_tree
-from .generate import RepositoryHelper, TOCHelper, DocumentHelper
+from .generate import RepositoryHelper, TOCHelper, DocumentHelper, AssetHelper
 VERSION = "TeleZX v0.1"
