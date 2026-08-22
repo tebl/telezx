@@ -59,6 +59,10 @@ def cmd_documents(args, parser: ArgumentParser):
             print('ERROR: No editable page found.')
             return
 
+    if args.copy_token:
+        helper.copy_token(document, args.copy_token)
+        print_document_details(document, 'updated')
+
     print('Done.')
 
 def __update_document(document, args):
@@ -191,9 +195,12 @@ def print_document_details(document: ZXDocument, action=None):
     else:
         print(f'Document with ID {document.document_id}:')
 
-    print_indented('Page', 'Description')
-    for page_id, page in enumerate(document):
-        print_indented(utilities.format_padded_id(page_id, width=2), page)
+    if document.pages:
+        print_indented('Page', 'Description')
+        for page_id, page in enumerate(document):
+            print_indented(utilities.format_padded_id(page_id, width=2), page)
+    else:
+        print_indented('No pages.')
 
 def print_indented(*segments, indent_count=1, adjust=5):
     print(' '*ZXLogger.INDENT_WIDTH*indent_count, end='')
@@ -223,7 +230,7 @@ def main():
     group = parser_document.add_mutually_exclusive_group(required=True)
     group.add_argument('-c', '--create-id', type=utilities.argument_is_id, help="Create document ID")
     group.add_argument('-f', '--open-id', type=utilities.argument_is_id, help="Open document ID")
-    group = parser_document.add_argument_group()
+    group = parser_document.add_argument_group('Document properties')
     group.add_argument('--path-hint', type=str, help="Path hint appended to document directory upon creation")
     group.add_argument('--set-abbreviation', type=str, help="Set abbreviation")
     group.add_argument('--set-description', type=str, help="Set description")
@@ -233,7 +240,11 @@ def main():
     group.add_argument('--set-link-b-txt', type=str, help="Set link B description")
     group.add_argument('--set-link-c', type=utilities.argument_is_id, help="Set link C")
     group.add_argument('--set-link-c-txt', type=str, help="Set link C description")
-    group.add_argument('-e', '--edit-token', type=int, help="Edit tokens for specific page")
+    group = parser_document.add_argument_group('Page management')
+    group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
+    group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
+    group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
+    group.add_argument('-e', '--edit-token', type=int, help="Edit ZXToken with specified page ID")
     parser_document.set_defaults(function=cmd_documents)
 
     parser_export = subparsers.add_parser('export', help='Export pages')
@@ -265,7 +276,13 @@ def main():
     else:
         parser.print_help()
 
-def __get_default_repository():
+def check_zxtoken(path: Path) -> Path:
+    path = utilities.argument_is_file(path)
+    if not path.suffix == ZXToken.FILE_EXTENSION:
+        raise ArgumentError('path is not a zxtoken')
+    return path
+
+def __get_default_repository() -> Path:
     return utilities.get_project_root() / 'repository'
 
 if __name__ == "__main__":

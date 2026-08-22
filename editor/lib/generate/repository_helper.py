@@ -21,13 +21,32 @@ class RepositoryHelper:
         self.out_path.mkdir(exist_ok=exist_ok)
         return True
 
-    def generate_document_path(self, document_id, path_hint=None):
+    def generate_zx_token(self, page_path: Path, frame_path=None) -> ZXToken:
+        if frame_path:
+            return self.from_frame(frame_path, page_path)
+        zx_token = ZXToken()
+        zx_token.set_document(page_path)
+        return zx_token
+
+    def from_frame(self, frame_path: Path, page_path: Path) -> ZXToken:
+        zx_token = ZXToken.from_file(frame_path)
+        zx_token.set_document(page_path)
+        return zx_token
+
+    def generate_document_path(self, document_id, path_hint=None) -> Path:
         base_path = self.src_path / utilities.suggest_document_path(document_id, path_hint)
         return base_path / "{}{}".format(
             utilities.format_padded_id(document_id),
             ZXDocument.EXTENSION_DOCUMENT
         )
 
+    def generate_token_path(self, document: ZXDocument, page_id) -> Path:
+        return document.working_path / "{}.{}{}".format(
+            utilities.format_padded_id(document.document_id),
+            utilities.format_padded_id(page_id, width=2),
+            ZXToken.FILE_EXTENSION
+        )
+    
     def open_registry(self) -> ZXRegistry:
         self.registry = ZXRegistry.from_file(self.registry_path, allow_create=True)
         return self.registry

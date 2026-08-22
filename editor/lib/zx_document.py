@@ -160,6 +160,14 @@ class ZXDocument:
         '''
         return self.working_path.joinpath(path).resolve()
 
+    def get_next_page_id(self) -> int:
+        '''
+        Get the ID that will be assigned to the next page added. This is needed
+        as we will at time need some assets to already exist when we create the
+        the actual pages.
+        '''
+        return len(self.pages)
+
     def get_relative_path(self, path: Path) -> Path:
         path = Path(path)
         if path.is_relative_to(self.working_path):

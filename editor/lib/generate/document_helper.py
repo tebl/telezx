@@ -24,3 +24,21 @@ class DocumentHelper(RepositoryHelper):
             if not allow_none:
                 raise
         return None
+
+    def copy_token(self, document: ZXDocument, document_path: Path, export_format=None) -> bool:
+        '''
+        In effect this makes a copy of the specified ZXToken-file and adds a
+        reference to it in the document.
+        '''
+        return self.create_token(document, document_path, export_format)
+    
+    def create_token(self, document: ZXDocument, frame_path=None, export_format=None) -> bool:
+        asset_path = self.generate_token_path(document, document.get_next_page_id())
+        zx_token = self.generate_zx_token(asset_path, frame_path)
+        zx_token.save()
+
+        if not export_format:
+            export_format = 'TKN'
+        ZXPage_Token(document, zxtoken_path=zx_token.document_path, export_format=export_format)
+
+        return document.save()

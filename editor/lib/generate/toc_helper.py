@@ -113,14 +113,14 @@ class TOCHelper(RepositoryHelper):
         )
 
     def __get_page(self, document_id, page_id, target_directory) -> ZXToken:
-        return self.__load_frame(
+        return self.from_frame(
             'frame_default',
             self.__page_path(document_id, page_id, target_directory)
         )
 
     def __get_titlepage(self, document_id, page_id, page_title, target_directory) -> ZXToken:
         page_title = page_title[0:(ZXScreen.SCREEN_WIDTH_CHARS-2)]
-        zx_token = self.__load_frame(
+        zx_token = self.from_frame(
             'frame_default_title',
             self.__page_path(document_id, page_id, target_directory)
         )
@@ -141,11 +141,3 @@ class TOCHelper(RepositoryHelper):
             utilities.format_padded_id(page_id, width=2),
             ZXToken.FILE_EXTENSION
         )
-
-    def __load_frame(self, frame_name, page_path: Path):
-        frame_path = Path(self.src_path) / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
-        if not frame_path.is_file():
-            frame_path = utilities.get_project_root() / 'assets' / f'{frame_name}{ZXToken.FILE_EXTENSION}'
-        zx_token = ZXToken.from_file(frame_path)
-        zx_token.set_document(page_path)
-        return zx_token
