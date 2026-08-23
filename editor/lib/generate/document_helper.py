@@ -25,6 +25,9 @@ class DocumentHelper(RepositoryHelper):
                 raise
         return None
 
+    def export_document(self, document: ZXDocument, registry: ZXRegistry) -> bool:
+        return document.export(self.out_path, registry)
+
     def copy_token(self, document: ZXDocument, document_path: Path, export_format=None) -> bool:
         '''
         In effect this makes a copy of the specified ZXToken-file and adds a
@@ -40,5 +43,10 @@ class DocumentHelper(RepositoryHelper):
         if not export_format:
             export_format = 'TKN'
         ZXPage_Token(document, zxtoken_path=zx_token.document_path, export_format=export_format)
+        return document.save()
 
+    def link_token(self, document: ZXDocument, document_path: Path, export_format=None) -> bool:
+        if not export_format:
+            export_format = 'TKN'
+        ZXPage_Token(document, zxtoken_path=document_path, export_format=export_format)
         return document.save()

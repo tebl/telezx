@@ -55,7 +55,7 @@ class ZXDocument:
 
     def clean(self, output_directory: Path, indent=0) -> True:
         path = self.get_output_base(output_directory)
-        self.logger.info('cleaning', path, 'assets', indent=indent)
+        self.logger.debug('cleaning', path, 'assets', indent=indent)
         for asset in self.__asset_list(directory=path.parent, basename=path.name):
             self.logger.debug('delete', asset, indent=(indent+1))
             asset.unlink()
@@ -76,7 +76,7 @@ class ZXDocument:
             key=lambda path: path.name
         )
 
-    def export(self, output_directory: Path, registry: ZXRegistry, log_indent=0, sync_registry=True):
+    def export(self, output_directory: Path, registry: ZXRegistry, log_indent=0, sync_registry=True) -> True:
         '''
         Create index file from registered pages, using the data structure as
         listed below. Note that with room for 99 subpages we should leave
@@ -122,6 +122,8 @@ class ZXDocument:
 
         if registry and sync_registry:
             registry.sync_record(self.document_id, self.description, self.abbreviation)
+
+        return True
 
     def __export_record(self, file, value, pad_to_size, pad_chr):
         file.write(self.__pad_record(value, pad_to_size, pad_chr))

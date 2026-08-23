@@ -26,12 +26,13 @@ def cmd_documents(args, parser: ArgumentParser):
     '''
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
+    registry = get_registry(repository)
 
     helper = DocumentHelper(repository)
     if args.create_id:
         try:
             document = helper.create_document(args.create_id, args.path_hint)
-            print_document_details(document, action='created')
+            print_document_details(document, registry, action='created')
         except FileExistsError:
             print(f'ERROR: Document with ID {args.create_id} already exists!')
             return
@@ -39,12 +40,11 @@ def cmd_documents(args, parser: ArgumentParser):
     if args.open_id:
         try:
             document = helper.open_document(args.open_id, allow_none=False)
-            print_document_details(document, action='opened')
+            print_document_details(document, registry, action='opened')
         except FileNotFoundError:
             print(f'ERROR: Document with ID {args.open_id} could not be loaded!')
             return
-
-    __update_document(document, args)
+    changes = __update_document(document, args)
     document.save()
     print()
 
@@ -59,38 +59,72 @@ def cmd_documents(args, parser: ArgumentParser):
             print('ERROR: No editable page found.')
             return
 
+    if args.link_token:
+        helper.link_token(document, args.link_token.resolve(), args.with_format)
+        changes = True
+
+    if args.create_token:
+        helper.create_token(document, args.with_frame, args.with_format)
+        changes = True
+
     if args.copy_token:
-        helper.copy_token(document, args.copy_token)
-        print_document_details(document, 'updated')
+        helper.copy_token(document, args.copy_token, args.with_format)
+        changes = True
+
+    if changes:
+        print_document_details(document, registry, 'changed')
+
+    if args.export:
+        print(f'Exporting document with ID {document.document_id}:')
+        helper.export_document(document, get_registry(repository))
 
     print('Done.')
 
-def __update_document(document, args):
+def __update_document(document, args) -> bool:
+    changes = False
     if args.set_description is not None:
+        changes = True
         document.description = None if args.set_description == '' else args.set_description
     if args.set_abbreviation is not None:
+        changes = True
         document.abbreviation = None if args.set_abbreviation == '' else args.set_abbreviation
+
     if args.set_link_a is not None:
-        if not args.set_link_a == 0:
-            document.link_a = args.set_link_a
+        changes = True
+        if args.set_link_a == 0:
+            document.link_a = None
             document.link_a_txt = None
         else:
-            document.link_a = None
-    document.link_a_txt = args.set_link_a_txt if document.link_a and args.set_link_a_txt else None
+            document.link_a = args.set_link_a
+            document.link_a_txt = args.set_link_a_txt if args.set_link_a_txt else None
+    elif args.set_link_a_txt:
+        changes = True
+        document.link_a_txt = args.set_link_a_txt
+
     if args.set_link_b is not None:
-        if not args.set_link_b == 0:
-            document.link_b = args.set_link_b
+        changes = True
+        if args.set_link_b == 0:
+            document.link_b = None
             document.link_b_txt = None
         else:
-            document.link_b = None
-    document.link_b_txt = args.set_link_b_txt if document.link_b and args.set_link_b_txt else None
+            document.link_b = args.set_link_b
+            document.link_b_txt = args.set_link_b_txt if args.set_link_b_txt else None
+    elif args.set_link_b_txt:
+        changes = True
+        document.link_b_txt = args.set_link_b_txt
+
     if args.set_link_c is not None:
-        if not args.set_link_c == 0:
-            document.link_c = args.set_link_c
-            document.link_c_txt = None
-        else:
+        changes = True
+        if args.set_link_c == 0:
             document.link_c = None
-    document.link_c_txt = args.set_link_c_txt if document.link_c and args.set_link_c_txt else None
+            document.link_b_txt = None
+        else:
+            document.link_c = args.set_link_c
+            document.link_c_txt = args.set_link_c_txt if args.set_link_c_txt else None
+    elif args.set_link_c_txt:
+        changes = True
+        document.link_c_txt = args.set_link_c_txt
+    return changes
 
 def cmd_export(args, parser):
     '''
@@ -98,15 +132,14 @@ def cmd_export(args, parser):
     '''
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
+    registry = get_registry(repository)
 
     documents_path: Path = repository / 'src'
     documents_path.mkdir(exist_ok=True)
     output_path: Path = repository / 'out'
     output_path.mkdir(exist_ok=True)
 
-    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
-    registry = ZXRegistry.from_file(registry_path)
-
+    registry = get_registry(repository)
     if args.id:
         print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
         for document_id in args.id:
@@ -143,9 +176,7 @@ def cmd_registry(args, parser):
     '''
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
-
-    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
-    registry = ZXRegistry.from_file(registry_path, allow_create=True)
+    registry = get_registry(repository)
 
     if args.set_ignore:
         print(f'Registry will now ignore {utilities.format_padded_id(args.set_ignore)}')
@@ -173,11 +204,15 @@ def cmd_toc(args, parser):
         helper.create_toc()
     print('Done.')
 
-def get_repository(path: Path, parser):
+def get_repository(path: Path, parser) -> Path:
     path: Path = Path(path)
     if not path.is_dir():
         parser.error(f'Repository path {path} does not exist!')
     return path
+
+def get_registry(repository: Path, allow_create=True) -> ZXRegistry:
+    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
+    return ZXRegistry.from_file(registry_path, allow_create)
 
 def print_repository_details(repository: Path):
     '''
@@ -186,28 +221,45 @@ def print_repository_details(repository: Path):
     '''
     print(f'Repository: {repository.resolve()}')
 
-def print_document_details(document: ZXDocument, action=None):
+def print_document_details(document: ZXDocument, registry: ZXRegistry, action=None):
     '''
     Print details for the specified document
     '''
     if action:
-        print(f'Document with ID {document.document_id} {action}:')
+        print(f'Document {action}:')
     else:
-        print(f'Document with ID {document.document_id}:')
+        print(f'Document:')
+    col_width = 13
+    print_indented('Document ID:'.ljust(col_width), f'{document.document_id}')
+    print_indented('Description:'.ljust(col_width), f'{document.description}')
+    print_indented('Abbreviation:'.ljust(col_width), f'{document.abbreviation}')
+    print_indented('Link A:'.ljust(col_width), __format_link(document.link_a, document.link_a_txt, registry))
+    print_indented('Link B:'.ljust(col_width), __format_link(document.link_b, document.link_b_txt, registry))
+    print_indented('Link C:'.ljust(col_width), __format_link(document.link_c, document.link_c_txt, registry))
 
     if document.pages:
-        print_indented('Page', 'Description')
         for page_id, page in enumerate(document):
-            print_indented(utilities.format_padded_id(page_id, width=2), page)
+            if page_id == 0:
+                print_indented('Pages:'.ljust(col_width), utilities.format_padded_id(page_id, width=2), page)
+            else:
+                print_indented(''.ljust(col_width), utilities.format_padded_id(page_id, width=2), page)
     else:
-        print_indented('No pages.')
+        print_indented('Pages:'.ljust(col_width), 'No pages.')
 
-def print_indented(*segments, indent_count=1, adjust=5):
+def __format_link(link: int, link_txt: str, registry: ZXRegistry):
+    if not link:
+        return 'Not set.'
+    if not link_txt:
+        link_txt = registry.lookup_abbreviation(link)
+    if not link_txt:
+        link_txt = utilities.format_padded_id(link, width=4)
+    return f'{link}, "{link_txt}"'
+
+def print_indented(*segments, indent_count=1,):
     print(' '*ZXLogger.INDENT_WIDTH*indent_count, end='')
     if segments:
-        print(segments[0].ljust(adjust), end='')
-        for segment in segments[1:]:
-            print(segment, end='')
+        for segment in segments:
+            print(segment, end=' ')
     print()
 
 def main():
@@ -230,7 +282,7 @@ def main():
     group = parser_document.add_mutually_exclusive_group(required=True)
     group.add_argument('-c', '--create-id', type=utilities.argument_is_id, help="Create document ID")
     group.add_argument('-f', '--open-id', type=utilities.argument_is_id, help="Open document ID")
-    group = parser_document.add_argument_group('Document properties')
+    group = parser_document.add_argument_group('Document management')
     group.add_argument('--path-hint', type=str, help="Path hint appended to document directory upon creation")
     group.add_argument('--set-abbreviation', type=str, help="Set abbreviation")
     group.add_argument('--set-description', type=str, help="Set description")
@@ -240,10 +292,13 @@ def main():
     group.add_argument('--set-link-b-txt', type=str, help="Set link B description")
     group.add_argument('--set-link-c', type=utilities.argument_is_id, help="Set link C")
     group.add_argument('--set-link-c-txt', type=str, help="Set link C description")
+    group.add_argument('--export', action='store_true', help="Export document")
     group = parser_document.add_argument_group('Page management')
+    group.add_argument('--link-token', type=check_zxtoken, help="Link ZXToken as page in document")
     group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
     group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
     group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
+    group.add_argument('--with-format', choices={'SCR', 'TKN'}, default='TKN', help="Format of ZXToken export")
     group.add_argument('-e', '--edit-token', type=int, help="Edit ZXToken with specified page ID")
     parser_document.set_defaults(function=cmd_documents)
 
