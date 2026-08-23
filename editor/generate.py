@@ -45,7 +45,8 @@ def cmd_documents(args, parser: ArgumentParser):
             print(f'ERROR: Document with ID {args.open_id} could not be loaded!')
             return
     changes = __update_document(document, args)
-    document.save()
+    if changes:
+        document.save()
     print()
 
     if args.edit_token is not None:
@@ -69,6 +70,10 @@ def cmd_documents(args, parser: ArgumentParser):
 
     if args.copy_token:
         helper.copy_token(document, args.copy_token, args.with_format)
+        changes = True
+
+    if args.create_text:
+        helper.create_text(document, args.with_frame, ZXPage_ClearText.blank_text())
         changes = True
 
     if changes:
@@ -144,8 +149,8 @@ def cmd_export(args, parser):
         print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
         for document_id in args.id:
             __export_id(
+                repository,
                 document_id, 
-                documents_path, 
                 output_path,
                 registry)
 
@@ -155,17 +160,17 @@ def cmd_export(args, parser):
         print(f'Export document IDs: {start_at}..{stop_at}')
         for document_id in ZXDocument.scan_documents(documents_path, min_id=start_at, max_id=stop_at):
             __export_id(
+                repository,
                 document_id, 
-                documents_path, 
                 output_path,
                 registry)
 
     registry.save()
     print('Registry saved.')
 
-def __export_id(document_id, documents_path, output_path, registry):
+def __export_id(repository: Path, document_id: int, output_path, registry):
     try:
-        document = ZXDocument.from_document_id(document_id, documents_path)
+        document = ZXDocument.from_document_id(repository, document_id)
         document.export(output_directory=output_path, registry=registry)
     except FileNotFoundError:
         print('ERROR:', f'ID {document_id} did not correspond to a file')
@@ -297,6 +302,7 @@ def main():
     group.add_argument('--link-token', type=check_zxtoken, help="Link ZXToken as page in document")
     group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
     group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
+    group.add_argument('--create-text', action='store_true', help="Add clear text page to document")
     group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
     group.add_argument('--with-format', choices={'SCR', 'TKN'}, default='TKN', help="Format of ZXToken export")
     group.add_argument('-e', '--edit-token', type=int, help="Edit ZXToken with specified page ID")

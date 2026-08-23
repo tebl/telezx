@@ -7,6 +7,9 @@ from .zx_logger import ZXLogger
 from .zx_token import ZXToken, ZXScreenIterator, ZXScreen
 
 class ZXDocument:
+    PATH_SRC = 'src'
+    PATH_OUT = 'out'
+    PATH_ASSETS = 'assets'
     EXTENSION_INDEX = '.idx'
     EXTENSION_TOKEN = '.tkn'
     EXTENSION_SCR = '.scr'
@@ -19,8 +22,9 @@ class ZXDocument:
 
     enable_preview = True
 
-    def __init__(self, document_path, document_id=0, description=None, abbreviation=None, link_a=None, link_a_txt=None, link_b=None, link_b_txt=None, link_c=None, link_c_txt=None):
+    def __init__(self, repository: Path, document_path: Path, document_id=0, description=None, abbreviation=None, link_a=None, link_a_txt=None, link_b=None, link_b_txt=None, link_c=None, link_c_txt=None):
         self.logger = ZXLogger.get_instance()
+        self.repository = Path(repository)
         self.document_path = Path(document_path)
         self.working_path = self.document_path.parent.resolve()
         self.document_id = document_id
@@ -171,9 +175,14 @@ class ZXDocument:
         return len(self.pages)
 
     def get_relative_path(self, path: Path) -> Path:
-        path = Path(path)
-        if path.is_relative_to(self.working_path):
-            return Path(path).relative_to(self.working_path, walk_up=True)
+        '''
+        Transforms the supplied path so that it becomes relative to the
+        document if it resides somewhere within the repository, if it doesn't
+        then the path is resolved to the full path instead.
+        '''
+        path = path.resolve()
+        if path.is_relative_to(self.repository):
+            path = path.relative_to(self.working_path, walk_up=True)
         return path
 
     def register_page(self, page) -> int:
@@ -221,7 +230,7 @@ class ZXDocument:
         return result
 
     @classmethod
-    def from_dict(cls, document_path, data) -> ZXDocument:
+    def from_dict(cls, repository: Path, document_path: Path, data) -> ZXDocument:
         if not len(data) == 1:
             raise ValueError("expected one key specifying datatype, found {}".format(len(data)))
         if cls.__name__ not in data:
@@ -229,6 +238,7 @@ class ZXDocument:
         root = data[cls.__name__]
 
         zx_document = ZXDocument(
+            repository,
             document_path, 
             document_id=int(root['document_id']),
             description=root['description'],
@@ -246,20 +256,20 @@ class ZXDocument:
         return zx_document
 
     @classmethod
-    def from_file(cls, document_path) -> ZXDocument:
+    def from_file(cls, repository: Path, document_path: Path) -> ZXDocument:
         ZXLogger.get_instance().debug('Loading document from', document_path)
         data = cls.__yaml_defaults()
         data = update_tree(data, cls.__get_yaml(document_path))
-        return cls.from_dict(document_path, data)
+        return cls.from_dict(repository, document_path, data)
 
     @classmethod
-    def from_document_id(cls, document_id, documents_repository) -> ZXDocument:
-        documents_repository = Path(documents_repository)
+    def from_document_id(cls, repository: Path, document_id: int) -> ZXDocument:
+        documents_repository = repository / cls.PATH_SRC
         padded_id = format_padded_id(document_id)
         for child in documents_repository.iterdir():
             if child.is_dir() and child.name.startswith(padded_id):
                 path = child / f'{padded_id}{ZXDocument.EXTENSION_DOCUMENT}'
-                return cls.from_file(path)
+                return cls.from_file(repository, path)
         raise FileNotFoundError('document id did not correspond to an existing file')
 
     @classmethod
@@ -600,7 +610,7 @@ class ZXPage_ClearText(ZXPage):
         '''
         Reconstructs object from a dictionary structure. Could quite possibly
         have named it from_dict as it serves the same structure, but didn't
-        want to have it recursively call itself when I forgot to add the
+        want to have it recursively call itself when forgetting to add the
         function.
         '''
         result = cls.__yaml_defaults()

@@ -70,7 +70,7 @@ class TOCHelper(RepositoryHelper):
             return (string + ' ').ljust(max_length, '.')
         return string
 
-    def __create_toc_index(self, document_id):
+    def __create_toc_index(self, document_id: int):
         target_directory = self.__create_path(document_id, 'TOC-Index')
 
         with self.__get_document(document_id, self.TOC_TITLE, self.TOC_ABBREVIATION, target_directory) as document:
@@ -101,8 +101,9 @@ class TOCHelper(RepositoryHelper):
             document.save()
             document.export(self.out_path, self.registry, sync_registry=True)
 
-    def __get_document(self, document_id, description, abbreviation, target_directory):
+    def __get_document(self, document_id: int, description, abbreviation, target_directory: Path):
         return ZXDocument(
+            self.repository,
             document_path=target_directory / "{}{}".format(
                 utilities.format_padded_id(document_id),
                 ZXDocument.EXTENSION_DOCUMENT
@@ -112,16 +113,16 @@ class TOCHelper(RepositoryHelper):
             abbreviation=abbreviation
         )
 
-    def __get_page(self, document_id, page_id, target_directory) -> ZXToken:
+    def __get_page(self, document_id: int, page_id: int, target_directory: Path) -> ZXToken:
         return self.from_frame(
-            'frame_default',
+            self.resolve_frame_path('frame_default'),
             self.__page_path(document_id, page_id, target_directory)
         )
 
-    def __get_titlepage(self, document_id, page_id, page_title, target_directory) -> ZXToken:
+    def __get_titlepage(self, document_id: int, page_id: int, page_title, target_directory: Path) -> ZXToken:
         page_title = page_title[0:(ZXScreen.SCREEN_WIDTH_CHARS-2)]
         zx_token = self.from_frame(
-            'frame_default_title',
+            self.resolve_frame_path('frame_default_title'),
             self.__page_path(document_id, page_id, target_directory)
         )
         zx_token.set_string(self.__centered_position(page_title), 2, page_title)
@@ -130,12 +131,12 @@ class TOCHelper(RepositoryHelper):
     def __centered_position(self, title):
         return (ZXScreen.SCREEN_WIDTH_CHARS - len(title)) // 2
 
-    def __create_path(self, document_id, path_hint):
+    def __create_path(self, document_id: int, path_hint: str) -> Path:
         directory = self.src_path / utilities.suggest_document_path(document_id, path_hint)
         directory.mkdir(exist_ok=True)
         return directory
 
-    def __page_path(self, document_id, page_id, target_directory):
+    def __page_path(self, document_id: int, page_id: int, target_directory: Path) -> Path:
         return target_directory / "{}.{}{}".format(
             utilities.format_padded_id(document_id),
             utilities.format_padded_id(page_id, width=2),
