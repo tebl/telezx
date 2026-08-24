@@ -56,7 +56,7 @@ class TOCHelper(RepositoryHelper):
                     current_page.set_string(27, current_y, link_id, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.CYAN))
 
                 current_page.save()
-                ZXPage_Token(parent=document, zxtoken_path=current_page.document_path.name, export_format='TKN')
+                ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
 
                 document.save()
                 document.export(self.out_path, self.registry, sync_registry=False)
@@ -95,7 +95,7 @@ class TOCHelper(RepositoryHelper):
                 page.save()
 
             # Add reference to created token page
-            ZXPage_Token(parent=document, zxtoken_path=page.document_path.name, export_format='TKN')
+            ZXPage_Token(parent=document, zxtoken_path=page.document_path, export_format='TKN')
 
             # Save and export
             document.save()
