@@ -60,20 +60,29 @@ def cmd_documents(args, parser: ArgumentParser):
             print('ERROR: No editable page found.')
             return
 
-    if args.link_token:
-        helper.link_token(document, args.link_token.resolve(), args.with_format)
+    if args.create_text:
+        helper.create_text(document, args.with_frame)
         changes = True
 
     if args.create_token:
         helper.create_token(document, args.with_frame, args.with_format)
         changes = True
 
+    if args.create_overlay:
+        scr_about = ZXPage_Overlay.blank_about()
+        scr_about['title'] = args.set_scr_title
+        scr_about['author'] = args.set_scr_author
+        scr_about['source'] = args.set_scr_source if args.set_scr_source else args.create_overlay.name
+        scr_about['license'] = args.set_scr_license
+        helper.create_overlay(document, args.create_overlay, scr_about)
+        changes = True
+
     if args.copy_token:
         helper.copy_token(document, args.copy_token, args.with_format)
         changes = True
 
-    if args.create_text:
-        helper.create_text(document, args.with_frame, ZXPage_ClearText.blank_text())
+    if args.link_token:
+        helper.link_token(document, args.link_token.resolve(), args.with_format)
         changes = True
 
     if changes:
@@ -303,8 +312,14 @@ def main():
     group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
     group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
     group.add_argument('--create-text', action='store_true', help="Add clear text page to document")
+    group.add_argument('--create-overlay', type=check_scr, help="Add clear text page to document")
     group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
     group.add_argument('--with-format', choices={'SCR', 'TKN'}, default='TKN', help="Format of ZXToken export")
+    group.add_argument('--set-scr-title', type=str, default='', help="The SCR about field for title")
+    group.add_argument('--set-scr-author', type=str, default='', help="The SCR about field for author")
+    group.add_argument('--set-scr-source', type=str, default='', help="The SCR about field for source")
+    group.add_argument('--set-scr-license', type=str, default='', help="The SCR about field for license")
+
     group.add_argument('-e', '--edit-token', type=int, help="Edit ZXToken with specified page ID")
     parser_document.set_defaults(function=cmd_documents)
 
@@ -341,6 +356,12 @@ def check_zxtoken(path: Path) -> Path:
     path = utilities.argument_is_file(path)
     if not path.suffix == ZXToken.FILE_EXTENSION:
         raise ArgumentError('path is not a zxtoken')
+    return path
+
+def check_scr(path: Path) -> Path:
+    path = utilities.argument_is_file(path)
+    if not path.suffix == ZXDocument.EXTENSION_SCR:
+        raise ArgumentError('path is not an scr-file')
     return path
 
 def __get_default_repository() -> Path:

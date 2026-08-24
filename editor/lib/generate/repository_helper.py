@@ -51,10 +51,16 @@ class RepositoryHelper:
         )
 
     def generate_token_path(self, document: ZXDocument, page_id) -> Path:
+        return self.generate_asset_path(document, page_id, ZXToken.FILE_EXTENSION)
+
+    def generate_scr_path(self, document: ZXDocument, page_id) -> Path:
+        return self.generate_asset_path(document, page_id, ZXDocument.EXTENSION_SCR)
+
+    def generate_asset_path(self, document: ZXDocument, page_id: int, extension: str) -> Path:
         return document.working_path / "{}.{}{}".format(
             utilities.format_padded_id(document.document_id),
             utilities.format_padded_id(page_id, width=2),
-            ZXToken.FILE_EXTENSION
+            extension
         )
 
     def get_path_relative_to(self, document: ZXDocument, path: Path) -> Path:
