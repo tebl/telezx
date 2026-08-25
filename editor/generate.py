@@ -2,7 +2,7 @@
 import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
+from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
 from lib.generate import AssetHelper, DocumentHelper, TOCHelper
 
 def cmd_assets(args, parser):
@@ -27,6 +27,7 @@ def cmd_documents(args, parser: ArgumentParser):
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
     registry = get_registry(repository)
+    changes = False
 
     helper = DocumentHelper(repository)
     if args.create_id:
@@ -44,53 +45,16 @@ def cmd_documents(args, parser: ArgumentParser):
         except FileNotFoundError:
             print(f'ERROR: Document with ID {args.open_id} could not be loaded!')
             return
-    changes = __update_document(document, args)
-    if changes:
+
+    # Update document properties
+    if __update_document(document, args):
+        changes = True
         document.save()
     print()
 
-    if args.edit_token is not None:
-        page_found = False
-        for page_id, page in enumerate(document):
-            if page_id == args.edit_token and isinstance(page, ZXPage_Token):
-                page_found = True
-                subprocess.run([utilities.get_project_root() / 'editor.py', page.zxtoken_path])
-                break
-        if not page_found:
-            print('ERROR: No editable page found.')
-            return
-
-    if args.create_text:
-        helper.create_text(document, args.with_frame)
-        changes = True
-
-    if args.create_token:
-        helper.create_token(document, args.with_frame, args.with_format)
-        changes = True
-
-    if args.create_overlay:
-        scr_about = ZXPage_Overlay.blank_about()
-        scr_about['title'] = args.set_scr_title
-        scr_about['author'] = args.set_scr_author
-        scr_about['source'] = args.set_scr_source if args.set_scr_source else args.create_overlay.name
-        scr_about['license'] = args.set_scr_license
-        helper.create_overlay(document, args.create_overlay, scr_about)
-        changes = True
-
-    if args.copy_token:
-        helper.copy_token(document, args.copy_token, args.with_format)
-        changes = True
-
-    if args.link_token:
-        helper.link_token(document, args.link_token.resolve(), args.with_format)
-        changes = True
-
+    # Print document again if there were changes
     if changes:
         print_document_details(document, registry, 'changed')
-
-    if args.export:
-        print(f'Exporting document with ID {document.document_id}:')
-        helper.export_document(document, get_registry(repository))
 
     print('Done.')
 
@@ -140,7 +104,7 @@ def __update_document(document, args) -> bool:
         document.link_c_txt = args.set_link_c_txt
     return changes
 
-def cmd_export(args, parser):
+def cmd_export(args, parser: ArgumentParser):
     '''
     Handle argumentparser subcommand for export.
     '''
@@ -163,7 +127,7 @@ def cmd_export(args, parser):
                 output_path,
                 registry)
 
-    if args.start or args.end:
+    if args.all or args.start or args.end:
         start_at = args.start if args.start else ZXDocument.DOCUMENT_ID_MIN
         stop_at = args.end if args.end else ZXDocument.DOCUMENT_ID_MAX
         print(f'Export document IDs: {start_at}..{stop_at}')
@@ -184,7 +148,105 @@ def __export_id(repository: Path, document_id: int, output_path, registry):
     except FileNotFoundError:
         print('ERROR:', f'ID {document_id} did not correspond to a file')
 
-def cmd_registry(args, parser):
+def cmd_pages(args, parser: ArgumentParser):
+    '''
+    Handle argumentparser subcommand for managing document pages.
+    '''
+    repository: Path = get_repository(args.repository, parser)
+    print_repository_details(repository)
+    registry = get_registry(repository)
+    changes = False
+
+    helper = DocumentHelper(repository)
+    if args.document_id:
+        try:
+            document = helper.open_document(args.document_id, allow_none=False)
+            print_document_details(document, registry, action='opened')
+        except FileNotFoundError:
+            print(f'ERROR: Document with ID {args.document_id} could not be loaded!')
+            return
+    print()
+
+    page = None
+    if args.create_text:
+        page = helper.create_text(document, args.with_frame)
+        print_page_details(page, 'created')
+        changes = True
+
+    if args.create_token:
+        page = helper.create_token(document, args.with_frame, args.with_format)
+        print_page_details(page, 'created')
+        changes = True
+
+    if args.create_overlay:
+        scr_about = ZXPage_Overlay.blank_about()
+        scr_about['title'] = args.set_scr_title
+        scr_about['author'] = args.set_scr_author
+        scr_about['source'] = args.set_scr_source if args.set_scr_source else args.create_overlay.name
+        scr_about['license'] = args.set_scr_license
+        page = helper.create_overlay(document, args.create_overlay, scr_about)
+        print_page_details(page, 'created')
+        changes = True
+
+    if args.copy_token:
+        page = helper.copy_token(document, args.copy_token, args.with_format)
+        print_page_details(page, 'created')
+        changes = True
+
+    if args.link_token:
+        page = helper.link_token(document, args.link_token.resolve(), args.with_format)
+        print_page_details(page, 'created')
+        changes = True
+
+    if args.open_page is not None:
+        page = document.get_page(args.open_page)
+        if not page:
+            print(f'ERROR: Page with ID {args.open_page} could not be loaded!')
+            return
+        print_page_details(page, 'opened')
+
+    # A page should previously have been created or opened
+    if not page:
+        parser.error('No page loaded!')
+
+    if __update_page(args, parser, document, page):
+        changes = True
+        document.save()
+    print()
+
+    # Print changes
+    if changes:
+        print_document_details(document, registry, 'changed')
+
+    # Open up asset editor if requested
+    if args.editor:
+        print('Opening asset editor:')
+        __open_editor(args, parser, page)
+
+    # Export document upon request
+    if args.export:
+        print('Exporting document:')
+        helper.export_document(document, registry)
+        registry.save()
+
+    print('Done.')
+
+def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPage) -> bool:
+    changes = False
+
+    # Not really implemented as most tasks are just easier to perform by
+    # editing files directly. Sorry about that.
+
+    return changes
+
+
+def __open_editor(args, parser: ArgumentParser, page: ZXPage):
+    if isinstance(page, ZXPage_Token):
+        subprocess.run([utilities.get_project_root() / 'editor.py', page.zxtoken_path])
+        return
+    parser.error(f'No asset editor for {page}')
+
+def cmd_registry(args, parser: ArgumentParser):
     '''
     Handle argumentparser subcommand for registry.
     '''
@@ -228,22 +290,12 @@ def get_registry(repository: Path, allow_create=True) -> ZXRegistry:
     registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
     return ZXRegistry.from_file(registry_path, allow_create)
 
-def print_repository_details(repository: Path):
-    '''
-    Print details for the repository we're working with, nothing interesting to
-    see here until I can think of something more suitable.
-    '''
-    print(f'Repository: {repository.resolve()}')
-
 def print_document_details(document: ZXDocument, registry: ZXRegistry, action=None):
     '''
     Print details for the specified document
     '''
-    if action:
-        print(f'Document {action}:')
-    else:
-        print(f'Document:')
     col_width = 13
+    print(f'Document {action}:' if action else f'Document:')
     print_indented('Document ID:'.ljust(col_width), f'{document.document_id}')
     print_indented('Description:'.ljust(col_width), f'{document.description}')
     print_indented('Abbreviation:'.ljust(col_width), f'{document.abbreviation}')
@@ -268,6 +320,18 @@ def __format_link(link: int, link_txt: str, registry: ZXRegistry):
     if not link_txt:
         link_txt = utilities.format_padded_id(link, width=4)
     return f'{link}, "{link_txt}"'
+
+def print_page_details(page, action=None):
+    col_width = 13
+    print(f'Page {action}:' if action else f'Page:')
+    print_indented('Details:'.ljust(col_width), f'{page}')
+
+def print_repository_details(repository: Path):
+    '''
+    Print details for the repository we're working with, nothing interesting to
+    see here until I can think of something more suitable.
+    '''
+    print(f'Repository: {repository.resolve()}')
 
 def print_indented(*segments, indent_count=1,):
     print(' '*ZXLogger.INDENT_WIDTH*indent_count, end='')
@@ -306,25 +370,32 @@ def main():
     group.add_argument('--set-link-b-txt', type=str, help="Set link B description")
     group.add_argument('--set-link-c', type=utilities.argument_is_id, help="Set link C")
     group.add_argument('--set-link-c-txt', type=str, help="Set link C description")
-    group.add_argument('--export', action='store_true', help="Export document")
-    group = parser_document.add_argument_group('Page management')
+    parser_document.set_defaults(function=cmd_documents)
+
+    parser_page = subparsers.add_parser('page', help='Manage pages')
+    parser_page.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
+    parser_page.add_argument('-f', '--document-id', type=utilities.argument_is_id, required=True, help="Specify document ID")
+    group = parser_page.add_mutually_exclusive_group(required=True)
+    group.add_argument('-p', '--open-page', type=utilities.argument_is_id, help="Open page ID")
     group.add_argument('--link-token', type=check_zxtoken, help="Link ZXToken as page in document")
     group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
     group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
     group.add_argument('--create-text', action='store_true', help="Add clear text page to document")
     group.add_argument('--create-overlay', type=check_scr, help="Add clear text page to document")
+    group = parser_page.add_argument_group('Page properties')
     group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
     group.add_argument('--with-format', choices={'SCR', 'TKN'}, default='TKN', help="Format of ZXToken export")
     group.add_argument('--set-scr-title', type=str, default='', help="The SCR about field for title")
     group.add_argument('--set-scr-author', type=str, default='', help="The SCR about field for author")
     group.add_argument('--set-scr-source', type=str, default='', help="The SCR about field for source")
     group.add_argument('--set-scr-license', type=str, default='', help="The SCR about field for license")
+    group.add_argument('-e', '--editor', action='store_true', help="Open asset editor")
+    group.add_argument('--export', action='store_true', help="Export affected document")
+    parser_page.set_defaults(function=cmd_pages)
 
-    group.add_argument('-e', '--edit-token', type=int, help="Edit ZXToken with specified page ID")
-    parser_document.set_defaults(function=cmd_documents)
-
-    parser_export = subparsers.add_parser('export', help='Export pages')
+    parser_export = subparsers.add_parser('export', help='Export documents')
     parser_export.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
+    parser_export.add_argument('-a', '--all', action='store_true', help="Export all documents found")
     parser_export.add_argument('-s', '--start', type=utilities.argument_is_id, help="First Document ID in export range")
     parser_export.add_argument('-e', '--end', type=utilities.argument_is_id, help="Last Document ID in export range")
     parser_export.add_argument('-i', '--id', type=utilities.argument_is_id, action='extend', nargs='*', help="Specific Document ID to be exported")

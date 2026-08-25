@@ -174,6 +174,16 @@ class ZXDocument:
         '''
         return len(self.pages)
 
+    def get_page(self, page_id: int) -> ZXPage:
+        '''
+        Retrieve page stored with the specified page id. Note that as the page
+        is based on length, we'll start to run into programs if we were to
+        remove anything other than the last page.
+        '''
+        if page_id >= 0 and page_id < len(self.pages):
+            return self.pages[page_id]
+        return None
+        
     def get_relative_path(self, path: Path) -> Path:
         '''
         Transforms the supplied path so that it becomes relative to the
