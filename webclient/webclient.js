@@ -27,7 +27,7 @@ const DOCUMENT_ZERO = 0;
 const RGB_BASE = 0xe0;
 const RGB_FULL = 0xff;
 
-const PAGE_DEFAULT = 1982;
+const DOCUMENT_DEFAULT = 1000;
 const PAGE_MINIMUM = 1;
 const PAGE_MAXIMUM = 9999;
 const SCREEN_REFRESH = 1000/50;
@@ -58,8 +58,8 @@ var cursor_x = 0;
 var cursor_y = 0;
 
 var current_font = FONT_DEFAULT;
-var current_page = PAGE_DEFAULT;
-var current_subpage = -1;
+var current_document = DOCUMENT_DEFAULT;
+var current_page = -1;
 var current_input = ""
 
 var current_index = null;
@@ -185,7 +185,7 @@ function zx_to_attribute(is_flashing, is_bright, paper, ink) {
     return ((is_flashing ? ATTRIBUTE.FLASH : 0x00) | (is_bright ? ATTRIBUTE.BRIGHT : 0x00) | (paper << 3) | ink);
 }
 
-function ui_swap_attribute(attribute) {
+function zx_swap_attribute(attribute) {
     parsed = zx_parse_attribute(attribute);
     return zx_to_attribute(
         parsed.flash, 
@@ -327,7 +327,7 @@ function ui_primary_header() {
     ui_printString("P", -1);
     ui_print_ascii(ASCII_SPACE);
     if (current_input == '') {
-        ui_printString(String(current_page).padStart(4), -1);
+        ui_printString(String(current_document).padStart(4), -1);
     } else {
         ui_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : STYLE_HEADER_INPUT));
     }
@@ -372,7 +372,7 @@ function ui_secondary_header() {
     if (have_multiple_pages()) {
         ui_set_cursor(SCREEN_WIDTH_CHARS - 5, 23);
         ui_printString(
-            String(current_subpage + 1).padStart(2, '0') + '/' + String(current_index.page_count).padStart(2, '0'),
+            String(current_page + 1).padStart(2, '0') + '/' + String(current_index.page_count).padStart(2, '0'),
             STYLE_HEADER_FIELD
         );
     }
@@ -405,6 +405,11 @@ function get_centered_string(value, max_chars) {
     return value.padStart(
         value.length + Math.trunc((max_chars - value.length) / 2)
     ).padEnd(max_chars);
+}
+
+function get_link_id(link_key) {
+    if (current_index == null) return 0;
+    return current_index[link_key];
 }
 
 function ui_secondary_header_needed() {
@@ -488,7 +493,19 @@ function get_asset_url(page, subpage, extension) {
 }
 
 function get_index_url() {
-    return get_base_url(current_page) + ".idx";
+    return get_base_url(current_document) + ".idx";
+}
+
+function get_idx_hex(content, start, num_bytes) {
+    return Number("0x" + content.slice(start, start + num_bytes));
+}
+
+function get_idx_page(content, start, num_bytes) {
+    return Number(content.slice(start, start + num_bytes));
+}
+
+function get_idx_string(content, start, num_bytes) {
+    return content.slice(start, start + num_bytes).replace(/\0.*$/g,'');
 }
 
 function get_scr_url(page, subpage) {
@@ -527,19 +544,19 @@ async function fetch_index() {
 function fetch_page() {
     var page = null;
     if (current_index == null) return generate_blank_page(ERROR_ATTRIBUTE);
-    if (have_page_id(current_subpage)) page = current_index.pages[current_subpage];
+    if (have_page_id(current_page)) page = current_index.pages[current_page];
     if (page == null) return generate_blank_page(ERROR_ATTRIBUTE);
     
     if (page.type == ASSET_TYPES.TOKEN) {
         return fetch_token_asset(
+            current_document, 
             current_page, 
-            current_subpage, 
             page.parameter);
     }
     if (page.type == ASSET_TYPES.SCR) {
         return fetch_scr_asset(
-            current_page, 
-            current_subpage);
+            current_document, 
+            current_page);
     }
 
     return generate_blank_page(ERROR_ATTRIBUTE);
@@ -591,15 +608,15 @@ function fetch_page() {
 // }
 
 function fetch_page_next() {
-    if (have_page_id(current_subpage + 1)) {
-        current_subpage += 1;
+    if (have_page_id(current_page + 1)) {
+        current_page += 1;
         fetch_page();
     }
 }
 
 function fetch_page_previous() {
-    if (have_page_id(current_subpage - 1)) {
-        current_subpage -= 1;
+    if (have_page_id(current_page - 1)) {
+        current_page -= 1;
         fetch_page();
     }
 }
@@ -735,9 +752,10 @@ function process_tokens(data, default_attribute) {
                 continue;
         }
 
+        /* Regular characters */
         if (current_byte >= 0x20 && current_byte <= 0x7f) {
             if (mode_inverted) {
-                ui_set_cursor_attribute(ui_swap_attribute(token_attribute));
+                ui_set_cursor_attribute(zx_swap_attribute(token_attribute));
             } else {
                 ui_set_cursor_attribute(token_attribute);
             }
@@ -746,9 +764,10 @@ function process_tokens(data, default_attribute) {
             continue;
         }
 
+        /* Glyphs */
         if (current_byte >= 0x80) {
             if (mode_inverted) {
-                ui_set_cursor_attribute(ui_swap_attribute(token_attribute));
+                ui_set_cursor_attribute(zx_swap_attribute(token_attribute));
             } else {
                 ui_set_cursor_attribute(token_attribute);
             }
@@ -775,13 +794,6 @@ function parse_index(content) {
     set_error("Unknown type");
 }
 
-// function parseGAL(content) {
-//     current_page_type = PAGE_TYPES.GALLERY;
-//     current_subpage_max = Number("0x" + content.slice(3, 5));
-//     fetchCurrent();
-//     return true;
-// }
-
 function parse_index_IDX(content) {
     var index_data = {
         type: 'IDX',
@@ -795,9 +807,9 @@ function parse_index_IDX(content) {
         pages: {}
     };
 
-    current_subpage = -1;
+    current_page = -1;
     if (index_data.page_count > 0) {
-        current_subpage = 0;
+        current_page = 0;
         for (var page_id = 0; page_id < index_data.page_count; page_id++) {
             var page_start = 0x40 + (page_id * 4)
             index_data.pages[page_id] = {
@@ -811,16 +823,16 @@ function parse_index_IDX(content) {
     return true;
 }
 
-function get_idx_hex(content, start, num_bytes) {
-    return Number("0x" + content.slice(start, start + num_bytes));
-}
-
-function get_idx_page(content, start, num_bytes) {
-    return Number(content.slice(start, start + num_bytes));
-}
-
-function get_idx_string(content, start, num_bytes) {
-    return content.slice(start, start + num_bytes).replace(/\0.*$/g,'');
+/**
+ * Set document ID that should be loaded. Return value is used to determine
+ * if there were any changes.
+ */
+function set_document(document_id) {
+    if (document_id > DOCUMENT_ZERO) {
+        current_document = document_id;
+        return true;
+    }
+    return false;
 }
 
 // The function gets called when the window is fully loaded
@@ -848,11 +860,12 @@ window.onload = function () {
                 current_input = (current_input + event.key).slice(-4);
                 break;
             case "Enter":
-                var next_page = Number(current_input);
-                if (next_page == 0) {
-                    next_page = PAGE_DEFAULT;
+                var document_id = Number(current_input);
+                if (document_id == DOCUMENT_ZERO) {
+                    set_document(DOCUMENT_DEFAULT);
+                } else {
+                    set_document(document_id);
                 }
-                current_page = next_page;
                 current_input = "";
                 fetch_index();
                 break;
@@ -873,23 +886,48 @@ window.onload = function () {
                 break;
 
             case "ArrowLeft":
-                current_page--;
-                if (current_page < PAGE_MINIMUM) current_page = PAGE_MINIMUM;
-                fetch_index();
+                if (current_document > PAGE_MINIMUM) {
+                    current_document--;
+                    fetch_index();
+                }
                 break;
 
             case "ArrowRight":
-                current_page++;
-                if (current_page > PAGE_MAXIMUM) current_page = PAGE_MAXIMUM;
-                fetch_index();
+                if (current_document < PAGE_MAXIMUM) {
+                    current_document++;
+                    fetch_index();
+                }
                 break;
 
-            }
+            /* Link A (Blue) */
+            case 'z':
+            case 'b': // (b)lue
+                if (set_document(get_link_id('link_a'))) {
+                    fetch_index();
+                }
+                break;
+
+            /* Link B (Red) */
+            case 'x':
+            case 'r': // (r)ed
+                if (set_document(get_link_id('link_b'))) {
+                    fetch_index();
+                }
+                break;
+
+            /* Link C (Magenta) */
+            case 'c':
+            case 'm': // (m)agenta
+                if (set_document(get_link_id('link_c'))) {
+                    fetch_index();
+                }
+                break;
+        }
 
         request_render_screen();
     }
 
-    zx_clear_memory(0, zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.WHITE));
+    zx_clear_memory(0, STYLE_DEFAULT);
     request_render_screen();
     fetch_index();
 

@@ -542,6 +542,9 @@ class SpecsciiFormat:
                     # Update attribute at location
                     if not cell.char_attribute == ZXToken.UNDEFINED:
                         self.__set_attribute(file, cell.char_attribute)
+                    else:
+                        self.__set_attribute(file, self.current_attribute)
+
 
                     self.__write_inverted(file, self.__get_inverted(cell.char_inverted))
 

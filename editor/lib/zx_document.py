@@ -17,8 +17,9 @@ class ZXDocument:
     EXTENSION_SCREENSHOT = '.png'
     EXTENSION_DOCUMENT = '.telezx'
     EXTENSION_DOCUMENT_TMP = EXTENSION_DOCUMENT + '-tmp'
-    DOCUMENT_ID_MIN = 0
+    DOCUMENT_ID_MIN = 1
     DOCUMENT_ID_MAX = 9999
+    DOCUMENT_ID_NONE = 0
 
     enable_preview = True
 
