@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from typing import Generator
-from .utilities import update_tree, format_padded_id, QuotedYAML, parse_document_id
+from .utilities import update_tree, format_padded_id, QuotedYAML, parse_document_id, parse_asset_id
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
 from .zx_token import ZXToken, ZXScreenIterator, ZXScreen
@@ -10,6 +10,7 @@ class ZXDocument:
     PATH_SRC = 'src'
     PATH_OUT = 'out'
     PATH_ASSETS = 'assets'
+
     EXTENSION_INDEX = '.idx'
     EXTENSION_TOKEN = '.tkn'
     EXTENSION_SCR = '.scr'
@@ -17,9 +18,14 @@ class ZXDocument:
     EXTENSION_SCREENSHOT = '.png'
     EXTENSION_DOCUMENT = '.telezx'
     EXTENSION_DOCUMENT_TMP = EXTENSION_DOCUMENT + '-tmp'
+    FILENAME_DEFAULT = f'document{EXTENSION_DOCUMENT}'
+    DOCUMENT_ID_NONE = 0
     DOCUMENT_ID_MIN = 1
     DOCUMENT_ID_MAX = 9999
-    DOCUMENT_ID_NONE = 0
+    PAGE_ID_MIN = 0
+    PAGE_ID_MAX = 99
+    ASSET_ID_MIN = 0
+    ASSET_ID_MAX = 99
 
     enable_preview = True
 
@@ -167,15 +173,38 @@ class ZXDocument:
         '''
         return self.working_path.joinpath(path).resolve()
 
-    def get_next_page_id(self) -> int:
+    def get_next_asset_id(self) -> int:
         '''
-        Get the ID that will be assigned to the next page added. This is needed
-        as we will at time need some assets to already exist when we create the
-        the actual pages.
+        Get the ID that should be assigned to the next asset added. This is
+        needed so that we can manage associated files without accidentally
+        overwriting something.
         '''
-        return len(self.pages)
+        available = [page_id for page_id in range(self.ASSET_ID_MIN, self.ASSET_ID_MAX + 1)]
+        for asset_id, path in self.scan_assets():
+            # Note that there might be other files stored alongside it with the
+            # same ID (source files, about documents etc), meaning that we might
+            # encounter the same value more than once.
+            if asset_id in available:
+                available.remove(asset_id)
+        if available:
+            return available[0]
+        raise ZXDocumentOverflowError('Could not find a free asset ID')
 
-    def get_page(self, page_id: int) -> ZXPage:
+    def scan_assets(self) -> Generator:
+        for child in self.working_path.iterdir():
+            if not child.is_file():
+                continue
+            if len(child.name) < 3:
+                continue
+            if child.name[2] not in ['-', '.']:
+                continue
+            try:
+                asset_id = parse_asset_id(child.name[0:2])
+                yield (asset_id, child)
+            except ValueError:
+                pass
+
+    def get_page(self, page_id: int) -> ZXPage | None:
         '''
         Retrieve page stored with the specified page id. Note that as the page
         is based on length, we'll start to run into programs if we were to
@@ -199,6 +228,8 @@ class ZXDocument:
     def register_page(self, page) -> int:
         if not isinstance(page, ZXPage):
             raise TypeError("{} does not appear to a page-type object".format(page))
+        if len(self.pages) == self.PAGE_ID_MAX:
+            raise ZXDocumentOverflowError('Could not find a free page ID')
         page_id = len(self.pages)
         self.pages.append(page)
         return page_id
@@ -275,16 +306,16 @@ class ZXDocument:
 
     @classmethod
     def from_document_id(cls, repository: Path, document_id: int) -> ZXDocument:
-        documents_repository = repository / cls.PATH_SRC
+        documents_repository = Path(repository) / cls.PATH_SRC
         padded_id = format_padded_id(document_id)
         for child in documents_repository.iterdir():
             if child.is_dir() and child.name.startswith(padded_id):
-                path = child / f'{padded_id}{ZXDocument.EXTENSION_DOCUMENT}'
+                path = child / ZXDocument.FILENAME_DEFAULT
                 return cls.from_file(repository, path)
         raise FileNotFoundError('document id did not correspond to an existing file')
 
     @classmethod
-    def scan_documents(cls, documents_repository, min_id=DOCUMENT_ID_MIN, max_id=DOCUMENT_ID_MAX) -> Generator[int, None, None]:
+    def scan_documents(cls, repository: Path, min_id=DOCUMENT_ID_MIN, max_id=DOCUMENT_ID_MAX) -> Generator[int, None, None]:
         '''
         Scan documents and return an ordered set of document IDs encountered
         with either of the following two path structures (does not attempt to
@@ -292,13 +323,13 @@ class ZXDocument:
             documents/<ID>/<ID>.telezx
             documents/<ID>-<DESCRIPTION>/<ID>.telezx
         '''
-        documents_repository = Path(documents_repository)
-        for child in sorted(documents_repository.iterdir()):
+        src_dir = Path(repository) / ZXDocument.PATH_SRC
+        for child in sorted(src_dir.iterdir()):
             if child.is_dir():
                 try:
                     document_id = parse_document_id(child.name[0:4])
                     if document_id >= min_id and document_id <= max_id:
-                        document_path = child / f'{format_padded_id(document_id)}{cls.EXTENSION_DOCUMENT}'
+                        document_path = child / ZXDocument.FILENAME_DEFAULT
                         if document_path.exists():
                             yield document_id
                 except ValueError:
@@ -328,6 +359,17 @@ class ZXDocument:
             if data is None or cls.__name__ not in data:
                 raise ValueError("does not look like a {}-file".format(cls.__name__))
             return data
+
+
+class ZXDocumentOverflowError(Exception):
+    '''
+    Exception raised when attempting to add new details to a documentm but
+    there was no more room available to do so.
+    '''
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
 
 class ZXPage:
     INDEX_TYPE_SCR = 0x55

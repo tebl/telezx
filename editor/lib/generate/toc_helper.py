@@ -17,7 +17,6 @@ class TOCHelper(RepositoryHelper):
     def create_toc(self, document_id_start = 9900):
         document_id = document_id_start
         self.__create_toc_index(document_id)
-
         registry_toc = self.registry.generate_TOC_AZ()
         for letter in self.registry.LETTERS_AZ:
             document_id += 1
@@ -30,7 +29,7 @@ class TOCHelper(RepositoryHelper):
                 current_y = 4
                 page_id = 0
 
-                current_page = self.__get_titlepage(document_id, page_id, f'{self.TOC_TITLE} ({letter})', target_directory)
+                current_page = self.__get_titlepage(document, f'{self.TOC_TITLE} ({letter})')
 
                 first_item = True
                 for description, link_id in items:
@@ -43,7 +42,7 @@ class TOCHelper(RepositoryHelper):
                                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path.name, export_format='TKN')
 
                                 page_id += 1
-                                current_page = self.__get_page(document_id, page_id, target_directory)
+                                current_page = self.__get_page(document)
                             else:
                                 self.logger.error(f'Item count for letter {letter} was truncated')
                                 break
@@ -72,11 +71,12 @@ class TOCHelper(RepositoryHelper):
 
     def __create_toc_index(self, document_id: int):
         target_directory = self.__create_path(document_id, 'TOC-Index')
+        self.logger.info('Creating', target_directory.name)
 
         with self.__get_document(document_id, self.TOC_TITLE, self.TOC_ABBREVIATION, target_directory) as document:
             document.link_a = 1000
 
-            with self.__get_titlepage(document_id, 0, self.TOC_TITLE, target_directory) as page:
+            with self.__get_titlepage(document, self.TOC_TITLE) as page:
                 page.set_string(1, 5, 'The corresponding pages have  ')
                 page.set_string(1, 6, 'been generated based on TeleZX')
                 page.set_string(1, 7, 'registry.')
@@ -104,26 +104,23 @@ class TOCHelper(RepositoryHelper):
     def __get_document(self, document_id: int, description, abbreviation, target_directory: Path):
         return ZXDocument(
             self.repository,
-            document_path=target_directory / "{}{}".format(
-                utilities.format_padded_id(document_id),
-                ZXDocument.EXTENSION_DOCUMENT
-            ),
+            document_path=target_directory / ZXDocument.FILENAME_DEFAULT,
             document_id=document_id,
             description=description,
             abbreviation=abbreviation
         )
 
-    def __get_page(self, document_id: int, page_id: int, target_directory: Path) -> ZXToken:
+    def __get_page(self, document: ZXDocument) -> ZXToken:
         return self.from_frame(
             self.resolve_frame_path('frame_default'),
-            self.__page_path(document_id, page_id, target_directory)
+            self.__page_path(document)
         )
 
-    def __get_titlepage(self, document_id: int, page_id: int, page_title, target_directory: Path) -> ZXToken:
+    def __get_titlepage(self, document: ZXDocument, page_title) -> ZXToken:
         page_title = page_title[0:(ZXScreen.SCREEN_WIDTH_CHARS-2)]
         zx_token = self.from_frame(
             self.resolve_frame_path('frame_default_title'),
-            self.__page_path(document_id, page_id, target_directory)
+            self.__page_path(document)
         )
         zx_token.set_string(self.__centered_position(page_title), 2, page_title)
         return zx_token
@@ -132,13 +129,9 @@ class TOCHelper(RepositoryHelper):
         return (ZXScreen.SCREEN_WIDTH_CHARS - len(title)) // 2
 
     def __create_path(self, document_id: int, path_hint: str) -> Path:
-        directory = self.src_path / utilities.suggest_document_path(document_id, path_hint)
+        directory = self.src_path / utilities.suggest_document_directory(document_id, path_hint)
         directory.mkdir(exist_ok=True)
         return directory
 
-    def __page_path(self, document_id: int, page_id: int, target_directory: Path) -> Path:
-        return target_directory / "{}.{}{}".format(
-            utilities.format_padded_id(document_id),
-            utilities.format_padded_id(page_id, width=2),
-            ZXToken.FILE_EXTENSION
-        )
+    def __page_path(self, document: ZXDocument, path_hint: str=None) -> Path:
+        return self.generate_asset_path(document, document.get_next_asset_id(), ZXToken.FILE_EXTENSION, path_hint)

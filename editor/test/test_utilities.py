@@ -12,6 +12,6 @@ class TestUtilities(unittest.TestCase):
         self.assertEqual(utilities.sanitize_filename('test'), 'test')
         self.assertEqual(utilities.sanitize_filename('Test?#"!%&/& '), 'Test')
 
-    def test_suggest_document_path(self):
-        self.assertEqual(utilities.suggest_document_path(1), '0001')
-        self.assertEqual(utilities.suggest_document_path(1, 'Test'), '0001-Test')
+    def test_suggest_document_directory(self):
+        self.assertEqual(utilities.suggest_document_directory(1), '0001')
+        self.assertEqual(utilities.suggest_document_directory(1, 'Test'), '0001-Test')

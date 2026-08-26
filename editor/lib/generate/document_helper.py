@@ -17,12 +17,12 @@ class DocumentHelper(RepositoryHelper):
         document.save()
         return document
     
-    def copy_token(self, document: ZXDocument, document_path: Path, export_format=None) -> ZXPage:
+    def copy_token(self, document: ZXDocument, token_path: Path, export_format=None) -> ZXPage:
         '''
         In effect this makes a copy of the specified ZXToken-file and adds a
         reference to it in the document.
         '''
-        return self.create_token(document, document_path, export_format)
+        return self.create_token(document, token_path, export_format, self.__extract_path_hint(token_path))
 
     def create_text(self, document: ZXDocument, frame_path: Path=None, text_lines: list[str]=None, text_attribute=ZXToken.UNSPECIFIED) -> ZXPage:
         '''
@@ -39,13 +39,13 @@ class DocumentHelper(RepositoryHelper):
         document.save()
         return zx_page
 
-    def create_token(self, document: ZXDocument, frame_path: Path=None, export_format=None) -> ZXPage:
+    def create_token(self, document: ZXDocument, frame_path: Path=None, export_format=None, path_hint: str=None) -> ZXPage:
         '''
         Create a new ZXToken page in the specified document, this will either be
         a completely blank document or we can specify the path to a frame that
         will be used as a template (effectively making a copy of it).
         '''
-        asset_path = self.generate_token_path(document, document.get_next_page_id())
+        asset_path = self.generate_token_path(document, document.get_next_asset_id(), path_hint)
         zx_token = self.generate_zx_token(asset_path, frame_path)
         zx_token.save()
 
@@ -55,7 +55,7 @@ class DocumentHelper(RepositoryHelper):
         document.save()
         return zx_page
 
-    def create_overlay(self, document: ZXDocument, scr_path: Path, scr_about: dict, text_lines: list[str]=None, text_attribute=ZXToken.UNSPECIFIED) -> ZXPage:
+    def create_overlay(self, document: ZXDocument, scr_path: Path, scr_about: dict, text_lines: list[str]=None, text_attribute=ZXToken.UNSPECIFIED, path_hint: str=None) -> ZXPage:
         scr_path = Path(scr_path)
         if not text_lines:
             text_lines = ZXPage_ClearText.blank_text()
@@ -64,12 +64,26 @@ class DocumentHelper(RepositoryHelper):
         else:
             scr_about = utilities.update_tree(ZXPage_Overlay.blank_about(), scr_about)
 
-        asset_path = self.generate_scr_path(document, document.get_next_page_id())
+        if path_hint is None:
+            path_hint = self.__extract_path_hint(scr_path)
+        asset_path = self.generate_scr_path(document, document.get_next_asset_id(), path_hint)
         scr_path.copy(asset_path)
 
         zx_page = ZXPage_Overlay(document, asset_path, scr_about, text_lines, text_attribute)
         document.save()
         return zx_page
+
+    def __extract_path_hint(self, asset_path: Path):
+        '''
+        Sometimes we may be instructed to create a new asset from one that
+        already exists within the repository
+        '''
+        path_hint = Path(asset_path).stem
+        if not asset_path.is_relative_to(self.repository):
+            return path_hint
+        if len(path_hint) > 3 and path_hint[2] == '-':
+            return path_hint[3:]
+        return path_hint
 
     def export_document(self, document: ZXDocument, registry: ZXRegistry) -> bool:
         return document.export(self.out_path, registry)

@@ -34,7 +34,7 @@ class RepositoryHelper:
         zx_token.set_document(page_path)
         return zx_token
 
-    def resolve_frame_path(self, frame_name) -> Path:
+    def resolve_frame_path(self, frame_name: str) -> Path:
         path = self.asset_path / f'{frame_name}{ZXToken.FILE_EXTENSION}'
         if path.exists():
             return path
@@ -43,25 +43,18 @@ class RepositoryHelper:
             return path
         raise FileNotFoundError(f'{frame_name} does not exist')
 
-    def generate_document_path(self, document_id, path_hint=None) -> Path:
-        base_path = self.src_path / utilities.suggest_document_path(document_id, path_hint)
-        return base_path / "{}{}".format(
-            utilities.format_padded_id(document_id),
-            ZXDocument.EXTENSION_DOCUMENT
-        )
+    def generate_document_path(self, document_id: int, path_hint=None) -> Path:
+        base_path = self.src_path / utilities.suggest_document_directory(document_id, path_hint)
+        return base_path / ZXDocument.FILENAME_DEFAULT
 
-    def generate_token_path(self, document: ZXDocument, page_id) -> Path:
-        return self.generate_asset_path(document, page_id, ZXToken.FILE_EXTENSION)
+    def generate_token_path(self, document: ZXDocument, asset_id: int, path_hint: str=None) -> Path:
+        return self.generate_asset_path(document, asset_id, ZXToken.FILE_EXTENSION, path_hint)
 
-    def generate_scr_path(self, document: ZXDocument, page_id) -> Path:
-        return self.generate_asset_path(document, page_id, ZXDocument.EXTENSION_SCR)
+    def generate_scr_path(self, document: ZXDocument, asset_id: int, path_hint: str=None) -> Path:
+        return self.generate_asset_path(document, asset_id, ZXDocument.EXTENSION_SCR, path_hint)
 
-    def generate_asset_path(self, document: ZXDocument, page_id: int, extension: str) -> Path:
-        return document.working_path / "{}.{}{}".format(
-            utilities.format_padded_id(document.document_id),
-            utilities.format_padded_id(page_id, width=2),
-            extension
-        )
+    def generate_asset_path(self, document: ZXDocument, asset_id: int, extension: str, path_hint: str=None) -> Path:
+        return document.working_path / utilities.suggest_asset_path(asset_id, extension, path_hint)
 
     def get_path_relative_to(self, document: ZXDocument, path: Path) -> Path:
         '''

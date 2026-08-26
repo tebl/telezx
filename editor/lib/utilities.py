@@ -44,6 +44,12 @@ def get_project_root() -> Path:
     '''
     return Path(__file__).parent.parent
 
+def parse_asset_id(value):
+    value = int(value)
+    if value < 0 or value > 99:
+        raise ValueError(f'Does not look like a valid asset id')
+    return value
+
 def parse_document_id(value):
     value = int(value)
     if value < 0 or value > 9999:
@@ -56,7 +62,7 @@ def sanitize_filename(filename):
     filename = re.sub(r'[^\w\s-]', '', filename)
     return re.sub(r'[-\s]+', '-', filename).strip('-_')
 
-def suggest_document_path(document_id, path_hint=None):
+def suggest_document_directory(document_id: int, path_hint=None):
     '''
     Just generates a string with a predictable format, doesn't actually
     create or check if anything already exist.
@@ -67,6 +73,24 @@ def suggest_document_path(document_id, path_hint=None):
         format_padded_id(document_id),
         sanitize_filename(path_hint)
     )
+
+def suggest_asset_path(asset_id: int, extension: str, path_hint: str=None):
+    '''
+    Generates asset path, no attempts made at checking if that would overlap
+    any such existing file as that is assumed to be intentional. 
+    '''
+    if path_hint and str(path_hint).endswith(extension):
+        path_hint = path_hint[:len(extension)]
+    if not path_hint:
+        return "{}{}".format(
+            format_padded_id(asset_id, width=2),
+            extension
+        )
+    return "{}-{}{}".format(
+        format_padded_id(asset_id, width=2),
+        sanitize_filename(path_hint),
+        extension
+    )    
 
 def update_tree(data, update):
     '''

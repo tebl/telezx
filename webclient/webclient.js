@@ -545,7 +545,7 @@ function fetch_page() {
     var page = null;
     if (current_index == null) return generate_blank_page(ERROR_ATTRIBUTE);
     if (have_page_id(current_page)) page = current_index.pages[current_page];
-    if (page == null) return generate_blank_page(ERROR_ATTRIBUTE);
+    if (page == null) return generate_blank_page();
     
     if (page.type == ASSET_TYPES.TOKEN) {
         return fetch_token_asset(

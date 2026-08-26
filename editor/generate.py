@@ -131,7 +131,7 @@ def cmd_export(args, parser: ArgumentParser):
         start_at = args.start if args.start else ZXDocument.DOCUMENT_ID_MIN
         stop_at = args.end if args.end else ZXDocument.DOCUMENT_ID_MAX
         print(f'Export document IDs: {start_at}..{stop_at}')
-        for document_id in ZXDocument.scan_documents(documents_path, min_id=start_at, max_id=stop_at):
+        for document_id in ZXDocument.scan_documents(repository, min_id=start_at, max_id=stop_at):
             __export_id(
                 repository,
                 document_id, 
@@ -180,11 +180,11 @@ def cmd_pages(args, parser: ArgumentParser):
 
     if args.create_overlay:
         scr_about = ZXPage_Overlay.blank_about()
-        scr_about['title'] = args.set_scr_title
+        scr_about['title'] = args.set_scr_title if args.set_scr_title else __suggest_scr_title(args.create_overlay)
         scr_about['author'] = args.set_scr_author
-        scr_about['source'] = args.set_scr_source if args.set_scr_source else args.create_overlay.name
+        scr_about['source'] = args.set_scr_source if args.set_scr_source else __suggest_scr_source(args.create_overlay)
         scr_about['license'] = args.set_scr_license
-        page = helper.create_overlay(document, args.create_overlay, scr_about)
+        page = helper.create_overlay(document, args.create_overlay, scr_about, path_hint=args.path_hint)
         print_page_details(page, 'created')
         changes = True
 
@@ -231,13 +231,16 @@ def cmd_pages(args, parser: ArgumentParser):
 
     print('Done.')
 
-def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPage) -> bool:
-    changes = False
+def __suggest_scr_source(asset_path: Path):
+    return asset_path.name
 
+def __suggest_scr_title(asset_path: Path):
+    return asset_path.stem.replace('_', ' ')
+
+def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPage) -> bool:
     # Not really implemented as most tasks are just easier to perform by
     # editing files directly. Sorry about that.
-
-    return changes
+    return False
 
 
 def __open_editor(args, parser: ArgumentParser, page: ZXPage):
@@ -253,6 +256,7 @@ def cmd_registry(args, parser: ArgumentParser):
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
     registry = get_registry(repository)
+    print()
 
     if args.set_ignore:
         print(f'Registry will now ignore {utilities.format_padded_id(args.set_ignore)}')
@@ -274,9 +278,11 @@ def cmd_toc(args, parser):
     '''
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
+    print()
 
     helper = TOCHelper(repository=args.repository)
     if args.create:
+        print('Creating TOC:')
         helper.create_toc()
     print('Done.')
 
@@ -383,6 +389,7 @@ def main():
     group.add_argument('--create-text', action='store_true', help="Add clear text page to document")
     group.add_argument('--create-overlay', type=check_scr, help="Add clear text page to document")
     group = parser_page.add_argument_group('Page properties')
+    group.add_argument('--path-hint', type=str, help="Path hint used when creating file")
     group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
     group.add_argument('--with-format', choices={'SCR', 'TKN'}, default='TKN', help="Format of ZXToken export")
     group.add_argument('--set-scr-title', type=str, default='', help="The SCR about field for title")
