@@ -23,12 +23,21 @@ def argument_is_file(path):
         raise ArgumentError(f'is not an existing file')
     return path
 
-def argument_is_id(value):
+def argument_is_document_id(value):
     '''
     Check that the supplied value appears to be an int between 0 and 9999
     '''
     try:
         return parse_document_id(value)
+    except ValueError:
+        raise ArgumentError(f'Does not look like a valid document id')
+
+def argument_is_page_id(value):
+    '''
+    Check that the supplied value appears to be an int between 0 and 9999
+    '''
+    try:
+        return parse_page_id(value)
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
@@ -45,15 +54,22 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent
 
 def parse_asset_id(value):
-    value = int(value)
-    if value < 0 or value > 99:
-        raise ValueError(f'Does not look like a valid asset id')
-    return value
+    return ensure_int(value, 0, 99)
 
 def parse_document_id(value):
+    return ensure_int(value, 0, 9999)
+
+def parse_page_id(value):
+    return ensure_int(value, 0, 99)
+
+def ensure_int(value, value_min, value_max):
+    '''
+    Ensure that we get an integer between the supplied value range, both ends
+    included in the comparison.
+    '''
     value = int(value)
-    if value < 0 or value > 9999:
-        raise ValueError(f'Does not look like a valid document id')
+    if value < value_min or value > value_max:
+        raise ValueError(f'Value not between {value_min} and {value_max}')
     return value
 
 def sanitize_filename(filename):

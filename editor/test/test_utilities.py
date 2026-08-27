@@ -21,3 +21,18 @@ class TestUtilities(unittest.TestCase):
         self.assertEqual(utilities.suggest_asset_path(0, '.scr', 'test'), '00-test.scr')
         self.assertEqual(utilities.suggest_asset_path(0, '.scr', 'test.scr'), '00-test.scr')
         self.assertEqual(utilities.suggest_asset_path(0, '.scr', 'Test?#"!%&/& '), '00-Test.scr')
+
+    def test_ensure_int(self):
+        self.assertEqual(utilities.ensure_int('44', 0, 99), 44)
+
+        # Ends considered valid
+        self.assertEqual(utilities.ensure_int('0', 0, 99), 0)
+        self.assertEqual(utilities.ensure_int('99', 0, 99), 99)
+
+        # Test invalid values
+        with self.assertRaises(ValueError):
+            self.assertEqual(utilities.ensure_int('xx', 0, 99), 99)
+        with self.assertRaises(ValueError):
+            self.assertEqual(utilities.ensure_int('-1', 0, 99), 99)
+        with self.assertRaises(ValueError):
+            self.assertEqual(utilities.ensure_int('9999', 0, 99), 99)

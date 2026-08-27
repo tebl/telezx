@@ -3,7 +3,7 @@ import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
-from lib.generate import AssetHelper, DocumentHelper, TOCHelper
+from lib.generate import AssetHelper, DocumentHelper, TOCHelper, TransformationHelper, TransformationFormatError
 
 def cmd_assets(args, parser):
     '''
@@ -198,10 +198,10 @@ def cmd_pages(args, parser: ArgumentParser):
         print_page_details(page, 'created')
         changes = True
 
-    if args.open_page is not None:
-        page = document.get_page(args.open_page)
+    if args.page_id is not None:
+        page = document.get_page(args.page_id)
         if not page:
-            print(f'ERROR: Page with ID {args.open_page} could not be loaded!')
+            print(f'ERROR: Page with ID {args.page_id} could not be loaded!')
             return
         print_page_details(page, 'opened')
 
@@ -242,7 +242,6 @@ def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPa
     # editing files directly. Sorry about that.
     return False
 
-
 def __open_editor(args, parser: ArgumentParser, page: ZXPage):
     if isinstance(page, ZXPage_Token):
         subprocess.run([utilities.get_project_root() / 'editor.py', page.zxtoken_path])
@@ -272,7 +271,7 @@ def cmd_registry(args, parser: ArgumentParser):
     registry.save()
     print('Registry saved.')
 
-def cmd_toc(args, parser):
+def cmd_toc(args, parser: ArgumentParser):
     '''
     Handle argumentparser subcommand for table of contents.
     '''
@@ -280,13 +279,68 @@ def cmd_toc(args, parser):
     print_repository_details(repository)
     print()
 
-    helper = TOCHelper(repository=args.repository)
-    if args.create:
-        print('Creating TOC:')
+    helper = TOCHelper(args.repository)
+    if args.update:
+        print('Updating TOC:')
         helper.create_toc()
     print('Done.')
 
-def get_repository(path: Path, parser) -> Path:
+def cmd_transform(args, parser: ArgumentParser):
+    '''
+    Handle argumentparser subcommand for transforming document pages.
+    '''
+    repository: Path = get_repository(args.repository, parser)
+    print_repository_details(repository)
+    registry = get_registry(repository)
+    changes = False
+
+    helper = TransformationHelper(repository)
+    if args.document_id:
+        try:
+            document = helper.open_document(args.document_id, allow_none=False)
+            print_document_details(document, registry, action='opened')
+        except FileNotFoundError:
+            print(f'ERROR: Document with ID {args.document_id} could not be loaded!')
+            return
+    print()
+
+    if args.page_id is not None:
+        page = document.get_page(args.page_id)
+        if not page:
+            print(f'ERROR: Page with ID {args.page_id} could not be loaded!')
+            return
+
+        try:
+            helper.open_page(page)
+            print_page_details(page, 'opened')
+        except TransformationFormatError as e:
+            print(f'ERROR: {e}')
+            return
+        except FileNotFoundError:
+            print(f'ERROR: Page with ID {args.page_id} has missing asset')
+            return
+    print()
+
+    if args.blank_line:
+        for char_y in args.blank_line:
+            helper.clear_line(char_y)
+
+    if args.restore:
+        print('Restoring original file:')
+        helper.restore()
+        # helper.blank_line
+        # if args.id:
+        # print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
+        # for document_id in args.id:
+        #     __export_id(
+        #         repository,
+        #         document_id, 
+        #         output_path,
+        #         registry)
+
+    print('Done.')
+
+def get_repository(path: Path, parser: ArgumentParser) -> Path:
     path: Path = Path(path)
     if not path.is_dir():
         parser.error(f'Repository path {path} does not exist!')
@@ -364,25 +418,33 @@ def main():
     parser_document = subparsers.add_parser('document', help='Manage documents')
     parser_document.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     group = parser_document.add_mutually_exclusive_group(required=True)
-    group.add_argument('-c', '--create-id', type=utilities.argument_is_id, help="Create document ID")
-    group.add_argument('-f', '--open-id', type=utilities.argument_is_id, help="Open document ID")
+    group.add_argument('-c', '--create-id', type=utilities.argument_is_document_id, help="Create document ID")
+    group.add_argument('-f', '--open-id', type=utilities.argument_is_document_id, help="Open document ID")
     group = parser_document.add_argument_group('Document management')
     group.add_argument('--path-hint', type=str, help="Path hint appended to document directory upon creation")
     group.add_argument('--set-abbreviation', type=str, help="Set abbreviation")
     group.add_argument('--set-description', type=str, help="Set description")
-    group.add_argument('--set-link-a', type=utilities.argument_is_id, help="Set link A")
+    group.add_argument('--set-link-a', type=utilities.argument_is_document_id, help="Set link A")
     group.add_argument('--set-link-a-txt', type=str, help="Set link A description")
-    group.add_argument('--set-link-b', type=utilities.argument_is_id, help="Set link B")
+    group.add_argument('--set-link-b', type=utilities.argument_is_document_id, help="Set link B")
     group.add_argument('--set-link-b-txt', type=str, help="Set link B description")
-    group.add_argument('--set-link-c', type=utilities.argument_is_id, help="Set link C")
+    group.add_argument('--set-link-c', type=utilities.argument_is_document_id, help="Set link C")
     group.add_argument('--set-link-c-txt', type=str, help="Set link C description")
     parser_document.set_defaults(function=cmd_documents)
 
-    parser_page = subparsers.add_parser('page', help='Manage pages')
+    parser_export = subparsers.add_parser('export', help='Export documents')
+    parser_export.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
+    parser_export.add_argument('-a', '--all', action='store_true', help="Export all documents found")
+    parser_export.add_argument('-s', '--start', type=utilities.argument_is_document_id, help="First Document ID in export range")
+    parser_export.add_argument('-e', '--end', type=utilities.argument_is_document_id, help="Last Document ID in export range")
+    parser_export.add_argument('-i', '--id', type=utilities.argument_is_document_id, action='extend', nargs='*', help="Specific Document ID to be exported")
+    parser_export.set_defaults(function=cmd_export)
+
+    parser_page = subparsers.add_parser('page', help='Manage document pages')
     parser_page.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
-    parser_page.add_argument('-f', '--document-id', type=utilities.argument_is_id, required=True, help="Specify document ID")
+    parser_page.add_argument('-f', '--document-id', type=utilities.argument_is_document_id, required=True, help="Specify document ID")
     group = parser_page.add_mutually_exclusive_group(required=True)
-    group.add_argument('-p', '--open-page', type=utilities.argument_is_id, help="Open page ID")
+    group.add_argument('-p', '--page-id', type=utilities.argument_is_page_id, help="Open page ID")
     group.add_argument('--link-token', type=check_zxtoken, help="Link ZXToken as page in document")
     group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
     group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
@@ -400,26 +462,27 @@ def main():
     group.add_argument('--export', action='store_true', help="Export affected document")
     parser_page.set_defaults(function=cmd_pages)
 
-    parser_export = subparsers.add_parser('export', help='Export documents')
-    parser_export.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
-    parser_export.add_argument('-a', '--all', action='store_true', help="Export all documents found")
-    parser_export.add_argument('-s', '--start', type=utilities.argument_is_id, help="First Document ID in export range")
-    parser_export.add_argument('-e', '--end', type=utilities.argument_is_id, help="Last Document ID in export range")
-    parser_export.add_argument('-i', '--id', type=utilities.argument_is_id, action='extend', nargs='*', help="Specific Document ID to be exported")
-    parser_export.set_defaults(function=cmd_export)
-
-    parser_registry = subparsers.add_parser('registry', help='Create registry')
+    parser_registry = subparsers.add_parser('registry', help='Manage registry')
     parser_registry.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
-    parser_registry.add_argument('--set-ignore', type=utilities.argument_is_id, help="Add document ID to ignored list")
-    parser_registry.add_argument('--remove-ignore', type=utilities.argument_is_id, help="Remove document ID from ignored list")
+    parser_registry.add_argument('--set-ignore', type=utilities.argument_is_document_id, help="Add document ID to ignored list")
+    parser_registry.add_argument('--remove-ignore', type=utilities.argument_is_document_id, help="Remove document ID from ignored list")
     parser_registry.add_argument('-x', '--clear', action='store_true', help="Clear contents")
     parser_registry.set_defaults(function=cmd_registry)
 
     parser_toc = subparsers.add_parser('toc', help='Table of contents')
     parser_toc.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     group = parser_toc.add_mutually_exclusive_group(required=True)
-    group.add_argument('-c', '--create', action='store_true', help="Create TOC from registry")
+    group.add_argument('-u', '--update', action='store_true', help="Update TOC from registry")
     parser_toc.set_defaults(function=cmd_toc)
+
+    parser_transform = subparsers.add_parser('transform', help='Transform page contents')
+    parser_transform.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
+    parser_transform.add_argument('-f', '--document-id', type=utilities.argument_is_document_id, required=True, help="Specify document ID")
+    parser_transform.add_argument('-p', '--page-id', type=utilities.argument_is_page_id, required=True, help="Open page ID")
+    group = parser_transform.add_mutually_exclusive_group(required=True)
+    group.add_argument('--blank-line', type=utilities.argument_is_page_id, action='extend', nargs='*', help="Clear the specified line")
+    group.add_argument('--restore', action='store_true', help="Restore original file")
+    parser_transform.set_defaults(function=cmd_transform)
 
     args = parser.parse_args()
     if args.debug:

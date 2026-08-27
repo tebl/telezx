@@ -14,6 +14,7 @@ class ZXDocument:
     EXTENSION_INDEX = '.idx'
     EXTENSION_TOKEN = '.tkn'
     EXTENSION_SCR = '.scr'
+    EXTENSION_SCR_ORIGINAL = EXTENSION_SCR + '-original'
     EXTENSION_ABOUT = '.about'
     EXTENSION_SCREENSHOT = '.png'
     EXTENSION_DOCUMENT = '.telezx'
@@ -64,7 +65,7 @@ class ZXDocument:
             return False
         return True
 
-    def clean(self, output_directory: Path, indent=0) -> True:
+    def clean_output(self, output_directory: Path, indent=0) -> True:
         path = self.get_output_base(output_directory)
         self.logger.debug('cleaning', path, 'assets', indent=indent)
         for asset in self.__asset_list(directory=path.parent, basename=path.name):
@@ -112,7 +113,7 @@ class ZXDocument:
         self.logger.info('export', self.document_path, '->', target_directory, indent=log_indent)
         if not target_directory.is_dir():
             target_directory.mkdir()
-        self.clean(target_directory, indent=(log_indent+1))
+        self.clean_output(target_directory, indent=(log_indent+1))
         with open(self.get_output_path(target_directory), 'w') as file:
             file.write('IDX')
             self.__export_digits(file, len(self.pages))
@@ -191,6 +192,17 @@ class ZXDocument:
         raise ZXDocumentOverflowError('Could not find a free asset ID')
 
     def scan_assets(self) -> Generator:
+        '''
+        Scans the working directory for existing assets, files with the
+        following formats will be matched:
+            <Asset ID>.<Extension>
+            <Asset ID>-<PATH HINT>.<Extension>
+
+        Asset ID is a two digit number, and while an extension is required
+        we don't really care what it is. Note that the existence of these
+        files count as an asset ID existing, not that it is actually 
+        referenced anywhere.
+        '''
         for child in self.working_path.iterdir():
             if not child.is_file():
                 continue
@@ -210,7 +222,7 @@ class ZXDocument:
         is based on length, we'll start to run into programs if we were to
         remove anything other than the last page.
         '''
-        if page_id >= 0 and page_id < len(self.pages):
+        if page_id >= self.PAGE_ID_MIN and page_id < len(self.pages):
             return self.pages[page_id]
         return None
         

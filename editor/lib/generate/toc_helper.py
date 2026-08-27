@@ -130,8 +130,21 @@ class TOCHelper(RepositoryHelper):
 
     def __create_path(self, document_id: int, path_hint: str) -> Path:
         directory = self.src_path / utilities.suggest_document_directory(document_id, path_hint)
-        directory.mkdir(exist_ok=True)
+        if not directory.is_dir():
+            directory.mkdir()
+        else:
+            self.__clear_directory(directory)
         return directory
+
+    def __clear_directory(self, directory: Path, indent: int=0):
+        self.logger.debug('Clearing existing assets', indent=indent)
+        for page_id in range(ZXDocument.ASSET_ID_MIN, ZXDocument.ASSET_ID_MAX + 1):
+            asset_path = Path(directory) / utilities.suggest_asset_path(page_id, ZXToken.FILE_EXTENSION)
+            if asset_path.is_file():
+                self.logger.debug('Removing', asset_path, indent=(indent+1))
+                asset_path.unlink()
+            else:
+                return
 
     def __page_path(self, document: ZXDocument, path_hint: str=None) -> Path:
         return self.generate_asset_path(document, document.get_next_asset_id(), ZXToken.FILE_EXTENSION, path_hint)

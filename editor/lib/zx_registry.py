@@ -79,7 +79,7 @@ class ZXRegistry:
         if registry_key in self.ignored:
             return False
         
-        self.logger.debug('sync_record', f'{document_id=}, {description=}, {abbreviation=}')
+        # self.logger.debug('sync_record', f'{document_id=}, {description=}, {abbreviation=}')
         record = self.__get_updated_record(registry_key, document_id, description, abbreviation)
         if record.is_valid():
             self.register[registry_key] = record
