@@ -1,0 +1,4 @@
+ttkbootstrap<2.0
+numpy
+pillow
+PyYAML
