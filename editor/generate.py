@@ -5,7 +5,43 @@ from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
 from lib.generate import AssetHelper, DocumentHelper, TOCHelper, TransformationHelper, TransformationFormatError
 
-def cmd_assets(args, parser):
+def cmd_attribute(args, parser: ArgumentParser):
+    '''
+    Handle argumentparser subcommand for generating attribute values, mainly
+    by giving a more sane way of specifying them as arguments later.
+    '''
+    if args.from_attribute:
+        __print_attribute(args.from_attribute)
+
+    if args.generate:
+        parameters = {}
+        if args.flash is not None:
+            parameters['is_flashing'] = args.flash
+        if args.bright is not None:
+            parameters['is_bright'] = args.bright
+        if args.ink is not None:
+            parameters['ink'] = ZXScreen.COLOURS[args.ink.upper()]
+        if args.paper is not None:
+            parameters['paper'] = ZXScreen.COLOURS[args.paper.upper()]
+        attribute = ZXScreen.to_attribute(**parameters)
+        __print_attribute(attribute)
+    print('Done.')
+
+def __print_attribute(value, col_width=8):
+    parsed = ZXScreen.to_parsed_attribute(value)
+    print(f'Attribute  0x{value:02x}')
+    print_indented('Flash:'.ljust(col_width), 'yes' if parsed['flash'] else 'no')
+    print_indented('Bright:'.ljust(col_width), 'yes' if parsed['bright'] else 'no')
+    print_indented('Ink:'.ljust(col_width), __get_colour(parsed['ink']))
+    print_indented('Paper:'.ljust(col_width), __get_colour(parsed['paper']))
+
+def __get_colour(parsed_value):
+    for colour, value in ZXScreen.COLOURS.items():
+        if value == parsed_value:
+            return f'0x{value:01x} {colour}'
+    return 'UNKNOWN'
+
+def cmd_assets(args, parser: ArgumentParser):
     '''
     Handle argumentparser subcommand for assets.
     '''
@@ -406,7 +442,7 @@ def print_repository_details(repository: Path):
     '''
     print(f'Repository: {repository.resolve()}')
 
-def print_indented(*segments, indent_count=1,):
+def print_indented(*segments, indent_count=1):
     print(' '*ZXLogger.INDENT_WIDTH*indent_count, end='')
     if segments:
         for segment in segments:
@@ -427,6 +463,16 @@ def main():
     group = parser_assets.add_mutually_exclusive_group(required=True)
     group.add_argument('--create-frames', action='store_true', help="Create frames of different colours")
     parser_assets.set_defaults(function=cmd_assets)
+
+    parser_attribute = subparsers.add_parser('attribute', help='Colour attributes')
+    parser_attribute.add_argument('--bright', action='store_true', help="Bright ink")
+    parser_attribute.add_argument('--flash', action='store_true', help="Blinking ink/paper")
+    parser_attribute.add_argument('--ink', choices=[c.lower() for c in ZXScreen.COLOURS.keys()], help="Ink colour")
+    parser_attribute.add_argument('--paper', choices=[c.lower() for c in ZXScreen.COLOURS.keys()], help="Paper colour")
+    group = parser_attribute.add_mutually_exclusive_group(required=True)
+    group.add_argument('--generate', action='store_true', help="Generate attribute")
+    group.add_argument('--from-attribute', type=utilities.argument_is_attribute, help="Parse attribute value")
+    parser_attribute.set_defaults(function=cmd_attribute)
 
     parser_document = subparsers.add_parser('document', help='Manage documents')
     parser_document.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")

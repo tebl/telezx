@@ -12,6 +12,16 @@ class ZXScreen:
     WHITE   = 0b00000111
     FLASH   = 0b10000000
     BRIGHT  = 0b01000000
+    COLOURS = {
+        'BLACK': BLACK,
+        'BLUE': BLUE,
+        'RED': RED, 
+        'MAGENTA': MAGENTA, 
+        'GREEN': GREEN, 
+        'CYAN': CYAN, 
+        'YELLOW': YELLOW, 
+        'WHITE': WHITE
+    }
 
     RGB_BASE = 0xc0
     RGB_FULL = 0xff

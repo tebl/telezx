@@ -5,6 +5,16 @@ import collections.abc
 from pathlib import Path
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
 
+def argument_is_attribute(value):
+    '''
+    Attributes are processed as an int, but we require a value that fits into
+    8 bits.
+    '''
+    try:
+        return ensure_int(value, 0, 255)
+    except ValueError:
+        raise ArgumentError(f'Does not look like a valid document id')
+
 def argument_is_dir(path):
     '''
     Check the supplied path value to ensure that it is is actually a directory
