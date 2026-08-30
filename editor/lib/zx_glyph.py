@@ -35,6 +35,10 @@ class ZXGlyph:
         return self.glyph_data.shape[0]
 
     @classmethod
+    def blank_glyph(cls):
+        return [0x0]*8
+
+    @classmethod
     def from_file(cls, path, rgb_fg=255, rgb_bg=0, generate_rgb=False):
         glyph_data = numpy.fromfile(path, dtype=numpy.uint8)
         glyph_data = numpy.reshape(glyph_data, shape=((glyph_data.size // 8),8))

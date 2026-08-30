@@ -144,7 +144,7 @@ class ZXScreen:
         return numpy.array(result, dtype=numpy.uint8)
 
     @classmethod
-    def to_attribute(cls, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE):
+    def to_attribute(cls, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE) -> int:
         return (
             (cls.FLASH if is_flashing else 0x00) | 
             (cls.BRIGHT if is_bright else 0x00) | 

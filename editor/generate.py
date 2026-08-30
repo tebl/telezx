@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import subprocess
-from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
+from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
 from lib.generate import AssetHelper, DocumentHelper, TOCHelper, TransformationHelper, TransformationFormatError
@@ -174,7 +174,7 @@ def cmd_pages(args, parser: ArgumentParser):
         changes = True
 
     if args.create_token:
-        page = helper.create_token(document, args.with_frame, args.with_format)
+        page = helper.create_token(document, args.with_frame, args.with_format, args.path_hint)
         print_page_details(page, 'created')
         changes = True
 
@@ -321,22 +321,35 @@ def cmd_transform(args, parser: ArgumentParser):
             return
     print()
 
-    if args.blank_line:
-        for char_y in args.blank_line:
-            helper.clear_line(char_y)
-
     if args.restore:
         print('Restoring original file:')
         helper.restore()
-        # helper.blank_line
-        # if args.id:
-        # print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
-        # for document_id in args.id:
-        #     __export_id(
-        #         repository,
-        #         document_id, 
-        #         output_path,
-        #         registry)
+        print()
+
+    if args.clear_xy or args.clear_line or args.scroll:
+        print('Applying transformations:')
+        if args.clear_xy:
+            for char_x, char_y in args.clear_xy:
+                if helper.transform_clear_coordinate(char_x, char_y):
+                    changes = True
+
+        if args.clear_line:
+            for char_y in args.clear_line:
+                if helper.transform_clear_line(char_y):
+                    changes = True
+
+        if args.scroll:
+            delta_x, delta_y = args.scroll
+            if helper.transform_scroll(delta_x, delta_y):
+                changes = True
+        print()
+
+    if changes:
+        helper.save()
+
+    if args.preview:
+        print('Creating preview:')
+        helper.create_preview()
 
     print('Done.')
 
@@ -445,14 +458,14 @@ def main():
     parser_page.add_argument('-f', '--document-id', type=utilities.argument_is_document_id, required=True, help="Specify document ID")
     group = parser_page.add_mutually_exclusive_group(required=True)
     group.add_argument('-p', '--page-id', type=utilities.argument_is_page_id, help="Open page ID")
-    group.add_argument('--link-token', type=check_zxtoken, help="Link ZXToken as page in document")
-    group.add_argument('--copy-token', type=check_zxtoken, help="Copy ZXToken to document")
+    group.add_argument('--link-token', type=check_argument_zxtoken, help="Link ZXToken as page in document")
+    group.add_argument('--copy-token', type=check_argument_zxtoken, help="Copy ZXToken to document")
     group.add_argument('--create-token', action='store_true', help="Add ZXToken page to document")
     group.add_argument('--create-text', action='store_true', help="Add clear text page to document")
-    group.add_argument('--create-overlay', type=check_scr, help="Add clear text page to document")
+    group.add_argument('--create-overlay', type=check_argument_scr, help="Add clear text page to document")
     group = parser_page.add_argument_group('Page properties')
     group.add_argument('--path-hint', type=str, help="Path hint used when creating file")
-    group.add_argument('--with-frame', type=check_zxtoken, help="Path to ZXToken to use as a template")
+    group.add_argument('--with-frame', type=check_argument_zxtoken, help="Path to ZXToken to use as a template")
     group.add_argument('--with-format', choices={'SCR', 'TKN'}, default='TKN', help="Format of ZXToken export")
     group.add_argument('--set-scr-title', type=str, default='', help="The SCR about field for title")
     group.add_argument('--set-scr-author', type=str, default='', help="The SCR about field for author")
@@ -479,9 +492,11 @@ def main():
     parser_transform.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     parser_transform.add_argument('-f', '--document-id', type=utilities.argument_is_document_id, required=True, help="Specify document ID")
     parser_transform.add_argument('-p', '--page-id', type=utilities.argument_is_page_id, required=True, help="Open page ID")
-    group = parser_transform.add_mutually_exclusive_group(required=True)
-    group.add_argument('--blank-line', type=utilities.argument_is_page_id, action='extend', nargs='*', help="Clear the specified line")
-    group.add_argument('--restore', action='store_true', help="Restore original file")
+    parser_transform.add_argument('-o', '--preview', action='store_true', help="Create preview image")
+    parser_transform.add_argument('--restore', action='store_true', help="Restore original file")
+    parser_transform.add_argument('--clear-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
+    parser_transform.add_argument('--clear-xy', nargs='*', action=ValidatedCoordinateAction, help="Clear character X1 Y1 ... Xn Yn")
+    parser_transform.add_argument('--scroll', nargs='*', action=ValidatedScrollAction, help="Scroll the screen, '0 -1' to scroll up")
     parser_transform.set_defaults(function=cmd_transform)
 
     args = parser.parse_args()
@@ -493,20 +508,67 @@ def main():
     else:
         parser.print_help()
 
-def check_zxtoken(path: Path) -> Path:
-    path = utilities.argument_is_file(path)
-    if not path.suffix == ZXToken.FILE_EXTENSION:
-        raise ArgumentError('path is not a zxtoken')
-    return path
-
-def check_scr(path: Path) -> Path:
+def check_argument_scr(path: Path) -> Path:
     path = utilities.argument_is_file(path)
     if not path.suffix == ZXDocument.EXTENSION_SCR:
         raise ArgumentError('path is not an scr-file')
     return path
 
+def check_argument_zxtoken(path: Path) -> Path:
+    path = utilities.argument_is_file(path)
+    if not path.suffix == ZXToken.FILE_EXTENSION:
+        raise ArgumentError('path is not a zxtoken')
+    return path
+
+def check_argument_screen_line(char_y: int) -> int:
+    return utilities.ensure_int(char_y, 0, ZXScreen.SCREEN_HEIGHT_CHARS)
+
 def __get_default_repository() -> Path:
     return utilities.get_project_root() / 'repository'
+
+class ValidatedScrollAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) != 2:
+            parser.error(f"{option_string} requires delta-X and delta-Y")
+
+        delta_x = 0
+        try:
+            delta_x = int(values[0])
+        except ValueError:
+            raise ArgumentTypeError(f'delta-X {delta_x} does not seem sane')
+
+        delta_y = 0
+        try:
+            delta_y = int(values[1])
+        except ValueError:
+            raise ArgumentTypeError(f'delta-Y {delta_y} does not seem sane')
+
+        setattr(namespace, self.dest, (delta_x, delta_y))
+
+class ValidatedCoordinateAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not len(values) % 2 == 0:
+            parser.error(f"{option_string} coordinates must be specified in pairs")
+
+        results = []
+        while len(values) > 0:
+            coord_y = 0
+            coord_x = 0
+            coord_x_str = values.pop(0)
+            coord_y_str = values.pop(0)
+
+            try:
+                coord_x = utilities.ensure_int(coord_x_str, 0, (ZXScreen.SCREEN_WIDTH_CHARS - 1),)
+            except ValueError as e:
+                parser.error(f"(X={coord_x_str}, Y={coord_y_str}) has an invalid X-value")
+
+            try:
+                coord_y = utilities.ensure_int(coord_y_str, 0, (ZXScreen.SCREEN_HEIGHT_CHARS - 1))
+            except ValueError as e:
+                parser.error(f"(X={coord_x_str}, Y={coord_y_str}) has an invalid Y-value")
+
+            results.append((coord_x, coord_y))
+        setattr(namespace, self.dest, results)
 
 if __name__ == "__main__":
     main()
