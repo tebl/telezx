@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from .repository_helper import RepositoryHelper
-from .. import ZXScreen, ZXDocument, ReadableLinkIterator, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
+from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage_Token, utilities
 
 class TOCHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
@@ -18,7 +18,7 @@ class TOCHelper(RepositoryHelper):
         self.__create_toc_index(document_id_start)
 
         registry_toc = self.registry.generate_TOC_AZ()
-        address = ReadableLinkIterator(document_id_start)
+        address = self.__get_address_iterator(document_id_start, ZXDocument.DOCUMENT_ID_MAX)
         for letter in self.registry.LETTERS_AZ:
             document_id = next(address)
             self.registry.set_ignored(document_id, True)
@@ -62,7 +62,10 @@ class TOCHelper(RepositoryHelper):
                 document.export(self.out_path, self.registry, sync_registry=False)
 
         self.registry.save()
-        print('Registry saved.')
+        self.logger.info(f'Registry saved')
+
+    def __get_address_iterator(self, start: int, maximum: int):
+        return DocumentIdentifierIterator(start, maximum)
 
     def __pad_entry(self, string, max_length = 25):
         string = string[0:max_length]
@@ -74,7 +77,7 @@ class TOCHelper(RepositoryHelper):
         target_directory = self.__create_path(document_id_start, 'TOC-Index')
         self.logger.info('Creating', target_directory.name)
 
-        address = ReadableLinkIterator(document_id_start)
+        address = self.__get_address_iterator(document_id_start, ZXDocument.DOCUMENT_ID_MAX)
         with self.__get_document(document_id_start, self.TOC_TITLE, self.TOC_ABBREVIATION, target_directory) as document:
             document.link_a = ZXDocument.DOCUMENT_ID_HOME
 

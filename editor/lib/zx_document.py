@@ -4,7 +4,7 @@ from typing import Generator
 from .utilities import update_tree, format_padded_id, HexYAML, QuotedYAML, parse_document_id, parse_asset_id, format_padded_int
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
-from .zx_token import ZXToken, ZXScreenIterator, ZXScreen
+from .zx_token import ZXToken, ZXScreen
 
 class ZXDocument:
     PATH_SRC = 'src'
@@ -26,7 +26,7 @@ class ZXDocument:
     DOCUMENT_ID_MAX = 0xffff
 
     DOCUMENT_ID_HOME = 0x1000
-    DOCUMENT_ID_TOC = 0x9900
+    DOCUMENT_ID_TOC = 0xff00
 
     PAGE_ID_MIN = 0
     PAGE_ID_MAX = 99
@@ -699,24 +699,60 @@ class ZXPage_ClearText(ZXPage):
             }
         }
 
-class ReadableLinkIterator:
+class DocumentIdentifierIterator:
     MAXIMUM = 0xffff
+    start: int
+    maximum: int
+    value: int
 
-    def __init__(self, start):
+    def __init__(self, start, maximum=MAXIMUM):
+        self.start = start
+        self.maximum = maximum
+        self.value = start
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        if (self.value + 1) > self.maximum:
+            raise StopIteration
+        self.value += 1
+        return self.value
+
+    def current(self):
+        return self.value
+
+
+class ReadableIdentifierIterator:
+    '''
+    At times it may be easier to navigate pages that are spaced out across
+    standard base 10 numbers (0-9) even though we're working with base 16.
+    Easier because people rememer 2026, but not 0x07ea (2026 converted from
+    base 10 to base 16).
+    '''
+    MAXIMUM = 0xffff
+    start: int
+    maximum: int
+    value_10: int
+
+    def __init__(self, start, maximum=MAXIMUM):
         if not (start % 16) == 0:
             raise ValueError('Not a multiple of 16')
         self.start = start
+        self.maximum = maximum
         self.value_10 = int(f'{start:04x}')
 
     def __iter__(self):
         return self
     
     def __next__(self):
-        self.value_10 += 1
-        value = self.current()
-        if value > self.MAXIMUM:
+        if self.__convert(self.value_10 + 1) > self.maximum:
             raise StopIteration
-        return value
+        self.value_10 += 1
+        return self.current()
 
-    def current(self):
+    def __convert(self, number):
         return int(str(self.value_10), 16)
+    
+    def current(self):
+        return self.__convert(self.value_10)

@@ -1,7 +1,6 @@
-from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from .repository_helper import RepositoryHelper
-from .. import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
+from .. import ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, utilities
 
 class DocumentHelper(RepositoryHelper):
     def __init__(self, repository: Path):

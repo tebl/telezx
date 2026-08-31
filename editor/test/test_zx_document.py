@@ -1,9 +1,9 @@
 import unittest
-from lib import utilities, ZXDocument, ReadableLinkIterator
+from lib import utilities, ZXDocument, ReadableIdentifierIterator
 
 class TestZXDocument(unittest.TestCase):
     def test_readable_id_iterator(self):
-        iterator = ReadableLinkIterator(start=0x1000)
+        iterator = ReadableIdentifierIterator(start=0x1000)
         for i in range(16):
             value = next(iterator)
             # Check that all parts returned are

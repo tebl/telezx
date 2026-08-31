@@ -1,9 +1,8 @@
 import numpy
-from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from PIL import Image
 from .document_helper import DocumentHelper
-from .. import ZXGlyph, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
+from .. import ZXGlyph, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay
 
 class TransformationHelper(DocumentHelper):
     src_path: Path
