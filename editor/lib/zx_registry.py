@@ -1,7 +1,7 @@
 import string
 import yaml
 from pathlib import Path
-from .utilities import format_padded_id, update_tree
+from .utilities import format_padded_id, update_tree, HexYAML
 from .zx_logger import ZXLogger
 
 class ZXRegistry:
@@ -52,7 +52,7 @@ class ZXRegistry:
         record = self.lookup(document_id)
         if record and record.abbreviation:
             return record.abbreviation[0:self.ABBREVIATION_CHARS]
-        return "[{}]".format(format_padded_id(document_id, width=4).ljust(self.ABBREVIATION_CHARS - 2))
+        return "0x{}".format(format_padded_id(document_id, width=4).ljust(self.ABBREVIATION_CHARS - 2))
 
     def save(self) -> bool:
         with open(self.registry_path, 'w') as file:
@@ -66,13 +66,12 @@ class ZXRegistry:
         return True
 
     def set_ignored(self, document_id, value: bool):
-        registry_key = format_padded_id(document_id, width=4)
         if value:
-            if registry_key not in self.ignored:
-                self.ignored.append(registry_key)
+            if document_id not in self.ignored:
+                self.ignored.append(document_id)
         else:
-            while registry_key in self.ignored:
-                self.ignored.remove(registry_key)
+            while document_id in self.ignored:
+                self.ignored.remove(document_id)
 
     def sync_record(self, document_id, description=None, abbreviation=None) -> bool:
         registry_key = format_padded_id(document_id, width=4)
@@ -104,15 +103,19 @@ class ZXRegistry:
         result = {
             self.__class__.__name__: {
                 'entries': {}, 
-                'ignored': self.ignored
+                'ignored': []
             }
         }
-        entries = result[self.__class__.__name__]['entries']
+        node_entries = result[self.__class__.__name__]['entries']
         for index, (document_id, entry) in enumerate(self.register.items()):
-            registry_key = entry.get_padded_id()
+            registry_key = entry.document_id
             if registry_key in self.ignored:
                 continue
-            entries[registry_key] = entry.to_dict()
+            node_entries[HexYAML(registry_key)] = entry.to_dict()
+
+        node_ignored = result[self.__class__.__name__]['ignored']
+        for value in self.ignored:
+            node_ignored.append(HexYAML(value))
         return result
 
     @classmethod
@@ -124,9 +127,9 @@ class ZXRegistry:
         root = data[cls.__name__]
 
         zx_registry = ZXRegistry(registry_path, ignored_list=root['ignored'])
-        for i, (registry_key, data) in enumerate(root['entries'].items()):
+        for i, (document_id, data) in enumerate(root['entries'].items()):
             zx_registry.sync_record(
-                int(registry_key), 
+                document_id, 
                 description=data['description'], 
                 abbreviation=data['abbreviation'])
         return zx_registry

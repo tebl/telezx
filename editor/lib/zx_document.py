@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from typing import Generator
-from .utilities import update_tree, format_padded_id, QuotedYAML, parse_document_id, parse_asset_id
+from .utilities import update_tree, format_padded_id, HexYAML, QuotedYAML, parse_document_id, parse_asset_id, format_padded_int
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
 from .zx_token import ZXToken, ZXScreenIterator, ZXScreen
@@ -20,13 +20,18 @@ class ZXDocument:
     EXTENSION_DOCUMENT = '.telezx'
     EXTENSION_DOCUMENT_TMP = EXTENSION_DOCUMENT + '-tmp'
     FILENAME_DEFAULT = f'document{EXTENSION_DOCUMENT}'
-    DOCUMENT_ID_NONE = 0
-    DOCUMENT_ID_MIN = 1
-    DOCUMENT_ID_MAX = 9999
+
+    DOCUMENT_ID_NONE = 0x0
+    DOCUMENT_ID_MIN = 0x0001
+    DOCUMENT_ID_MAX = 0xffff
+
+    DOCUMENT_ID_HOME = 0x1000
+    DOCUMENT_ID_TOC = 0x9900
+
     PAGE_ID_MIN = 0
     PAGE_ID_MAX = 99
-    ASSET_ID_MIN = 0
-    ASSET_ID_MAX = 99
+    ASSET_ID_MIN = 0x0
+    ASSET_ID_MAX = 0xff
 
     enable_preview = True
 
@@ -116,7 +121,7 @@ class ZXDocument:
         self.clean_output(target_directory, indent=(log_indent+1))
         with open(self.get_output_path(target_directory), 'w') as file:
             file.write('IDX')
-            self.__export_digits(file, len(self.pages))
+            self.__export_hex(file, len(self.pages))
             self.__export_link(file, self.link_a, self.link_a_txt, registry)
             self.__export_link(file, self.link_b, self.link_b_txt, registry)
             self.__export_link(file, self.link_c, self.link_c_txt, registry)
@@ -140,15 +145,12 @@ class ZXDocument:
     def __export_record(self, file, value, pad_to_size, pad_chr):
         file.write(self.__pad_record(value, pad_to_size, pad_chr))
 
-    def __export_digits(self, file, value):
-        file.write(f'{value:02d}')
-
     def __export_hex(self, file, value):
         file.write(f'{value:02X}')
 
     def __export_link(self, file, link, link_txt, registry: ZXRegistry):
         if link is not None:
-            file.write(f'{link:04d}')
+            file.write(f'{link:04x}')
             if link_txt is None:
                 link_txt = registry.lookup_abbreviation(link) if registry else format_padded_id(link)
             self.__export_record(file, link_txt, (ZXRegistry.ABBREVIATION_CHARS + 1), '\0')
@@ -270,14 +272,14 @@ class ZXDocument:
     def to_dict(self) -> dict:
         result = self.__yaml_defaults()
         root = result[self.__class__.__name__]
-        root['document_id'] = self.document_id
+        root['document_id'] = HexYAML(self.document_id)
         root['description'] = self.description
         root['abbreviation'] = self.abbreviation
-        root['link_a'] = self.link_a
+        root['link_a'] = HexYAML(self.link_a) if self.link_a is not None else None
         root['link_a_txt'] = self.link_a_txt
-        root['link_b'] = self.link_b
+        root['link_b'] = HexYAML(self.link_b) if self.link_b is not None else None
         root['link_b_txt'] = self.link_b_txt
-        root['link_c'] = self.link_c
+        root['link_c'] = HexYAML(self.link_c) if self.link_c is not None else None
         root['link_c_txt'] = self.link_c_txt
         for page_idx, page in enumerate(self.pages):
             root['pages'].append(page.to_dict(page_idx))
@@ -294,7 +296,7 @@ class ZXDocument:
         zx_document = ZXDocument(
             repository,
             document_path, 
-            document_id=int(root['document_id']),
+            document_id=root['document_id'],
             description=root['description'],
             abbreviation=root['abbreviation'],
             link_a=root['link_a'],
@@ -354,11 +356,11 @@ class ZXDocument:
                 'document_id':  0,
                 'description':  None,   # Registry description (21 characters)
                 'abbreviation': None,   # Link text (8 characters)
-                'link_a':       None,   # Link A
+                'link_a':       None,   # Link A (4 characters, hex)
                 'link_a_txt':   None,   #  - Description (8 characters)
-                'link_b':       None,   # Link B
+                'link_b':       None,   # Link B (4 characters, hex)
                 'link_b_txt':   None,   #  - Description (8 characters)
-                'link_c':       None,   # Link C
+                'link_c':       None,   # Link C (4 characters, hex)
                 'link_c_txt':   None,   #  - Description (8 characters)
                 'pages': []
             }
@@ -418,7 +420,7 @@ class ZXPage:
         file.write('\n')
 
     def get_export_path(self, output_base: Path, page_idx: int, file_extension):
-        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), file_extension))
+        return output_base.with_suffix('.{}{}'.format(format_padded_int(page_idx, width=2), file_extension))
 
     def to_dict(self, page_idx) -> dict:
         return { self.__class__.__name__: {} }
@@ -501,7 +503,7 @@ class ZXPage_Overlay(ZXPage):
         return f'{self.__class__.__name__} (input={self.scr_path.name})'
 
     def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
-        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
+        self.logger.info(format_padded_int(page_idx, width=2), str(self), indent=log_indent)
         target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR)
         self.logger.debug('export', target_path, indent=(log_indent+1))
 
@@ -571,7 +573,7 @@ class ZXPage_Token(ZXPage):
         return f'{self.__class__.__name__} (input={self.zxtoken_path.name}, export_as={self.export_format})'
 
     def export(self, output_base, page_idx, log_indent=0):
-        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
+        self.logger.info(format_padded_int(page_idx, width=2), str(self), indent=log_indent)
         zx_token = ZXToken.from_file(self.parent.get_asset_path(self.zxtoken_path))
         match self.export_format:
             case 'TKN':
@@ -640,7 +642,7 @@ class ZXPage_ClearText(ZXPage):
         return f'{self.__class__.__name__} (frame={self.frame_path.name if self.frame_path else None})'
 
     def export(self, output_base, page_idx, log_indent=0):
-        self.logger.info(format_padded_id(page_idx, width=2), str(self), indent=log_indent)
+        self.logger.info(format_padded_int(page_idx, width=2), str(self), indent=log_indent)
         target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN)
         self.logger.debug('export', target_path, indent=(log_indent+1))
 
@@ -696,3 +698,25 @@ class ZXPage_ClearText(ZXPage):
                 'text_attribute': ZXToken.UNDEFINED
             }
         }
+
+class ReadableLinkIterator:
+    MAXIMUM = 0xffff
+
+    def __init__(self, start):
+        if not (start % 16) == 0:
+            raise ValueError('Not a multiple of 16')
+        self.start = start
+        self.value_10 = int(f'{start:04x}')
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        self.value_10 += 1
+        value = self.current()
+        if value > self.MAXIMUM:
+            raise StopIteration
+        return value
+
+    def current(self):
+        return int(str(self.value_10), 16)

@@ -155,7 +155,7 @@ def cmd_export(args, parser: ArgumentParser):
 
     registry = get_registry(repository)
     if args.id:
-        print(f'Export document IDs: {','.join(str(x) for x in args.id)}')
+        print(f'Export document IDs: {','.join('0x' + utilities.format_padded_id(x) for x in args.id)}')
         for document_id in args.id:
             __export_id(
                 repository,
@@ -405,7 +405,7 @@ def print_document_details(document: ZXDocument, registry: ZXRegistry, action=No
     '''
     col_width = 13
     print(f'Document {action}:' if action else f'Document:')
-    print_indented('Document ID:'.ljust(col_width), f'{document.document_id}')
+    print_indented('Document ID:'.ljust(col_width), '0x' + utilities.format_padded_id(document.document_id))
     print_indented('Description:'.ljust(col_width), f'{document.description}')
     print_indented('Abbreviation:'.ljust(col_width), f'{document.abbreviation}')
     print_indented('Link A:'.ljust(col_width), __format_link(document.link_a, document.link_a_txt, registry))
@@ -415,9 +415,9 @@ def print_document_details(document: ZXDocument, registry: ZXRegistry, action=No
     if document.pages:
         for page_id, page in enumerate(document):
             if page_id == 0:
-                print_indented('Pages:'.ljust(col_width), utilities.format_padded_id(page_id, width=2), page)
+                print_indented('Pages:'.ljust(col_width), utilities.format_padded_int(page_id, width=2), page)
             else:
-                print_indented(''.ljust(col_width), utilities.format_padded_id(page_id, width=2), page)
+                print_indented(''.ljust(col_width), utilities.format_padded_int(page_id, width=2), page)
     else:
         print_indented('Pages:'.ljust(col_width), 'No pages.')
 
@@ -427,8 +427,8 @@ def __format_link(link: int, link_txt: str, registry: ZXRegistry):
     if not link_txt:
         link_txt = registry.lookup_abbreviation(link)
     if not link_txt:
-        link_txt = utilities.format_padded_id(link, width=4)
-    return f'{link}, "{link_txt}"'
+        link_txt = '0x' + utilities.format_padded_id(link, width=4)
+    return f'0x{utilities.format_padded_id(link)}, "{link_txt}"'
 
 def print_page_details(page, action=None):
     col_width = 13

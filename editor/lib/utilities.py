@@ -51,8 +51,17 @@ def argument_is_page_id(value):
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
-def format_padded_id(document_id, width=4):
-    return str(document_id).rjust(width, '0')
+def format_padded_id(value, width=4):
+    '''
+    Primarily used when working with document IDs
+    '''
+    return f'{value:0{width}X}'
+
+def format_padded_int(value, width=2):
+    '''
+    Primarily used when working with page IDs
+    '''
+    return f'{value:0{width}}'
 
 def get_project_root() -> Path:
     '''
@@ -64,20 +73,20 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent
 
 def parse_asset_id(value):
-    return ensure_int(value, 0, 99)
+    return ensure_int(value, 0, 255, 16)
 
 def parse_document_id(value):
-    return ensure_int(value, 0, 9999)
+    return ensure_int(value, 0, 65535, 16)
 
 def parse_page_id(value):
     return ensure_int(value, 0, 99)
 
-def ensure_int(value, value_min, value_max):
+def ensure_int(value, value_min, value_max, base=10):
     '''
     Ensure that we get an integer between the supplied value range, both ends
     included in the comparison.
     '''
-    value = int(value)
+    value = int(value, base)
     if value < value_min or value > value_max:
         raise ValueError(f'Value not between {value_min} and {value_max}')
     return value
@@ -131,6 +140,12 @@ def update_tree(data, update):
             data[key] = value
     return data
 
+class HexYAML(int):
+    pass
+
+def hexed_yaml_presenter(dumper, data):
+    return yaml.ScalarNode('tag:yaml.org,2002:int', hex(data))
+
 class QuotedYAML(str):
     '''
     Wrapper class used in order to force yaml to use double-quotes within
@@ -142,3 +157,4 @@ def quoted_yaml_presenter(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
 
 yaml.add_representer(QuotedYAML, quoted_yaml_presenter)
+yaml.add_representer(HexYAML, hexed_yaml_presenter)

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from .repository_helper import RepositoryHelper
-from .. import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
+from .. import ZXScreen, ZXDocument, ReadableLinkIterator, ZXToken, ZXFrame, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities
 
 class TOCHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
@@ -14,12 +14,13 @@ class TOCHelper(RepositoryHelper):
         self.create_path_structure()
         self.open_registry()
 
-    def create_toc(self, document_id_start = 9900):
-        document_id = document_id_start
-        self.__create_toc_index(document_id)
+    def create_toc(self, document_id_start=ZXDocument.DOCUMENT_ID_TOC):
+        self.__create_toc_index(document_id_start)
+
         registry_toc = self.registry.generate_TOC_AZ()
+        address = ReadableLinkIterator(document_id_start)
         for letter in self.registry.LETTERS_AZ:
-            document_id += 1
+            document_id = next(address)
             self.registry.set_ignored(document_id, True)
             target_directory = self.__create_path(document_id, f'TOC-{letter}')
 
@@ -69,12 +70,13 @@ class TOCHelper(RepositoryHelper):
             return (string + ' ').ljust(max_length, '.')
         return string
 
-    def __create_toc_index(self, document_id: int):
-        target_directory = self.__create_path(document_id, 'TOC-Index')
+    def __create_toc_index(self, document_id_start: int):
+        target_directory = self.__create_path(document_id_start, 'TOC-Index')
         self.logger.info('Creating', target_directory.name)
 
-        with self.__get_document(document_id, self.TOC_TITLE, self.TOC_ABBREVIATION, target_directory) as document:
-            document.link_a = 1000
+        address = ReadableLinkIterator(document_id_start)
+        with self.__get_document(document_id_start, self.TOC_TITLE, self.TOC_ABBREVIATION, target_directory) as document:
+            document.link_a = ZXDocument.DOCUMENT_ID_HOME
 
             with self.__get_titlepage(document, self.TOC_TITLE) as page:
                 page.set_string(1, 5, 'The corresponding pages have  ')
@@ -85,8 +87,9 @@ class TOCHelper(RepositoryHelper):
                 current_x = 2
                 current_y = start_y
                 for number, letter in enumerate(self.registry.LETTERS_AZ):
+                    document_id = next(address)
                     page.set_string(current_x, current_y, f'[{letter}]', ZXScreen.to_attribute(ink=ZXScreen.GREEN))
-                    page.set_string(current_x + 4, current_y, utilities.format_padded_id(document_id + number + 1), ZXScreen.to_attribute(ink=ZXScreen.CYAN))
+                    page.set_string(current_x + 4, current_y, utilities.format_padded_id(document_id), ZXScreen.to_attribute(ink=ZXScreen.CYAN))
 
                     current_y += 1
                     if current_y > (start_y + 8):
