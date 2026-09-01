@@ -627,8 +627,8 @@ function handle_keyboard(event) {
             current_input = (current_input + event.key.toUpperCase()).slice(-4);
             break;
         case "Enter":
-            var document_id = Number('0x' + current_input);
-            if (isNaN(document_id)) {
+            var document_id = Number('0x' + current_input.padEnd(4, '0'));
+            if (isNaN(document_id) || document_id == DOCUMENT_ZERO) {
                 set_document(DOCUMENT_DEFAULT);
             } else {
                 set_document(document_id);
@@ -876,6 +876,10 @@ function set_status(description, status_type) {
     current_status_type = status_type;
 }
 
+/**
+ * Increment cursor position, wraps onto next line or alternatively back to
+ * the top left corner if we've reached the end of screen memory.
+ */
 function ui_incrementCursor() {
     cursor_x++;
     if (cursor_x >= SCREEN_WIDTH_CHARS) {
@@ -887,6 +891,11 @@ function ui_incrementCursor() {
     }
 }
 
+
+/**
+ * Update cursor position, used when sequentially writing characters to the
+ * screen.
+ */
 function ui_set_cursor(pos_x, pos_y) {
     cursor_x = pos_x % SCREEN_WIDTH_CHARS;
     cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
