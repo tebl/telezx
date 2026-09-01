@@ -27,7 +27,7 @@ const DOCUMENT_ZERO = 0;
 const RGB_BASE = 0xe0;
 const RGB_FULL = 0xff;
 
-const DOCUMENT_DEFAULT = 0x1000;
+const DOCUMENT_DEFAULT = 0x1982;
 const DOCUMENT_TOC = 0xff00;
 const PAGE_MINIMUM = 0x0001;
 const PAGE_MAXIMUM = 0xffff;
@@ -88,33 +88,6 @@ function zx_calculate_lookup_table() {
         }
     }
     return lookup;
-}
-
-function ui_incrementCursor() {
-    cursor_x++;
-    if (cursor_x >= SCREEN_WIDTH_CHARS) {
-        cursor_x = 0;
-        cursor_y++;
-        if (cursor_y >= SCREEN_HEIGHT_CHARS) {
-            cursor_y = 0;
-        }
-    }
-}
-
-function ui_set_cursor(pos_x, pos_y) {
-    cursor_x = pos_x % SCREEN_WIDTH_CHARS;
-    cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
-}
-
-/**
- * Called from onClick on web page, overrides CSS in order to make the
- * browser stretch the contents of the screen. Exactly how that is done
- * is left to the browser.
- */
-function ui_set_scale(scale) {
-    var canvas = document.getElementById('viewport');
-    canvas.style.width = String(256 * scale) + 'px';
-    canvas.style.height = String(192 * scale) + 'px';
 }
 
 function zx_clear_attributes(new_value) {
@@ -290,19 +263,6 @@ function get_date_string() {
     )
 }
 
-
-function set_status(description, status_type) {
-    current_status = description;
-    current_status_type = status_type;
-}
-
-function set_error(description, clear_index=true) {
-    set_status(description, STATUS_TYPES.ERROR);
-    if (clear_index) {
-        current_index = null;
-    }
-}
-
 function have_error() {
     return current_status_type == STATUS_TYPES.ERROR;
 }
@@ -321,88 +281,6 @@ function have_page_id(page_id) {
     if (current_index == null) return false;
     if (current_index.page_count == 0) return false;
     return (page_id >= 0 && page_id < current_index.page_count);
-}
-
-function ui_overlay_headers() {
-    ui_primary_header();
-    if (ui_secondary_header_needed()) {
-        ui_secondary_header();
-    }
-}
-
-function ui_primary_header() {
-    ui_set_font(FONT_DEFAULT);
-    for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
-        zx_set_attribute_at(i, 0, STYLE_HEADER);
-    }
-    ui_set_cursor(0, 0);
-    ui_printString("P", -1);
-    ui_print_ascii(ASCII_SPACE);
-    if (current_input == '') {
-        ui_printString(to_padded_number(current_document, 16, 4), -1);
-    } else {
-        ui_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : STYLE_HEADER_INPUT));
-    }
-    ui_print_ascii(ASCII_SPACE);
-    ui_print_ascii(ASCII_SPACE);
-    ui_print_ascii(ASCII_SPACE);
-    ui_set_font(FONT_CP850);
-    ui_printString("T", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.RED));
-    ui_printString("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.YELLOW));
-    ui_printString("l", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.GREEN));
-    ui_printString("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.BLUE));
-    ui_printString("ZX", -1);
-    ui_set_font(FONT_DEFAULT);
-    ui_print_ascii(ASCII_SPACE);
-    ui_print_ascii(ASCII_SPACE);
-    ui_print_ascii(ASCII_SPACE);
-    ui_printString(get_date_string(), STYLE_HEADER_FIELD);
-    ui_set_font(FONT_DEFAULT);
-}
-
-function ui_secondary_header() {
-    ui_set_font(FONT_DEFAULT);
-    for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
-        zx_set_attribute_at(i, 23, STYLE_HEADER);
-        ui_set_ascii_at(i, 23, ASCII_SPACE);
-    }
-
-    if (have_error()) {
-        var max_chars = have_multiple_pages() ? (SCREEN_WIDTH_CHARS - 6) : SCREEN_WIDTH_CHARS;
-        for (var i = 0; i < (max_chars); i++) {
-            if (i < current_status.length) {
-                zx_set_attribute_at(i, 23, ERROR_DESCRIPTION);
-                ui_set_ascii_at(i, 23, current_status.charCodeAt(i));
-            }
-        }
-    } else {
-        ui_secondary_link('link_a', 'link_a_txt', 0, STYLE_LINK_A);
-        ui_secondary_link('link_b', 'link_b_txt', 9, STYLE_LINK_B);
-        ui_secondary_link('link_c', 'link_c_txt', 18, STYLE_LINK_C);
-    }
-
-    if (have_multiple_pages()) {
-        ui_set_cursor(SCREEN_WIDTH_CHARS - 5, 23);
-        ui_printString(
-            String(current_page + 1).padStart(2, '0') + '/' + String(current_index.page_count).padStart(2, '0'),
-            STYLE_HEADER_FIELD
-        );
-    }
-}
-
-function ui_secondary_link(link_key, link_key_desc, start_at, attribute) {
-    if (current_index == null) return;
-    if (have_link(link_key)) {
-        var description = get_link_description(link_key, link_key_desc, 8);
-        for (var i = 0; i < 8; i++) {
-            zx_set_attribute_at((start_at + i), 23, attribute);
-            if (i < description.length) {
-                ui_set_ascii_at((start_at + i), 23, description.charCodeAt(i));
-            } else {
-                ui_set_ascii_at((start_at + i), 23, ASCII_SPACE);
-            }
-        }
-    }
 }
 
 function get_link_description(link_key, link_key_desc, max_chars) {
@@ -524,6 +402,10 @@ function get_scr_url(document_id, page_id) {
     return get_asset_url(document_id, page_id, ".scr");
 }
 
+function get_scr_about_url(document_id, page_id) {
+    return get_asset_url(document_id, page_id, ".scr.about");
+}
+
 function get_tkn_url(document_id, page_id) {
     return get_asset_url(document_id, page_id, ".tkn");
 }
@@ -568,6 +450,7 @@ function fetch_page() {
     if (have_page_id(current_page)) page = current_index.pages[current_page];
     if (page == null) return generate_blank_page();
     
+    web_set_tasl('');
     if (page.type == ASSET_TYPES.TOKEN) {
         return fetch_token_asset(
             current_document, 
@@ -642,10 +525,10 @@ function fetch_page_previous() {
     }
 }
 
-async function fetch_scr_asset(page, subpage) {
+async function fetch_scr_asset(document_id, page_id) {
     try {
         // Fetch the JSON file  
-        const fetch_url = get_scr_url(page, subpage);
+        const fetch_url = get_scr_url(document_id, page_id);
         const response = await fetch(fetch_url);
 
         // Check for HTTP errors  
@@ -671,6 +554,23 @@ async function fetch_scr_asset(page, subpage) {
     }
 
     request_render_screen();
+    fetch_scr_about(document_id, page_id)
+}
+
+async function fetch_scr_about(page, subpage) {
+    try {
+        const fetch_url = get_scr_about_url(page, subpage);
+        const response = await fetch(fetch_url);
+
+        if (response.ok) {
+            const data = await response.text();
+            return web_set_tasl(data);
+        }
+    } catch (error) {
+        console.debug('Error during fetch_scr_about:', String(error))
+    }
+
+    return web_set_tasl('');
 }
 
 async function fetch_token_asset(page, subpage, default_attribute) {
@@ -702,6 +602,154 @@ function generate_blank_page(attribute) {
     if (typeof attribute == undefined) attribute = STYLE_DEFAULT;
     zx_clear_memory(0x00, attribute);
     request_render_screen();
+    return true;
+}
+
+function handle_keyboard(event) {
+    var key_handled = true;
+    switch (event.key) {
+        case "0":
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9":
+        case "a":
+        case "b":
+        case "c":
+        case "d":
+        case "e":
+        case "f":
+            current_input = (current_input + event.key.toUpperCase()).slice(-4);
+            break;
+        case "Enter":
+            var document_id = Number('0x' + current_input);
+            if (isNaN(document_id)) {
+                set_document(DOCUMENT_DEFAULT);
+            } else {
+                set_document(document_id);
+            }
+            fetch_index();
+            break;
+
+        case "End":
+            set_document(DOCUMENT_TOC);
+            fetch_index();
+            break;
+
+        case "Escape":
+            current_input = "";
+            break;
+
+        case "Home":
+            set_document(DOCUMENT_DEFAULT);
+            fetch_index();
+            break
+
+        case "PageUp":
+        case "ArrowUp":
+            event.preventDefault();
+            fetch_page_previous();
+            break;
+
+        case "PageDown":
+        case "ArrowDown":
+            event.preventDefault();
+            fetch_page_next();
+            break;
+
+        case "ArrowLeft":
+        case "o":
+            if (current_document > PAGE_MINIMUM) {
+                current_document--;
+                fetch_index();
+            }
+            break;
+
+        case "ArrowRight":
+        case "p":
+            if (current_document < PAGE_MAXIMUM) {
+                current_document++;
+                fetch_index();
+            }
+            break;
+
+        /* Link A (Blue) */
+        case 'j':
+            if (set_document(get_link_id('link_a'))) {
+                fetch_index();
+            }
+            break;
+
+        /* Link B (Red) */
+        case 'k':
+            if (set_document(get_link_id('link_b'))) {
+                fetch_index();
+            }
+            break;
+
+        /* Link C (Magenta) */
+        case 'l':
+            if (set_document(get_link_id('link_c'))) {
+                fetch_index();
+            }
+            break;
+        
+        default:
+            key_handled = false;
+            break;
+    }
+
+    if (key_handled) {
+        event.preventDefault();
+    }
+
+    request_render_screen();
+}
+
+function parse_index(content) {
+    var index_type = content.slice(0, 3);
+    switch (index_type) {
+        /* Default index format */
+        case INDEX_TYPES.INDEX:
+            if (content.length < 64) {
+                throw new Error("IDX malformed");
+            }
+            return parse_index_IDX(content)
+    }
+    set_error("Unknown type");
+}
+
+function parse_index_IDX(content) {
+    var index_data = {
+        type: 'IDX',
+        page_count: get_idx_hex(content, 0x3, 2),
+        link_a: get_idx_page(content, 0x5, 4),
+        link_a_txt: get_idx_string(content, 0x9, 9),
+        link_b: get_idx_page(content, 0x12, 4),
+        link_b_txt: get_idx_string(content, 0x16, 9),
+        link_c: get_idx_page(content, 0x1f, 4),
+        link_c_txt: get_idx_string(content, 0x23, 9),
+        pages: {}
+    };
+
+    current_page = -1;
+    if (index_data.page_count > 0) {
+        current_page = 0;
+        for (var page_id = 0; page_id < index_data.page_count; page_id++) {
+            var page_start = 0x40 + (page_id * 4)
+            index_data.pages[page_id] = {
+                type: get_idx_hex(content, page_start, 2),
+                parameter: get_idx_hex(content, page_start + 2, 2)
+            }
+        }
+    }
+    current_index = index_data;
+    fetch_page();
     return true;
 }
 
@@ -802,48 +850,6 @@ function process_tokens(data, default_attribute) {
     }
 }
 
-function parse_index(content) {
-    var index_type = content.slice(0, 3);
-    switch (index_type) {
-        /* Default index format */
-        case INDEX_TYPES.INDEX:
-            if (content.length < 64) {
-                throw new Error("IDX malformed");
-            }
-            return parse_index_IDX(content)
-    }
-    set_error("Unknown type");
-}
-
-function parse_index_IDX(content) {
-    var index_data = {
-        type: 'IDX',
-        page_count: get_idx_hex(content, 0x3, 2),
-        link_a: get_idx_page(content, 0x5, 4),
-        link_a_txt: get_idx_string(content, 0x9, 9),
-        link_b: get_idx_page(content, 0x12, 4),
-        link_b_txt: get_idx_string(content, 0x16, 9),
-        link_c: get_idx_page(content, 0x1f, 4),
-        link_c_txt: get_idx_string(content, 0x23, 9),
-        pages: {}
-    };
-
-    current_page = -1;
-    if (index_data.page_count > 0) {
-        current_page = 0;
-        for (var page_id = 0; page_id < index_data.page_count; page_id++) {
-            var page_start = 0x40 + (page_id * 4)
-            index_data.pages[page_id] = {
-                type: get_idx_hex(content, page_start, 2),
-                parameter: get_idx_hex(content, page_start + 2, 2)
-            }
-        }
-    }
-    current_index = index_data;
-    fetch_page();
-    return true;
-}
-
 /**
  * Set document ID that should be loaded. Return value is used to determine
  * if there were any changes.
@@ -858,6 +864,162 @@ function set_document(document_id) {
     return false;
 }
 
+function set_error(description, clear_index=true) {
+    set_status(description, STATUS_TYPES.ERROR);
+    if (clear_index) {
+        current_index = null;
+    }
+}
+
+function set_status(description, status_type) {
+    current_status = description;
+    current_status_type = status_type;
+}
+
+function ui_incrementCursor() {
+    cursor_x++;
+    if (cursor_x >= SCREEN_WIDTH_CHARS) {
+        cursor_x = 0;
+        cursor_y++;
+        if (cursor_y >= SCREEN_HEIGHT_CHARS) {
+            cursor_y = 0;
+        }
+    }
+}
+
+function ui_set_cursor(pos_x, pos_y) {
+    cursor_x = pos_x % SCREEN_WIDTH_CHARS;
+    cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
+}
+
+/**
+ * Called from onClick on web page, overrides CSS in order to make the
+ * browser stretch the contents of the screen. Exactly how that is done
+ * is left to the browser.
+ */
+function ui_set_scale(scale) {
+    var canvas = document.getElementById('viewport');
+    canvas.style.width = String(256 * scale) + 'px';
+    canvas.style.height = String(192 * scale) + 'px';
+}
+
+function ui_overlay_headers() {
+    ui_primary_header();
+    if (ui_secondary_header_needed()) {
+        ui_secondary_header();
+    }
+}
+
+function ui_primary_header() {
+    ui_set_font(FONT_DEFAULT);
+    for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
+        zx_set_attribute_at(i, 0, STYLE_HEADER);
+    }
+    ui_set_cursor(0, 0);
+    ui_printString("P", -1);
+    ui_print_ascii(ASCII_SPACE);
+    if (current_input == '') {
+        ui_printString(to_padded_number(current_document, 16, 4), -1);
+    } else {
+        ui_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : STYLE_HEADER_INPUT));
+    }
+    ui_print_ascii(ASCII_SPACE);
+    ui_print_ascii(ASCII_SPACE);
+    ui_print_ascii(ASCII_SPACE);
+    ui_set_font(FONT_CP850);
+    ui_printString("T", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.RED));
+    ui_printString("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.YELLOW));
+    ui_printString("l", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.GREEN));
+    ui_printString("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.BLUE));
+    ui_printString("ZX", -1);
+    ui_set_font(FONT_DEFAULT);
+    ui_print_ascii(ASCII_SPACE);
+    ui_print_ascii(ASCII_SPACE);
+    ui_print_ascii(ASCII_SPACE);
+    ui_printString(get_date_string(), STYLE_HEADER_FIELD);
+    ui_set_font(FONT_DEFAULT);
+}
+
+function ui_secondary_header() {
+    ui_set_font(FONT_DEFAULT);
+    for (var i = 0; i < SCREEN_WIDTH_CHARS; i++) {
+        zx_set_attribute_at(i, 23, STYLE_HEADER);
+        ui_set_ascii_at(i, 23, ASCII_SPACE);
+    }
+
+    if (have_error()) {
+        var max_chars = have_multiple_pages() ? (SCREEN_WIDTH_CHARS - 6) : SCREEN_WIDTH_CHARS;
+        for (var i = 0; i < (max_chars); i++) {
+            if (i < current_status.length) {
+                zx_set_attribute_at(i, 23, ERROR_DESCRIPTION);
+                ui_set_ascii_at(i, 23, current_status.charCodeAt(i));
+            }
+        }
+    } else {
+        ui_secondary_link('link_a', 'link_a_txt', 0, STYLE_LINK_A);
+        ui_secondary_link('link_b', 'link_b_txt', 9, STYLE_LINK_B);
+        ui_secondary_link('link_c', 'link_c_txt', 18, STYLE_LINK_C);
+    }
+
+    if (have_multiple_pages()) {
+        ui_set_cursor(SCREEN_WIDTH_CHARS - 5, 23);
+        ui_printString(
+            String(current_page + 1).padStart(2, '0') + '/' + String(current_index.page_count).padStart(2, '0'),
+            STYLE_HEADER_FIELD
+        );
+    }
+}
+
+function ui_secondary_link(link_key, link_key_desc, start_at, attribute) {
+    if (current_index == null) return;
+    if (have_link(link_key)) {
+        var description = get_link_description(link_key, link_key_desc, 8);
+        for (var i = 0; i < 8; i++) {
+            zx_set_attribute_at((start_at + i), 23, attribute);
+            if (i < description.length) {
+                ui_set_ascii_at((start_at + i), 23, description.charCodeAt(i));
+            } else {
+                ui_set_ascii_at((start_at + i), 23, ASCII_SPACE);
+            }
+        }
+    }
+}
+
+/**
+ * Set image details field on webpage. If an empty string has been specified
+ * then the string 'No information.' is shown instead.
+ */
+function web_set_tasl(content) {
+    var element = document.getElementById('tasl');
+    if (element == null) {
+        return false;
+    }
+
+    content = content.trim()
+    if (content.length == 0) {
+        element.innerHTML = 'No information.';
+        return false;
+    }
+
+    element.innerHTML = content;
+    return true;
+}
+
+
+/**
+ * Web page has separate sections for additional information, call the function
+ * to toggle visibility of their content.
+ */
+function web_toggle_section(source, element_id) {
+    var content = document.getElementById(element_id);
+    source.classList.toggle('active_section');
+    if (content.style.display == "block"){
+        content.style.display = "none";
+    } else {
+        content.style.display = "block";
+    }
+}
+
 // The function gets called when the window is fully loaded
 window.onload = function () {
     // Get the canvas and context
@@ -867,101 +1029,7 @@ window.onload = function () {
     canvas_height = canvas.height;
     canvas_image = context.createImageData(canvas_width, canvas_height);
 
-    document.addEventListener('keyup', handleInput);
-    function handleInput(event) {
-        switch (event.key) {
-            case "0":
-            case "1":
-            case "2":
-            case "3":
-            case "4":
-            case "5":
-            case "6":
-            case "7":
-            case "8":
-            case "9":
-            case "a":
-            case "b":
-            case "c":
-            case "d":
-            case "e":
-            case "f":
-                current_input = (current_input + event.key.toUpperCase()).slice(-4);
-                break;
-            case "Enter":
-                var document_id = Number('0x' + current_input);
-                if (isNaN(document_id)) {
-                    set_document(DOCUMENT_DEFAULT);
-                } else {
-                    set_document(document_id);
-                }
-                fetch_index();
-                break;
-
-            case "End":
-                set_document(DOCUMENT_TOC);
-                fetch_index();
-                break;
-
-            case "Escape":
-                current_input = "";
-                break;
-
-            case "Home":
-                set_document(DOCUMENT_DEFAULT);
-                fetch_index();
-                break
-
-            case "PageUp":
-            case "ArrowUp":
-                fetch_page_previous();
-                break;
-
-            case "PageDown":
-            case "ArrowDown":
-                fetch_page_next();
-                break;
-
-            case "ArrowLeft":
-            case "o":
-                if (current_document > PAGE_MINIMUM) {
-                    current_document--;
-                    fetch_index();
-                }
-                break;
-
-            case "ArrowRight":
-            case "p":
-                if (current_document < PAGE_MAXIMUM) {
-                    current_document++;
-                    fetch_index();
-                }
-                break;
-
-            /* Link A (Blue) */
-            case 'j':
-                if (set_document(get_link_id('link_a'))) {
-                    fetch_index();
-                }
-                break;
-
-            /* Link B (Red) */
-            case 'k':
-                if (set_document(get_link_id('link_b'))) {
-                    fetch_index();
-                }
-                break;
-
-            /* Link C (Magenta) */
-            case 'l':
-                if (set_document(get_link_id('link_c'))) {
-                    fetch_index();
-                }
-                break;
-        }
-
-        request_render_screen();
-    }
+    document.addEventListener('keydown', handle_keyboard);
 
     zx_clear_memory(0, STYLE_DEFAULT);
     request_render_screen();

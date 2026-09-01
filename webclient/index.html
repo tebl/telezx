@@ -2,32 +2,21 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title>TeleZX</title>
+        <title>TeleZX Online</title>
         <link rel="stylesheet" href="style.css">
         <script type="text/javascript" src="fonts.js"></script>
         <script type="text/javascript" src="screen.js"></script>
         <script type="text/javascript" src="webclient.js"></script>
         <script>
-            function toggle_section(source, element_id) {
-                var content = document.getElementById(element_id);
-                source.classList.toggle('active_section');
-                if (content.style.display == "block"){
-                    content.style.display = "none";
-                } else {
-                    content.style.display = "block";
-                }
-            }
-
             function update_scale(source, scale_value) {
                 for (var i = 1; i <= 4; i++) {
                     var element = document.getElementById('btn_scale_' + String(i));
                     if (i == scale_value) {
-                        // element.color = "red";
+                        element.style.background = "#0000e0";
                     } else {
                         element.style.background = "#333";
                     }
                 }
-                source.style.background = "#0000e0";
                 ui_set_scale(scale_value);
             }
         </script>
@@ -36,7 +25,7 @@
     <body>
         <!-- Header -->
         <header>
-            <h1>TeleZX</h1>
+            <h1>TeleZX Online</h1>
         </header>
 
         <!-- Navigation Bar -->
@@ -60,7 +49,12 @@
                     </div>
                 </div>
 
-                <button class="collapsible" onclick="toggle_section(this, 'keyboard');">⌨ Keyboard shortcuts:</button>
+                <button class="collapsible" onclick="web_toggle_section(this, 'image_details');" id="btn_image_details"><span class="icon">🗎</span>Image details:</button>
+                <div id="image_details" style="display: none;">
+                    <pre id="tasl"></pre>
+                </div>
+
+                <button class="collapsible" onclick="web_toggle_section(this, 'keyboard');" id="btn_keyboard"><span class="icon">⌨</span>Keyboard shortcuts:</button>
                 <div id="keyboard" style="display: none;">
                     <table style="width: 100%;">
                         <tr>
@@ -118,13 +112,7 @@
         <!-- Footer -->
         <footer>
             <p>
-                Copyright © 2026 Tor-Eirik Bakke Lunde.
-            </p>
-            <p>
-                This application comes with absolutely no warranty.
-            </p>
-            <p>
-                See the GNU General Public Licence, version 3 or later for <a href="https://github.com/tebl/telezx/blob/main/LICENSE.md">details</a>.
+                Copyright © 2026 Tor-Eirik Bakke Lunde
             </p>
         </footer>
     </body>
