@@ -7,20 +7,15 @@ body {
     margin: 0;
 }
 
-/* Header */
-header {
-    font-family: 'Times New Roman', serif;
-    padding: 10px;
-    text-align: center;
-    color: black;
-    background: lightblue;
+canvas {
+    box-shadow: 2px 2px #303030;   
 }
 
 /* Top navigation bar */
 .navbar {
     display: flex;
     font-family: 'Times New Roman', serif;
-    background-color: #3737ff;
+    background-color: #375a7f;
     border-width: 2px 0 2px 0;
     border-style: solid;
 }
@@ -35,31 +30,32 @@ header {
 
 /* Change color on hover */
 .navbar a:hover {
-    background-color: #0000e0;
+    background-color: #345475;
 }
 
 /* Column container */
 .container {  
     display: flex;
     flex-wrap: wrap;
+    background-color: #222222;
 }
 
 /* Main column */
 .main {
     flex: 70%;
-    background: #cccccc;
     padding: 20px;
 }
 
 .displayarea {
     font-size: small;
+    color: white;
 }
 
 .displayarea a {
     font-size: medium;
     text-align: center;
     display: inline-block;
-    box-shadow: 2px 2px #858585;
+    box-shadow: 2px 2px #303030;
     background: #333;
     color: white;
     padding: 2px;
@@ -72,7 +68,7 @@ header {
 
 .collapsible {
     margin-top: 10px;
-    background-color: #3737ff;
+    background-color: #375a7f;
     color: white;
     cursor: pointer;
     padding: 5px;
@@ -83,7 +79,7 @@ header {
     font-size: 15px;
 }
 .collapsible:hover {
-    background-color: #0000e0;
+    background-color: #345475;
 }
 .collapsible:after {
     margin-right: 10px;
@@ -121,7 +117,7 @@ span.icon {
 }
 
 #keyboard tr:hover {
-    background-color: #adadad;
+    background-color: #d9d9d9;
 }
 
 span.key, span.key_mod, span.link_blue, span.link_red, span.link_magenta {
@@ -150,8 +146,17 @@ span.link_red {
 span.link_magenta {
     background-color: #e000e0;
 }
-span.key:hover {
+span.key:hover, span.key_mod:hover {
     background-color: #5c5c5c;
+}
+
+/* Header */
+header {
+    font-family: 'Times New Roman', serif;
+    padding: 10px;
+    text-align: center;
+    color: white;
+    background: #202326;
 }
 
 /* Footer */
@@ -160,8 +165,8 @@ footer {
     margin: 0px;
 
     text-align: center;
-    color: black;
-    background: lightblue;
+    color: white;
+    background: #375a7f;
     font-size: 14px;
     width: 100%;
     position: fixed;
