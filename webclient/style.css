@@ -1,0 +1,159 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial;
+    margin: 0;
+}
+
+/* Header */
+header {
+    font-family: 'Times New Roman', serif;
+    padding: 10px;
+    text-align: center;
+    color: white;
+    background: #333;
+}
+
+/* Top navigation bar */
+.navbar {
+    display: flex;
+    background-color: #0000e0;
+}
+
+/* Navigation bar links */
+.navbar a {
+    color: white;
+    padding: 5px 10px;
+    text-decoration: none;
+    text-align: center;
+}
+
+/* Change color on hover */
+.navbar a:hover {
+    background-color: #3737ff;
+}
+
+/* Column container */
+.container {  
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* Main column */
+.main {
+    flex: 70%;
+    background: #cccccc;
+    padding: 20px;
+}
+
+.displayarea {
+    font-size: small;
+}
+
+.displayarea a {
+    font-size: medium;
+    text-align: center;
+    display: inline-block;
+    box-shadow: 2px 2px #858585;
+    background: #333;
+    color: white;
+    padding: 2px;
+    margin: 0 2px 0 0;
+    text-decoration: none;
+}
+.displayarea a:hover {
+    background-color: #5c5c5c;
+}
+
+.collapsible {
+    background-color: #0000e0;
+    color: white;
+    cursor: pointer;
+    padding: 5px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+}
+.collapsible:hover {
+    background-color: #3737ff;
+}
+.collapsible:after {
+    margin-right: 10px;
+    content: '⏶';
+    color: white;
+    font-weight: bold;
+    float: right;
+    margin-left: 5px;
+}
+.active_section:after {
+    margin-right: 10px;
+    content: '⏷';
+}
+
+#keyboard {
+    padding: 5px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    font-size: medium;
+}
+
+#keyboard th {
+    text-align: left;
+}
+
+#keyboard tr:hover {
+    background-color: #adadad;
+}
+
+span.key, span.key_mod, span.link_blue, span.link_red, span.link_magenta {
+    display: inline-block;
+    padding: 5px;
+    margin: 0 2px 0 0;
+    min-width: 20px;
+    border-radius: 10%;
+    box-shadow: 2px 2px #858585;
+    background: #333;
+    color: white;
+    font-size: small;
+    text-align: center;
+    text-decoration: none;
+    text-transform: capitalize;
+}
+span.key_mod {
+    min-width: 50px;
+}
+span.link_blue {
+    background-color: #0000e0;
+}
+span.link_red {
+    background-color: #e00000;
+}
+span.link_magenta {
+    background-color: #e000e0;
+}
+span.key:hover {
+    background-color: #5c5c5c;
+}
+
+/* Footer */
+footer {
+    padding: 10px;
+    margin: 0px;
+
+    text-align: center;
+    color: white;
+    background: #333;
+    font-size: 14px;
+    width: 100%;
+    position: fixed;
+}
+footer a {
+    color: lightblue;
+}
+footer p {
+    margin: 0px 0;
+}

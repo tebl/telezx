@@ -3,12 +3,129 @@
     <head>
         <meta charset="UTF-8">
         <title>TeleZX</title>
+        <link rel="stylesheet" href="style.css">
         <script type="text/javascript" src="fonts.js"></script>
         <script type="text/javascript" src="screen.js"></script>
         <script type="text/javascript" src="webclient.js"></script>
+        <script>
+            function toggle_section(source, element_id) {
+                var content = document.getElementById(element_id);
+                source.classList.toggle('active_section');
+                if (content.style.display == "block"){
+                    content.style.display = "none";
+                } else {
+                    content.style.display = "block";
+                }
+            }
+
+            function update_scale(source, scale_value) {
+                for (var i = 1; i <= 4; i++) {
+                    var element = document.getElementById('btn_scale_' + String(i));
+                    if (i == scale_value) {
+                        // element.color = "red";
+                    } else {
+                        element.style.background = "#333";
+                    }
+                }
+                source.style.background = "#0000e0";
+                ui_set_scale(scale_value);
+            }
+        </script>
     </head>
 
     <body>
-        <canvas id="viewport" width="256" height="192"></canvas>
+        <!-- Header -->
+        <header>
+            <h1>TeleZX</h1>
+        </header>
+
+        <!-- Navigation Bar -->
+        <div class="navbar">
+            <a href="https://github.com/tebl/telezx">Software</a>
+            <a href="https://github.com/tebl/telezx-content">Content</a>
+        </div>
+
+        <div class="container">
+            <div class="main">
+                <div class="displayarea">
+                    <div style="margin: 10px 0 0 0;">
+                        <canvas id="viewport" width="256" height="192" style="width: 512px; height: 384px;"></canvas>
+                    </div>
+                    <div style="margin: 0 0 10px 0;">
+                        Scale:
+                        <a href="#" onclick="update_scale(this, 1)" id="btn_scale_1">1x</a>
+                        <a href="#" onclick="update_scale(this, 2)" id="btn_scale_2" style="background: #0000e0;">2x</a>
+                        <a href="#" onclick="update_scale(this, 3)" id="btn_scale_3">3x</a>
+                        <a href="#" onclick="update_scale(this, 4)" id="btn_scale_4">4x</a>
+                    </div>
+                </div>
+
+                <button class="collapsible" onclick="toggle_section(this, 'keyboard');">⌨ Keyboard shortcuts:</button>
+                <div id="keyboard" style="display: none;">
+                    <table style="width: 100%;">
+                        <tr>
+                            <th style="width: 150px;">Key</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="key">0</span> -
+                                <span class="key">f</span>
+                            </td>
+                            <td>Enter document ID in hex, then hit <span class="key_mod">Enter</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="key_mod">Home</span></td>
+                            <td>Display starting document</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key_mod">End</span></td>
+                            <td>Display table of contents</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">🠄</span> or <span class="key">o</span></td>
+                            <td>Previous document ID</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">🠆</span> or <span class="key">p</span></td>
+                            <td>Next document ID</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">🡑</span> or <span class="key_mod">Page Up</span></td>
+                            <td>Previous page (if available)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">🡓</span> or <span class="key_mod">Page Down</span></td>
+                            <td>Next page (if available)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">j</span></td>
+                            <td>Follow <span class="link_blue">BLUE</span> link (if available)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">k</span></td>
+                            <td>Follow <span class="link_red">RED</span> link (if available)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">l</span></td>
+                            <td>Follow <span class="link_magenta">MAGENTA</span> link (if available)</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                Copyright © 2026 Tor-Eirik Bakke Lunde.
+            </p>
+            <p>
+                This application comes with absolutely no warranty.
+            </p>
+            <p>
+                See the GNU General Public Licence, version 3 or later for <a href="https://github.com/tebl/telezx/blob/main/LICENSE.md">details</a>.
+            </p>
+        </footer>
     </body>
 </html>

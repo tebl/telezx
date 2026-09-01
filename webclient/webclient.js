@@ -28,6 +28,7 @@ const RGB_BASE = 0xe0;
 const RGB_FULL = 0xff;
 
 const DOCUMENT_DEFAULT = 0x1000;
+const DOCUMENT_TOC = 0xff00;
 const PAGE_MINIMUM = 0x0001;
 const PAGE_MAXIMUM = 0xffff;
 const SCREEN_REFRESH = 1000/50;
@@ -103,6 +104,17 @@ function ui_incrementCursor() {
 function ui_set_cursor(pos_x, pos_y) {
     cursor_x = pos_x % SCREEN_WIDTH_CHARS;
     cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
+}
+
+/**
+ * Called from onClick on web page, overrides CSS in order to make the
+ * browser stretch the contents of the screen. Exactly how that is done
+ * is left to the browser.
+ */
+function ui_set_scale(scale) {
+    var canvas = document.getElementById('viewport');
+    canvas.style.width = String(256 * scale) + 'px';
+    canvas.style.height = String(192 * scale) + 'px';
 }
 
 function zx_clear_attributes(new_value) {
@@ -839,8 +851,10 @@ function parse_index_IDX(content) {
 function set_document(document_id) {
     if (document_id > DOCUMENT_ZERO) {
         current_document = document_id;
+        current_input = "";
         return true;
     }
+
     return false;
 }
 
@@ -881,26 +895,35 @@ window.onload = function () {
                 } else {
                     set_document(document_id);
                 }
-                current_input = "";
                 fetch_index();
                 break;
+
+            case "End":
+                set_document(DOCUMENT_TOC);
+                fetch_index();
+                break;
+
             case "Escape":
                 current_input = "";
                 break;
 
+            case "Home":
+                set_document(DOCUMENT_DEFAULT);
+                fetch_index();
+                break
+
             case "PageUp":
             case "ArrowUp":
-            case "p":
                 fetch_page_previous();
                 break;
 
             case "PageDown":
             case "ArrowDown":
-            case "n":
                 fetch_page_next();
                 break;
 
             case "ArrowLeft":
+            case "o":
                 if (current_document > PAGE_MINIMUM) {
                     current_document--;
                     fetch_index();
@@ -908,6 +931,7 @@ window.onload = function () {
                 break;
 
             case "ArrowRight":
+            case "p":
                 if (current_document < PAGE_MAXIMUM) {
                     current_document++;
                     fetch_index();
@@ -915,21 +939,21 @@ window.onload = function () {
                 break;
 
             /* Link A (Blue) */
-            case 'z':
+            case 'j':
                 if (set_document(get_link_id('link_a'))) {
                     fetch_index();
                 }
                 break;
 
             /* Link B (Red) */
-            case 'x':
+            case 'k':
                 if (set_document(get_link_id('link_b'))) {
                     fetch_index();
                 }
                 break;
 
             /* Link C (Magenta) */
-            case 'c':
+            case 'l':
                 if (set_document(get_link_id('link_c'))) {
                     fetch_index();
                 }
