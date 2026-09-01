@@ -12,14 +12,17 @@ header {
     font-family: 'Times New Roman', serif;
     padding: 10px;
     text-align: center;
-    color: white;
-    background: #333;
+    color: black;
+    background: lightblue;
 }
 
 /* Top navigation bar */
 .navbar {
     display: flex;
-    background-color: #0000e0;
+    font-family: 'Times New Roman', serif;
+    background-color: #3737ff;
+    border-width: 2px 0 2px 0;
+    border-style: solid;
 }
 
 /* Navigation bar links */
@@ -32,7 +35,7 @@ header {
 
 /* Change color on hover */
 .navbar a:hover {
-    background-color: #3737ff;
+    background-color: #0000e0;
 }
 
 /* Column container */
@@ -69,7 +72,7 @@ header {
 
 .collapsible {
     margin-top: 10px;
-    background-color: #0000e0;
+    background-color: #3737ff;
     color: white;
     cursor: pointer;
     padding: 5px;
@@ -80,7 +83,7 @@ header {
     font-size: 15px;
 }
 .collapsible:hover {
-    background-color: #3737ff;
+    background-color: #0000e0;
 }
 .collapsible:after {
     margin-right: 10px;
@@ -157,8 +160,8 @@ footer {
     margin: 0px;
 
     text-align: center;
-    color: white;
-    background: #333;
+    color: black;
+    background: lightblue;
     font-size: 14px;
     width: 100%;
     position: fixed;

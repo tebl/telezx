@@ -27,7 +27,7 @@ const DOCUMENT_ZERO = 0;
 const RGB_BASE = 0xe0;
 const RGB_FULL = 0xff;
 
-const DOCUMENT_DEFAULT = 0x1982;
+const DOCUMENT_DEFAULT = 0x1000;
 const DOCUMENT_TOC = 0xff00;
 const PAGE_MINIMUM = 0x0001;
 const PAGE_MAXIMUM = 0xffff;
