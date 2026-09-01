@@ -102,46 +102,6 @@ function zx_clear_memory(new_data_value, new_attribute_value) {
     } 
 }
 
-function ui_print_bytes(data) {
-    zx_set_pixels_at(cursor_x, cursor_y, data)
-    ui_incrementCursor();
-}
-
-function ui_print_ascii(character) {
-    ui_print_bytes(ui_get_font_data(character - ASCII_SPACE));
-}
-
-function ui_set_ascii_at(cursor_x, cursor_y, character) {
-    zx_set_pixels_at(
-        cursor_x, 
-        cursor_y, 
-        ui_get_font_data(character - ASCII_SPACE)
-    );
-}
-
-function ui_get_font_data(character) {
-    var offset = character*8;
-    if (character < 0 || character >= 96) offset = 0;
-    return current_font.slice(offset, offset + 8);
-}
-
-function ui_print_glyph(character) {
-    ui_print_bytes(ui_get_glyph_data(character - 0x80));
-}
-
-function ui_get_glyph_data(character) {
-    var offset = character*8;
-    if (character < 0 || character >= 16) offset = 0;
-    return FONT_GLYPHS.slice(offset, offset + 8);
-}
-
-function ui_printString(string, attribute) {
-    for (var i = 0; i < string.length; i++) {
-        if (attribute >= 0) ui_set_cursor_attribute(attribute);
-        ui_print_ascii(string.charCodeAt(i));
-    }
-}
-
 function zx_set_attribute_at(pos_x, pos_y, value) {
     var index = (pos_y * SCREEN_WIDTH_CHARS) + pos_x;
     memory[SIZE_DATA + index] = value;
@@ -152,18 +112,6 @@ function zx_set_pixels_at(pos_x, pos_y, values) {
     for (var i = 0; i < 8 && i < values.length; i++) {
         memory[address + i*0x100] = values[i];
     }
-}
-
-function ui_set_cursor_attribute(value) {
-    zx_set_attribute_at(cursor_x, cursor_y, value);
-}
-
-function ui_set_cursor_data(values) {
-    zx_set_pixels_at(cursor_x, cursor_y, values);
-}
-
-function ui_set_font(font) {
-    current_font = font;
 }
 
 function zx_to_attribute(is_flashing, is_bright, paper, ink) {
@@ -187,27 +135,6 @@ function zx_parse_attribute(attribute) {
         paper: (attribute & 0b00111000) >>> 3,
         ink: attribute & 0b00000111
     }
-}
-
-function ui_clear_canvas(red, green, blue, alpha) {
-    for (var x = 0; x < canvas_width; x++) {
-        for (var y = 0; y < canvas_height; y++) {
-            // Get the pixel index
-            var pixelindex = (y * canvas_width + x) * 4;
-            ui_set_canvas_index(pixelindex, red, green, blue, alpha);
-        }
-    }
-}
-
-function ui_set_canvas_index(index, red, green, blue, alpha) {
-    canvas_image.data[index] = red;
-    canvas_image.data[index + 1] = green;
-    canvas_image.data[index + 2] = blue;
-    canvas_image.data[index + 3] = alpha;
-}
-
-function ui_set_canvas_pixel(x, y, red, green, blue, alpha) {
-    ui_set_canvas_index((y * canvas_width + x) * 4, red, green, blue, alpha);
 }
 
 function get_canvas_colour(is_on, attr_value) {
@@ -302,15 +229,6 @@ function get_link_id(link_key) {
     return current_index[link_key];
 }
 
-function ui_secondary_header_needed() {
-    if (have_error()) return true;
-    if (have_multiple_pages()) return true;
-    if (have_link('link_a')) return true;
-    if (have_link('link_b')) return true;
-    if (have_link('link_c')) return true;
-    return false;
-}
-
 function render_screen(timestamp) {
     ui_overlay_headers();
     render_memory();
@@ -351,15 +269,6 @@ function periodic_refresh() {
         canvas_flash_value = !canvas_flash_value;
     }
     request_render_screen();
-}
-
-/**
- * Called when we encounter a succesfully processed a page. Discards any
- * errors so that they don't hang around long enough to confuse anyone.
- */
-function clear_status() {
-    current_status = "";
-    current_status_type = STATUS_TYPES.NONE;
 }
 
 /**
@@ -547,7 +456,7 @@ async function fetch_scr_asset(document_id, page_id) {
             console.error("Data not consistent with SCR:", data.length);
         }
 
-        clear_status();
+        ui_clear_status();
     } catch (error) {
         console.error("Failed to fetch data:", error);
         set_error(error.message);
@@ -588,7 +497,7 @@ async function fetch_token_asset(page, subpage, default_attribute) {
         const data = await response.bytes();
         process_tokens(data, default_attribute);
     
-        clear_status();
+        ui_clear_status();
     } catch (error) {
         console.error("Failed to fetch data:", error);
         set_error(error.message, false);
@@ -876,6 +785,25 @@ function set_status(description, status_type) {
     current_status_type = status_type;
 }
 
+function ui_clear_canvas(red, green, blue, alpha) {
+    for (var x = 0; x < canvas_width; x++) {
+        for (var y = 0; y < canvas_height; y++) {
+            // Get the pixel index
+            var pixelindex = (y * canvas_width + x) * 4;
+            ui_set_canvas_index(pixelindex, red, green, blue, alpha);
+        }
+    }
+}
+
+/**
+ * Called when we encounter a succesfully processed a page. Discards any
+ * errors so that they don't hang around long enough to confuse anyone.
+ */
+function ui_clear_status() {
+    current_status = "";
+    current_status_type = STATUS_TYPES.NONE;
+}
+
 /**
  * Increment cursor position, wraps onto next line or alternatively back to
  * the top left corner if we've reached the end of screen memory.
@@ -891,25 +819,16 @@ function ui_incrementCursor() {
     }
 }
 
-
-/**
- * Update cursor position, used when sequentially writing characters to the
- * screen.
- */
-function ui_set_cursor(pos_x, pos_y) {
-    cursor_x = pos_x % SCREEN_WIDTH_CHARS;
-    cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
+function ui_get_font_data(character) {
+    var offset = character*8;
+    if (character < 0 || character >= 96) offset = 0;
+    return current_font.slice(offset, offset + 8);
 }
 
-/**
- * Called from onClick on web page, overrides CSS in order to make the
- * browser stretch the contents of the screen. Exactly how that is done
- * is left to the browser.
- */
-function ui_set_scale(scale) {
-    var canvas = document.getElementById('viewport');
-    canvas.style.width = String(256 * scale) + 'px';
-    canvas.style.height = String(192 * scale) + 'px';
+function ui_get_glyph_data(character) {
+    var offset = character*8;
+    if (character < 0 || character >= 16) offset = 0;
+    return FONT_GLYPHS.slice(offset, offset + 8);
 }
 
 function ui_overlay_headers() {
@@ -925,28 +844,48 @@ function ui_primary_header() {
         zx_set_attribute_at(i, 0, STYLE_HEADER);
     }
     ui_set_cursor(0, 0);
-    ui_printString("P", -1);
+    ui_print_string("P", -1);
     ui_print_ascii(ASCII_SPACE);
     if (current_input == '') {
-        ui_printString(to_padded_number(current_document, 16, 4), -1);
+        ui_print_string(to_padded_number(current_document, 16, 4), -1);
     } else {
-        ui_printString(current_input.padEnd(4, '-'), (current_input == '' ? -1 : STYLE_HEADER_INPUT));
+        ui_print_string(current_input.padEnd(4, '-'), (current_input == '' ? -1 : STYLE_HEADER_INPUT));
     }
     ui_print_ascii(ASCII_SPACE);
     ui_print_ascii(ASCII_SPACE);
     ui_print_ascii(ASCII_SPACE);
     ui_set_font(FONT_CP850);
-    ui_printString("T", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.RED));
-    ui_printString("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.YELLOW));
-    ui_printString("l", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.GREEN));
-    ui_printString("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.BLUE));
-    ui_printString("ZX", -1);
+    ui_print_string("T", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.RED));
+    ui_print_string("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.YELLOW));
+    ui_print_string("l", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.GREEN));
+    ui_print_string("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.BLUE));
+    ui_print_string("ZX", -1);
     ui_set_font(FONT_DEFAULT);
     ui_print_ascii(ASCII_SPACE);
     ui_print_ascii(ASCII_SPACE);
     ui_print_ascii(ASCII_SPACE);
-    ui_printString(get_date_string(), STYLE_HEADER_FIELD);
+    ui_print_string(get_date_string(), STYLE_HEADER_FIELD);
     ui_set_font(FONT_DEFAULT);
+}
+
+function ui_print_glyph(character) {
+    ui_print_bytes(ui_get_glyph_data(character - 0x80));
+}
+
+function ui_print_string(string, attribute) {
+    for (var i = 0; i < string.length; i++) {
+        if (attribute >= 0) ui_set_cursor_attribute(attribute);
+        ui_print_ascii(string.charCodeAt(i));
+    }
+}
+
+function ui_print_ascii(character) {
+    ui_print_bytes(ui_get_font_data(character - ASCII_SPACE));
+}
+
+function ui_print_bytes(data) {
+    zx_set_pixels_at(cursor_x, cursor_y, data)
+    ui_incrementCursor();
 }
 
 function ui_secondary_header() {
@@ -972,11 +911,20 @@ function ui_secondary_header() {
 
     if (have_multiple_pages()) {
         ui_set_cursor(SCREEN_WIDTH_CHARS - 5, 23);
-        ui_printString(
+        ui_print_string(
             String(current_page + 1).padStart(2, '0') + '/' + String(current_index.page_count).padStart(2, '0'),
             STYLE_HEADER_FIELD
         );
     }
+}
+
+function ui_secondary_header_needed() {
+    if (have_error()) return true;
+    if (have_multiple_pages()) return true;
+    if (have_link('link_a')) return true;
+    if (have_link('link_b')) return true;
+    if (have_link('link_c')) return true;
+    return false;
 }
 
 function ui_secondary_link(link_key, link_key_desc, start_at, attribute) {
@@ -992,6 +940,57 @@ function ui_secondary_link(link_key, link_key_desc, start_at, attribute) {
             }
         }
     }
+}
+
+function ui_set_ascii_at(cursor_x, cursor_y, character) {
+    zx_set_pixels_at(
+        cursor_x, 
+        cursor_y, 
+        ui_get_font_data(character - ASCII_SPACE)
+    );
+}
+
+function ui_set_canvas_index(index, red, green, blue, alpha) {
+    canvas_image.data[index] = red;
+    canvas_image.data[index + 1] = green;
+    canvas_image.data[index + 2] = blue;
+    canvas_image.data[index + 3] = alpha;
+}
+
+function ui_set_canvas_pixel(x, y, red, green, blue, alpha) {
+    ui_set_canvas_index((y * canvas_width + x) * 4, red, green, blue, alpha);
+}
+
+/**
+ * Update cursor position, used when sequentially writing characters to the
+ * screen.
+ */
+function ui_set_cursor(pos_x, pos_y) {
+    cursor_x = pos_x % SCREEN_WIDTH_CHARS;
+    cursor_y = pos_y % SCREEN_HEIGHT_CHARS;
+}
+
+function ui_set_cursor_attribute(value) {
+    zx_set_attribute_at(cursor_x, cursor_y, value);
+}
+
+function ui_set_cursor_data(values) {
+    zx_set_pixels_at(cursor_x, cursor_y, values);
+}
+
+function ui_set_font(font) {
+    current_font = font;
+}
+
+/**
+ * Called from onClick on web page, overrides CSS in order to make the
+ * browser stretch the contents of the screen. Exactly how that is done
+ * is left to the browser.
+ */
+function ui_set_scale(scale) {
+    var canvas = document.getElementById('viewport');
+    canvas.style.width = String(256 * scale) + 'px';
+    canvas.style.height = String(192 * scale) + 'px';
 }
 
 /**
