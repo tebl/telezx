@@ -51,7 +51,7 @@ canvas {
     color: white;
 }
 
-.displayarea a {
+a.scale_select, a.scale_active {
     font-size: medium;
     text-align: center;
     display: inline-block;
@@ -59,10 +59,15 @@ canvas {
     background: #333;
     color: white;
     padding: 2px;
-    margin: 0 2px 0 0;
+    margin: 2px 2px 0 0;
     text-decoration: none;
 }
-.displayarea a:hover {
+
+a.scale_active {
+    background-color: #375a7f;
+}
+
+a.scale_select:hover {
     background-color: #5c5c5c;
 }
 

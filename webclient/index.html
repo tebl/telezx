@@ -12,9 +12,11 @@
                 for (var i = 1; i <= 4; i++) {
                     var element = document.getElementById('btn_scale_' + String(i));
                     if (i == scale_value) {
-                        element.style.background = "#375a7f";
+                        element.classList.add('scale_active');
+                        element.classList.remove('scale_select');
                     } else {
-                        element.style.background = "#7a7a7a";
+                        element.classList.add('scale_select');
+                        element.classList.remove('scale_active');
                     }
                 }
                 ui_set_scale(scale_value);
@@ -42,10 +44,10 @@
                     </div>
                     <div style="margin: 0 0 10px 0;">
                         Scale:
-                        <a href="#" onclick="update_scale(this, 1)" id="btn_scale_1">1x</a>
-                        <a href="#" onclick="update_scale(this, 2)" id="btn_scale_2" style="background: #375a7f;">2x</a>
-                        <a href="#" onclick="update_scale(this, 3)" id="btn_scale_3">3x</a>
-                        <a href="#" onclick="update_scale(this, 4)" id="btn_scale_4">4x</a>
+                        <a href="#" onclick="update_scale(this, 1)" id="btn_scale_1" class="scale_select">1x</a>
+                        <a href="#" onclick="update_scale(this, 2)" id="btn_scale_2" class="scale_active">2x</a>
+                        <a href="#" onclick="update_scale(this, 3)" id="btn_scale_3" class="scale_select">3x</a>
+                        <a href="#" onclick="update_scale(this, 4)" id="btn_scale_4" class="scale_select">4x</a>
                     </div>
                 </div>
 
