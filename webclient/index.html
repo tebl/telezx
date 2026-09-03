@@ -8,15 +8,33 @@
         <script type="text/javascript" src="screen.js"></script>
         <script type="text/javascript" src="webclient.js"></script>
         <script>
+            var show_controls = false;
+
+            function toggle_controls(source) {
+                show_controls = !show_controls;
+                if (show_controls) {
+                    source.classList.add('key_input_active');
+                } else {
+                    source.classList.remove('key_input_active');
+                }
+
+                var element = document.getElementById('controls_table');
+                for (var i = 1, row; row = element.rows[i]; i++) {
+                    if (show_controls) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            }
+
             function update_scale(source, scale_value) {
                 for (var i = 1; i <= 4; i++) {
                     var element = document.getElementById('btn_scale_' + String(i));
                     if (i == scale_value) {
-                        element.classList.add('scale_active');
-                        element.classList.remove('scale_select');
+                        element.classList.add('key_input_active');
                     } else {
-                        element.classList.add('scale_select');
-                        element.classList.remove('scale_active');
+                        element.classList.remove('key_input_active');
                     }
                 }
                 ui_set_scale(scale_value);
@@ -38,69 +56,82 @@
 
         <div class="container">
             <div class="main">
-                <div class="displayarea">
-                    <div style="margin: 10px 0 0 0;">
-                        <canvas id="viewport" width="256" height="192" style="width: 512px; height: 384px;"></canvas>
-                    </div>
-                    <div style="margin: 0 0 10px 0;">
-                        Scale:
-                        <a href="#" onclick="update_scale(this, 1)" id="btn_scale_1" class="scale_select">1x</a>
-                        <a href="#" onclick="update_scale(this, 2)" id="btn_scale_2" class="scale_active">2x</a>
-                        <a href="#" onclick="update_scale(this, 3)" id="btn_scale_3" class="scale_select">3x</a>
-                        <a href="#" onclick="update_scale(this, 4)" id="btn_scale_4" class="scale_select">4x</a>
-                    </div>
-                    <div id="controls">
-                        <table>
-                            <tr>
-                                <td><button class="key_input_blue" onclick="handle_key('j');"> </button></td>
-                                <td><button class="key_input_red" onclick="handle_key('k');"> </button></td>
-                                <td><button class="key_input_magenta" onclick="handle_key('l');"> </button></td>
-                                <td></td>
-                                <td><button class="key_input" onclick="handle_key('c');">C</button></td>
-                                <td><button class="key_input" onclick="handle_key('d');">D</button></td>
-                                <td><button class="key_input" onclick="handle_key('e');">E</button></td>
-                                <td><button class="key_input" onclick="handle_key('f');">F</button></td>
-                                <td></td>
-                                <td><button class="key_input_wide" onclick="handle_key('Home');">Home</button></td>
-                            </tr>
-                            <tr>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td><button class="key_input" onclick="handle_key('8');">8</button></td>
-                                <td><button class="key_input" onclick="handle_key('9');">9</button></td>
-                                <td><button class="key_input" onclick="handle_key('a');">A</button></td>
-                                <td><button class="key_input" onclick="handle_key('b');">B</button></td>
-                                <td></td>
-                                <td><button class="key_input_wide" onclick="handle_key('End');">End</button></td>
-                            </tr>
-                            <tr>
-                                <td></td>
-                                <td><button class="key_input" onclick="handle_key('ArrowUp');" style="vertical-align: baseline;"><img src="assets/arrow-up-fill.svg"></button></td>
-                                <td></td>
-                                <td></td>
-                                <td><button class="key_input" onclick="handle_key('4');">4</button></td>
-                                <td><button class="key_input" onclick="handle_key('5');">5</button></td>
-                                <td><button class="key_input" onclick="handle_key('6');">6</button></td>
-                                <td><button class="key_input" onclick="handle_key('7');">7</button></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td><button class="key_input" onclick="handle_key('ArrowLeft');" style="vertical-align: baseline;"><img src="assets/arrow-left-fill.svg"></button></td>
-                                <td><button class="key_input" onclick="handle_key('ArrowDown');" style="vertical-align: baseline;"><img src="assets/arrow-down-fill.svg"></button></td>
-                                <td><button class="key_input" onclick="handle_key('ArrowRight');" style="vertical-align: baseline;"><img src="assets/arrow-right-fill.svg"></button></td>
-                                <td></td>
-                                <td><button class="key_input" onclick="handle_key('0');">0</button></td>
-                                <td><button class="key_input" onclick="handle_key('1');">1</button></td>
-                                <td><button class="key_input" onclick="handle_key('2');">2</button></td>
-                                <td><button class="key_input" onclick="handle_key('3');">3</button></td>
-                                <td></td>
-                                <td><button class="key_input_wide" onclick="handle_key('Enter');">Enter</button></td>
-                            </tr>
-                        </table>
-                    </div>
+                <div class="display_area">
+                    <canvas id="viewport" width="256" height="192" style="width: 512px; height: 384px;"></canvas>
+                </div>
+                <div id="controls">
+                    <table id="controls_table">
+                        <tr>
+                            <td colspan="3"><button class="key_input" onclick="toggle_controls(this);">On-Screen Keyboard</button></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input" onclick="update_scale(this, 1)" id="btn_scale_1">1x</button></td>
+                            <td><button class="key_input key_input_active" onclick="update_scale(this, 2)" id="btn_scale_2">2x</button></td>
+                            <td><button class="key_input" onclick="update_scale(this, 3)" id="btn_scale_3">3x</button></td>
+                            <td><button class="key_input" onclick="update_scale(this, 4)" id="btn_scale_4">4x</button></td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                        </tr>
+                        <tr style="display: none;">
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr style="display: none;">
+                            <td><button class="key_input_blue" onclick="handle_key('j');"> </button></td>
+                            <td><button class="key_input_red" onclick="handle_key('k');"> </button></td>
+                            <td><button class="key_input_magenta" onclick="handle_key('l');"> </button></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input" onclick="handle_key('c');">C</button></td>
+                            <td><button class="key_input" onclick="handle_key('d');">D</button></td>
+                            <td><button class="key_input" onclick="handle_key('e');">E</button></td>
+                            <td><button class="key_input" onclick="handle_key('f');">F</button></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input_wide" onclick="handle_key('Home');">Home</button></td>
+                        </tr>
+                        <tr style="display: none;">
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input" onclick="handle_key('8');">8</button></td>
+                            <td><button class="key_input" onclick="handle_key('9');">9</button></td>
+                            <td><button class="key_input" onclick="handle_key('a');">A</button></td>
+                            <td><button class="key_input" onclick="handle_key('b');">B</button></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input_wide" onclick="handle_key('End');">End</button></td>
+                        </tr>
+                        <tr style="display: none;">
+                            <td></td>
+                            <td><button class="key_input" onclick="handle_key('ArrowUp');" style="vertical-align: baseline;"><img src="assets/arrow-up-fill.svg"></button></td>
+                            <td></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input" onclick="handle_key('4');">4</button></td>
+                            <td><button class="key_input" onclick="handle_key('5');">5</button></td>
+                            <td><button class="key_input" onclick="handle_key('6');">6</button></td>
+                            <td><button class="key_input" onclick="handle_key('7');">7</button></td>
+                            <td>&nbsp;</td>
+                            <td></td>
+                        </tr>
+                        <tr style="display: none;">
+                            <td><button class="key_input" onclick="handle_key('ArrowLeft');" style="vertical-align: baseline;"><img src="assets/arrow-left-fill.svg"></button></td>
+                            <td><button class="key_input" onclick="handle_key('ArrowDown');" style="vertical-align: baseline;"><img src="assets/arrow-down-fill.svg"></button></td>
+                            <td><button class="key_input" onclick="handle_key('ArrowRight');" style="vertical-align: baseline;"><img src="assets/arrow-right-fill.svg"></button></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input" onclick="handle_key('0');">0</button></td>
+                            <td><button class="key_input" onclick="handle_key('1');">1</button></td>
+                            <td><button class="key_input" onclick="handle_key('2');">2</button></td>
+                            <td><button class="key_input" onclick="handle_key('3');">3</button></td>
+                            <td>&nbsp;</td>
+                            <td><button class="key_input_wide" onclick="handle_key('Enter');">Enter</button></td>
+                        </tr>
+                    </table>
                 </div>
 
                 <button class="collapsible" onclick="web_toggle_section(this, 'image_details');" id="btn_image_details"><span class="icon">🗎</span>Image details:</button>
@@ -108,8 +139,8 @@
                     <pre id="tasl"></pre>
                 </div>
 
-                <button class="collapsible" onclick="web_toggle_section(this, 'keyboard');" id="btn_keyboard"><span class="icon">⌨</span>Keyboard shortcuts:</button>
-                <div id="keyboard" style="display: none;">
+                <button class="collapsible" onclick="web_toggle_section(this, 'keyboard_shortcuts');" id="btn_keyboard"><span class="icon">⌨</span>Keyboard shortcuts:</button>
+                <div id="keyboard_shortcuts" style="display: none;">
                     <table style="width: 100%;">
                         <tr>
                             <th style="width: 150px;">Key</th>
