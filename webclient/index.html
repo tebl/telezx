@@ -33,6 +33,13 @@
                     var element = document.getElementById('btn_scale_' + String(i));
                     if (i == scale_value) {
                         element.classList.add('key_input_active');
+
+                        var ui_scale = (scale_value > 1 ? scale_value : 2);
+                        const elements = [ 'btn_keyboard', 'keyboard_shortcuts', 'btn_image_details', 'image_details'];
+                        elements.forEach(function (item, index) {
+                            var e = document.getElementById(item);
+                            e.style.width = String(256 * ui_scale) + 'px';;
+                        });
                     } else {
                         element.classList.remove('key_input_active');
                     }
@@ -43,6 +50,17 @@
     </head>
 
     <body>
+        <!-- Header -->
+        <header>
+            <h1>TeleZX Online</h1>
+        </header>
+
+        <!-- Navigation Bar -->
+        <div class="navbar">
+            <a href="https://github.com/tebl/telezx"><img src="assets/web-code.svg" style="vertical-align: text-top;"> Software</a>
+            <a href="https://github.com/tebl/telezx-content"><img src="assets/web-content.svg" style="vertical-align: text-top;"> Content</a>
+        </div>
+
         <div class="container">
             <div class="main">
                 <div class="display_area">
@@ -51,7 +69,7 @@
                 <div id="controls">
                     <table id="controls_table">
                         <tr>
-                            <td colspan="3"><button class="key_input" onclick="toggle_controls(this);">On-Screen Keyboard</button></td>
+                            <td colspan="3"><button class="key_input_expand" onclick="toggle_controls(this);">On-Screen Keyboard</button></td>
                             <td>&nbsp;</td>
                             <td><button class="key_input" onclick="update_scale(this, 1)" id="btn_scale_1">1x</button></td>
                             <td><button class="key_input key_input_active" onclick="update_scale(this, 2)" id="btn_scale_2">2x</button></td>
@@ -123,64 +141,74 @@
                     </table>
                 </div>
 
-                <button class="collapsible" onclick="web_toggle_section(this, 'image_details');" id="btn_image_details"><span class="icon">🗎</span>Image details:</button>
-                <div id="image_details" style="display: none;">
-                    <pre id="tasl"></pre>
-                </div>
+                <div id="sections">
+                    <button class="collapsible" onclick="web_toggle_section(this, 'image_details');" id="btn_image_details"><span class="icon">🗎</span>Image details:</button>
+                    <div id="image_details" style="display: none;">
+                        <pre id="tasl"></pre>
+                    </div>
+                    <br>
 
-                <button class="collapsible" onclick="web_toggle_section(this, 'keyboard_shortcuts');" id="btn_keyboard"><span class="icon">⌨</span>Keyboard shortcuts:</button>
-                <div id="keyboard_shortcuts" style="display: none;">
-                    <table style="width: 100%;">
-                        <tr>
-                            <th style="width: 150px;">Key</th>
-                            <th>Description</th>
-                        </tr>
-                        <tr>
-                            <td>
-                                <span class="key">0</span> -
-                                <span class="key">f</span>
-                            </td>
-                            <td>Enter document ID in hex, then hit <span class="key_mod">Enter</span></td>
-                        </tr>
-                        <tr>
-                            <td><span class="key_mod">Home</span></td>
-                            <td>Display starting document</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key_mod">End</span></td>
-                            <td>Display table of contents</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key"><img src="assets/arrow-left-fill.svg"></span> or <span class="key">o</span></td>
-                            <td>Previous document ID</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key"><img src="assets/arrow-right-fill.svg"></span> or <span class="key">p</span></td>
-                            <td>Next document ID</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key"><img src="assets/arrow-up-fill.svg"></span> or <span class="key_mod">Page Up</span></td>
-                            <td>Previous page (if available)</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key"><img src="assets/arrow-down-fill.svg"></span> or <span class="key_mod">Page Down</span></td>
-                            <td>Next page (if available)</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key">j</span></td>
-                            <td>Follow <span class="link_blue">BLUE</span> link (if available)</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key">k</span></td>
-                            <td>Follow <span class="link_red">RED</span> link (if available)</td>
-                        </tr>
-                        <tr>
-                            <td><span class="key">l</span></td>
-                            <td>Follow <span class="link_magenta">MAGENTA</span> link (if available)</td>
-                        </tr>
-                    </table>
+                    <button class="collapsible" onclick="web_toggle_section(this, 'keyboard_shortcuts');" id="btn_keyboard"><span class="icon">⌨</span>Keyboard shortcuts:</button>
+                    <div id="keyboard_shortcuts" style="display: none;">
+                        <table style="width: 100%;">
+                            <tr>
+                                <th style="width: 150px;">Key</th>
+                                <th>Description</th>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <span class="key">0</span> -
+                                    <span class="key">f</span>
+                                </td>
+                                <td>Enter document ID in hex, then hit <span class="key_mod">Enter</span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="key_mod">Home</span></td>
+                                <td>Display starting document</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key_mod">End</span></td>
+                                <td>Display table of contents</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key"><img src="assets/arrow-left-fill.svg"></span> or <span class="key">o</span></td>
+                                <td>Previous document ID</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key"><img src="assets/arrow-right-fill.svg"></span> or <span class="key">p</span></td>
+                                <td>Next document ID</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key"><img src="assets/arrow-up-fill.svg"></span> or <span class="key_mod">Page Up</span></td>
+                                <td>Previous page (if available)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key"><img src="assets/arrow-down-fill.svg"></span> or <span class="key_mod">Page Down</span></td>
+                                <td>Next page (if available)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key">j</span></td>
+                                <td>Follow <span class="link_blue">BLUE</span> link (if available)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key">k</span></td>
+                                <td>Follow <span class="link_red">RED</span> link (if available)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="key">l</span></td>
+                                <td>Follow <span class="link_magenta">MAGENTA</span> link (if available)</td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                Copyright © 2026 Tor-Eirik Bakke Lunde
+            </p>
+        </footer>
     </body>
 </html>

@@ -45,6 +45,7 @@ canvas {
 .main {
     flex: 70%;
     padding: 20px;
+    align-items: center;
 }
 
 .display_area {
@@ -68,7 +69,7 @@ canvas {
     color: white;
     cursor: pointer;
     padding: 5px;
-    width: 100%;
+    width: 512px;
     border: none;
     text-align: left;
     outline: none;
@@ -90,6 +91,13 @@ canvas {
     content: url('assets/arrow-up-fill.svg');
 }
 
+#sections {
+    position: relative;
+    left: 50%; 
+    transform: translateX(-50%);
+    align-items: center;
+}
+
 span.icon {
     margin-right: 5px;
     display: inline-block;
@@ -102,10 +110,18 @@ span.icon {
 } 
 
 #keyboard_shortcuts, #image_details {
+    width: 512px;
     padding: 5px;
     overflow: hidden;
     background-color: #f0f0f0;
     font-size: medium;
+}
+
+.collapsible, #keyboard_shortcuts, #image_details {
+    position: relative;
+    left: 50%; 
+    transform: translateX(-50%);
+    align-items: center;
 }
 
 #keyboard_shortcuts th {
@@ -146,7 +162,8 @@ span.key:hover, span.key_mod:hover, .key_input:hover {
     background-color: #5c5c5c;
 }
 
-.key_input, .key_input_wide, .key_input_blue, .key_input_red, .key_input_magenta {
+.key_input, .key_input_wide, .key_input_expand, .key_input_blue, .key_input_red, .key_input_magenta {
+    cursor: pointer;
     background: #333;
     color: white;
     display: inline-block;
@@ -159,6 +176,10 @@ span.key:hover, span.key_mod:hover, .key_input:hover {
 
 .key_input_wide {
     min-width: 50px;
+}
+
+.key_input_expand {
+    min-width: 150px;
 }
 
 .key_input_blue {
