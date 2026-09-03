@@ -5,6 +5,7 @@
 body {
     font-family: Arial;
     margin: 0;
+    background-color: #202326;
 }
 
 canvas {
@@ -88,7 +89,7 @@ a.scale_select:hover {
 }
 .collapsible:after {
     margin-right: 10px;
-    content: '⏶';
+    content: url('assets/arrow-down-fill.svg');
     color: white;
     font-weight: bold;
     float: right;
@@ -96,7 +97,7 @@ a.scale_select:hover {
 }
 .active_section:after {
     margin-right: 10px;
-    content: '⏷';
+    content: url('assets/arrow-up-fill.svg');
 }
 
 span.icon {
@@ -151,8 +152,35 @@ span.link_red {
 span.link_magenta {
     background-color: #e000e0;
 }
-span.key:hover, span.key_mod:hover {
+span.key:hover, span.key_mod:hover, .key_input:hover {
     background-color: #5c5c5c;
+}
+
+.key_input, .key_input_wide, .key_input_blue, .key_input_red, .key_input_magenta {
+    background: #333;
+    color: white;
+    display: inline-block;
+    vertical-align: middle;
+    min-width: 25px;
+    min-height: 25px;
+    margin: 0 4px 4px 0;
+    border-radius: 15%;
+}
+
+.key_input_wide {
+    min-width: 50px;
+}
+
+.key_input_blue {
+    background-color: #0000e0;
+}
+
+.key_input_red {
+    background-color: #e00000;
+}
+
+.key_input_magenta {
+    background-color: #e000e0;
 }
 
 /* Header */
@@ -166,15 +194,13 @@ header {
 
 /* Footer */
 footer {
-    padding: 10px;
-    margin: 0px;
-
-    text-align: center;
-    color: white;
     background: #375a7f;
+    color: white;
     font-size: 14px;
+    margin: 0px;
+    padding: 10px;
+    text-align: center;
     width: 100%;
-    position: fixed;
 }
 footer a {
     color: lightblue;

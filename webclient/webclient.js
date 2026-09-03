@@ -514,9 +514,8 @@ function generate_blank_page(attribute) {
     return true;
 }
 
-function handle_keyboard(event) {
-    var key_handled = true;
-    switch (event.key) {
+function handle_key(key_name) {
+    switch (key_name) {
         case "0":
         case "1":
         case "2":
@@ -533,7 +532,8 @@ function handle_keyboard(event) {
         case "d":
         case "e":
         case "f":
-            current_input = (current_input + event.key.toUpperCase()).slice(-4);
+            current_input = (current_input + key_name.toUpperCase()).slice(-4);
+            request_render_screen();
             break;
         case "Enter":
             var document_id = Number('0x' + current_input.padEnd(4, '0'));
@@ -552,22 +552,21 @@ function handle_keyboard(event) {
 
         case "Escape":
             current_input = "";
+            request_render_screen();
             break;
 
         case "Home":
             set_document(DOCUMENT_DEFAULT);
             fetch_index();
-            break
+            break;
 
         case "PageUp":
         case "ArrowUp":
-            event.preventDefault();
             fetch_page_previous();
             break;
 
         case "PageDown":
         case "ArrowDown":
-            event.preventDefault();
             fetch_page_next();
             break;
 
@@ -609,15 +608,119 @@ function handle_keyboard(event) {
             break;
         
         default:
-            key_handled = false;
-            break;
+            return false
     }
 
-    if (key_handled) {
+    return true;
+}
+
+function handle_keydown(event) {
+    if (handle_key(event.key)) {
         event.preventDefault();
     }
+    // var key_handled = true;
+    // switch (event.key) {
+    //     case "0":
+    //     case "1":
+    //     case "2":
+    //     case "3":
+    //     case "4":
+    //     case "5":
+    //     case "6":
+    //     case "7":
+    //     case "8":
+    //     case "9":
+    //     case "a":
+    //     case "b":
+    //     case "c":
+    //     case "d":
+    //     case "e":
+    //     case "f":
+    //         current_input = (current_input + event.key.toUpperCase()).slice(-4);
+    //         break;
+    //     case "Enter":
+    //         var document_id = Number('0x' + current_input.padEnd(4, '0'));
+    //         if (isNaN(document_id) || document_id == DOCUMENT_ZERO) {
+    //             set_document(DOCUMENT_DEFAULT);
+    //         } else {
+    //             set_document(document_id);
+    //         }
+    //         fetch_index();
+    //         break;
 
-    request_render_screen();
+    //     case "End":
+    //         set_document(DOCUMENT_TOC);
+    //         fetch_index();
+    //         break;
+
+    //     case "Escape":
+    //         current_input = "";
+    //         break;
+
+    //     case "Home":
+    //         set_document(DOCUMENT_DEFAULT);
+    //         fetch_index();
+    //         break
+
+    //     case "PageUp":
+    //     case "ArrowUp":
+    //         event.preventDefault();
+    //         fetch_page_previous();
+    //         break;
+
+    //     case "PageDown":
+    //     case "ArrowDown":
+    //         event.preventDefault();
+    //         fetch_page_next();
+    //         break;
+
+    //     case "ArrowLeft":
+    //     case "o":
+    //         if (current_document > PAGE_MINIMUM) {
+    //             current_document--;
+    //             fetch_index();
+    //         }
+    //         break;
+
+    //     case "ArrowRight":
+    //     case "p":
+    //         if (current_document < PAGE_MAXIMUM) {
+    //             current_document++;
+    //             fetch_index();
+    //         }
+    //         break;
+
+    //     /* Link A (Blue) */
+    //     case 'j':
+    //         if (set_document(get_link_id('link_a'))) {
+    //             fetch_index();
+    //         }
+    //         break;
+
+    //     /* Link B (Red) */
+    //     case 'k':
+    //         if (set_document(get_link_id('link_b'))) {
+    //             fetch_index();
+    //         }
+    //         break;
+
+    //     /* Link C (Magenta) */
+    //     case 'l':
+    //         if (set_document(get_link_id('link_c'))) {
+    //             fetch_index();
+    //         }
+    //         break;
+        
+    //     default:
+    //         key_handled = false;
+    //         break;
+    // }
+
+    // if (key_handled) {
+    //     event.preventDefault();
+    // }
+
+    // request_render_screen();
 }
 
 function parse_index(content) {
@@ -789,14 +892,14 @@ function ui_clear_canvas(red, green, blue, alpha) {
     for (var x = 0; x < canvas_width; x++) {
         for (var y = 0; y < canvas_height; y++) {
             // Get the pixel index
-            var pixelindex = (y * canvas_width + x) * 4;
-            ui_set_canvas_index(pixelindex, red, green, blue, alpha);
+            var pixel_index = (y * canvas_width + x) * 4;
+            ui_set_canvas_index(pixel_index, red, green, blue, alpha);
         }
     }
 }
 
 /**
- * Called when we encounter a succesfully processed a page. Discards any
+ * Called when we encounter a successfully processed a page. Discards any
  * errors so that they don't hang around long enough to confuse anyone.
  */
 function ui_clear_status() {
@@ -1037,7 +1140,7 @@ window.onload = function () {
     canvas_height = canvas.height;
     canvas_image = context.createImageData(canvas_width, canvas_height);
 
-    document.addEventListener('keydown', handle_keyboard);
+    document.addEventListener('keydown', handle_keydown);
 
     zx_clear_memory(0, STYLE_DEFAULT);
     request_render_screen();

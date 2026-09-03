@@ -49,6 +49,58 @@
                         <a href="#" onclick="update_scale(this, 3)" id="btn_scale_3" class="scale_select">3x</a>
                         <a href="#" onclick="update_scale(this, 4)" id="btn_scale_4" class="scale_select">4x</a>
                     </div>
+                    <div id="controls">
+                        <table>
+                            <tr>
+                                <td><button class="key_input_blue" onclick="handle_key('j');"> </button></td>
+                                <td><button class="key_input_red" onclick="handle_key('k');"> </button></td>
+                                <td><button class="key_input_magenta" onclick="handle_key('l');"> </button></td>
+                                <td></td>
+                                <td><button class="key_input" onclick="handle_key('c');">C</button></td>
+                                <td><button class="key_input" onclick="handle_key('d');">D</button></td>
+                                <td><button class="key_input" onclick="handle_key('e');">E</button></td>
+                                <td><button class="key_input" onclick="handle_key('f');">F</button></td>
+                                <td></td>
+                                <td><button class="key_input_wide" onclick="handle_key('Home');">Home</button></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td><button class="key_input" onclick="handle_key('8');">8</button></td>
+                                <td><button class="key_input" onclick="handle_key('9');">9</button></td>
+                                <td><button class="key_input" onclick="handle_key('a');">A</button></td>
+                                <td><button class="key_input" onclick="handle_key('b');">B</button></td>
+                                <td></td>
+                                <td><button class="key_input_wide" onclick="handle_key('End');">End</button></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td><button class="key_input" onclick="handle_key('ArrowUp');" style="vertical-align: baseline;"><img src="assets/arrow-up-fill.svg"></button></td>
+                                <td></td>
+                                <td></td>
+                                <td><button class="key_input" onclick="handle_key('4');">4</button></td>
+                                <td><button class="key_input" onclick="handle_key('5');">5</button></td>
+                                <td><button class="key_input" onclick="handle_key('6');">6</button></td>
+                                <td><button class="key_input" onclick="handle_key('7');">7</button></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><button class="key_input" onclick="handle_key('ArrowLeft');" style="vertical-align: baseline;"><img src="assets/arrow-left-fill.svg"></button></td>
+                                <td><button class="key_input" onclick="handle_key('ArrowDown');" style="vertical-align: baseline;"><img src="assets/arrow-down-fill.svg"></button></td>
+                                <td><button class="key_input" onclick="handle_key('ArrowRight');" style="vertical-align: baseline;"><img src="assets/arrow-right-fill.svg"></button></td>
+                                <td></td>
+                                <td><button class="key_input" onclick="handle_key('0');">0</button></td>
+                                <td><button class="key_input" onclick="handle_key('1');">1</button></td>
+                                <td><button class="key_input" onclick="handle_key('2');">2</button></td>
+                                <td><button class="key_input" onclick="handle_key('3');">3</button></td>
+                                <td></td>
+                                <td><button class="key_input_wide" onclick="handle_key('Enter');">Enter</button></td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
 
                 <button class="collapsible" onclick="web_toggle_section(this, 'image_details');" id="btn_image_details"><span class="icon">🗎</span>Image details:</button>
@@ -79,19 +131,19 @@
                             <td>Display table of contents</td>
                         </tr>
                         <tr>
-                            <td><span class="key">🠄</span> or <span class="key">o</span></td>
+                            <td><span class="key"><img src="assets/arrow-left-fill.svg"></span> or <span class="key">o</span></td>
                             <td>Previous document ID</td>
                         </tr>
                         <tr>
-                            <td><span class="key">🠆</span> or <span class="key">p</span></td>
+                            <td><span class="key"><img src="assets/arrow-right-fill.svg"></span> or <span class="key">p</span></td>
                             <td>Next document ID</td>
                         </tr>
                         <tr>
-                            <td><span class="key">🡑</span> or <span class="key_mod">Page Up</span></td>
+                            <td><span class="key"><img src="assets/arrow-up-fill.svg"></span> or <span class="key_mod">Page Up</span></td>
                             <td>Previous page (if available)</td>
                         </tr>
                         <tr>
-                            <td><span class="key">🡓</span> or <span class="key_mod">Page Down</span></td>
+                            <td><span class="key"><img src="assets/arrow-down-fill.svg"></span> or <span class="key_mod">Page Down</span></td>
                             <td>Next page (if available)</td>
                         </tr>
                         <tr>
