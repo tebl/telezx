@@ -69,7 +69,7 @@ canvas {
     color: white;
     cursor: pointer;
     padding: 5px;
-    width: 512px;
+    width: 768px;
     border: none;
     text-align: left;
     outline: none;
@@ -110,7 +110,7 @@ span.icon {
 } 
 
 #keyboard_shortcuts, #image_details {
-    width: 512px;
+    width: 768px;
     padding: 5px;
     overflow: hidden;
     background-color: #f0f0f0;
@@ -168,18 +168,18 @@ span.key:hover, span.key_mod:hover, .key_input:hover {
     color: white;
     display: inline-block;
     vertical-align: middle;
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 50px;
+    min-height: 50px;
     margin: 0 4px 4px 0;
     border-radius: 8px;
 }
 
 .key_input_wide {
-    min-width: 50px;
+    min-width: 80px;
 }
 
 .key_input_expand {
-    min-width: 150px;
+    min-width: 170px;
 }
 
 .key_input_blue {
