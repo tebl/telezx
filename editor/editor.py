@@ -52,7 +52,7 @@ class ZXEditor(ttk.Frame):
         self.cursor_y = 0
 
         self.cursor = ScreenCoordinate(0, 0)
-        self.region_screen = ScreenRegion.from_tuples((0, 0), (ZXScreen.SCREEN_WIDTH_CHARS, ZXScreen.SCREEN_HEIGHT_CHARS))
+        self.region_screen = ScreenRegion.full()
         self.region_highlight = None
 
         self.zx_token = ZXToken()

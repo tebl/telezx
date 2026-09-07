@@ -28,14 +28,25 @@ class ScreenCoordinate:
     char_y: int
 
     def __init__(self, char_x: int, char_y: int):
-        self.set(char_x, char_y)
+        self.char_x = self.__filter_x(char_x)
+        self.char_y = self.__filter_y(char_y)
 
     def get(self):
         return (self.char_x, self.char_y)
 
-    def set(self, char_x, char_y):
-        self.char_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
-        self.char_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
+    @classmethod
+    def __filter_x(cls, char_x):
+        return (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
+
+    @classmethod
+    def __filter_y(cls, char_y):
+        return (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
+
+    def set(self, char_x, char_y) -> bool:
+        prev_x, prev_y = self.get()
+        self.char_x = self.__filter_x(char_x)
+        self.char_y = self.__filter_y(char_y)
+        return not (self.char_x == prev_x and self.char_y == prev_y)
 
     def move(self, direction: CellDirection):
         match direction:
@@ -92,6 +103,62 @@ class ScreenCoordinate:
 
     def __eq__(self, value):
         return (self.char_x == value.x and self.char_y == value.y)
+
+
+class ScreenNavigator:
+    @classmethod
+    def newline(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_y < region.max_char_y():
+            cursor.set(region.min_char_x(), cursor.char_y + 1)
+            return True
+        return False
+
+    @classmethod
+    def next(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_x < region.max_char_x():
+            cursor.set(cursor.char_x + 1, cursor.char_y)
+            return True
+
+        if cursor.char_y < region.max_char_y():
+            cursor.set(region.min_char_x(), cursor.char_y + 1)
+            return True
+        
+        return False
+
+    @classmethod
+    def previous(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_x > region.min_char_x():
+            cursor.set(cursor.char_x - 1, cursor.char_y)
+            return True
+
+        if cursor.char_y > region.min_char_y():
+            cursor.set(region.max_char_x(), cursor.char_y - 1)
+            return True
+        
+        return False
+
+    @classmethod
+    def __force_inside(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        char_x_alt = [region.min_char_x(), region.max_char_x()]
+        if cursor.char_x >= region.min_char_x() and cursor.char_x <= region.max_char_x():
+            char_x_alt.append(cursor.char_x)
+        char_y_alt = [region.min_char_y(), region.max_char_y()]
+        if cursor.char_y >= region.min_char_y() and cursor.char_y <= region.max_char_y():
+            char_y_alt.append(cursor.char_y)
+
+        return cursor.set(
+            min(char_x_alt, key=lambda x: abs(x - cursor.char_x)), 
+            min(char_y_alt, key=lambda x: abs(x - cursor.char_y))
+        )
 
 
 class ScreenRegion:
@@ -153,12 +220,27 @@ class ScreenRegion:
     def coordinates(self):
         return (self.coord_start, self.coord_end)
 
+    def is_cursor_inside(self, cursor: ScreenCoordinate):
+        return self.is_inside(cursor.char_x, cursor.char_y)
+
     def is_inside(self, char_x, char_y):
         if not (char_x >= self.coord_start.char_x and char_x <= self.coord_end.char_x):
             return False
         if not (char_y >= self.coord_start.char_y and char_y <= self.coord_end.char_y):
             return False
         return True
+
+    def min_char_x(self):
+        return self.coord_start.char_x
+
+    def max_char_x(self):
+        return self.coord_end.char_x
+
+    def min_char_y(self):
+        return self.coord_start.char_y
+
+    def max_char_y(self):
+        return self.coord_end.char_y
 
     def transpose(self, direction: CellDirection):
         self.coord_start.move(direction)
@@ -192,4 +274,14 @@ class ScreenRegion:
         return ScreenRegion(
             ScreenCoordinate(char_x = coord_a[0], char_y = coord_a[1]),
             ScreenCoordinate(char_x = coord_b[0], char_y = coord_b[1])
+        )
+
+    @classmethod
+    def full(cls):
+        '''
+        ScreenRegion representing the entire screen.
+        '''
+        return cls.from_tuples(
+            (0, 0),
+            (ZXScreen.SCREEN_WIDTH_CHARS - 1, ZXScreen.SCREEN_HEIGHT_CHARS - 1)
         )
