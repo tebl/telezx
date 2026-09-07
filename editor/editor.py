@@ -364,6 +364,8 @@ class ZXEditor(ttk.Frame):
         self.set_status(f'Document loaded: {self.zx_token.document_path}')
 
     def move_cursor(self, char_x, char_y):
+        self.cursor.set(char_x, char_y)
+
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
         self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
         self.zx_token.debug_cell(self.cursor_x, self.cursor_y)
@@ -447,27 +449,27 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def __move_content(self, direction: CellDirection, nudge: bool=True):
-        if self.region_highlight and self.region_highlight.can_move(direction):
+        if self.region_highlight and self.region_highlight.can_transpose(direction):
             delta_x, delta_y = direction.get_delta()
             for coord in self.region_highlight.cells(direction):
                 self.__shift_highlight(coord, delta_x, delta_y, nudge)
-            self.region_highlight.move(direction)
+            self.region_highlight.transpose(direction)
             self.move_cursor(self.cursor_x + delta_x, self.cursor_y + delta_y)
 
     def __shift_highlight(self, coord: ScreenCoordinate, delta_x: int, delta_y: int, nudge: bool=True):
-        original = self.zx_token.get_cell(coord.x + delta_x, coord.y + delta_y)
+        original = self.zx_token.get_cell(coord.char_x + delta_x, coord.char_y + delta_y)
         self.zx_token.set_cell(
-            coord.x + delta_x, 
-            coord.y + delta_y, 
-            cell_copy = self.zx_token.get_cell(coord.x, coord.y)
+            coord.char_x + delta_x, 
+            coord.char_y + delta_y, 
+            cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
         )
 
         # Nudge wraps the original cell out the other side, with it disabled
         # we instead leave empty cells in its place (effectively ereasing them).
         if nudge:
-            self.zx_token.set_cell(coord.x, coord.y, cell_copy=original)
+            self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=original)
         else:
-            self.zx_token.set_cell(coord.x, coord.y)
+            self.zx_token.set_cell(coord.char_x, coord.char_y)
 
     def on_quit(self, root):
         if not self.zx_token.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
@@ -827,7 +829,7 @@ class Main(ttk.Frame):
 
         if self.zx_editor.region_highlight:
             for cell in self.zx_editor.region_highlight.cells(CellDirection.NORTH):
-                self.__highlight_cell(cell.x, cell.y, self.highlight_colour)
+                self.__highlight_cell(cell.char_x, cell.char_y, self.highlight_colour)
 
         self.__highlight_cell(self.zx_editor.cursor_x, self.zx_editor.cursor_y, self.cursor_colour)
 
@@ -1260,10 +1262,10 @@ class Status(ttk.Frame):
             )
         start, end = self.zx_editor.region_highlight.coordinates()
         return 'Cursor: ({},{}) to ({},{})'.format(
-            str(start.x).rjust(2, '0'),
-            str(start.y).rjust(2, '0'),
-            str(end.x).rjust(2, '0'),
-            str(end.y).rjust(2, '0')
+            str(start.char_x).rjust(2, '0'),
+            str(start.char_y).rjust(2, '0'),
+            str(end.char_x).rjust(2, '0'),
+            str(end.char_y).rjust(2, '0')
         )
 
 
