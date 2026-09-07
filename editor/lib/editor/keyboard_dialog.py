@@ -8,8 +8,8 @@ import ttkbootstrap as ttk
 from .custom_dialog import CustomDialog
 
 class KeyboardDialog(CustomDialog):
-    def __init__(self, master):
-        super().__init__(master, title="Keyboard")
+    def __init__(self, master, zx_editor):
+        super().__init__(master, zx_editor, title="Keyboard")
 
     def create_body(self, master):
         lbl = ttk.Label(master, text="Overview", justify=CENTER)

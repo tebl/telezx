@@ -8,5 +8,5 @@ from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
 from .utilities import update_tree
 from .generate import RepositoryHelper, TOCHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
-from .editor import CellDirection, ScreenCoordinate, ScreenRegion, CustomDialog, KeyboardDialog, LicenseDialog
+from .editor import CellDirection, ScreenCoordinate, ScreenRegion, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
 VERSION = "TeleZX v0.1"

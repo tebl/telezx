@@ -11,7 +11,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, CustomDialog, KeyboardDialog, LicenseDialog
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -51,7 +51,9 @@ class ZXEditor(ttk.Frame):
         self.cursor_x = 0
         self.cursor_y = 0
 
-        self.highlight = None
+        self.cursor = ScreenCoordinate(0, 0)
+        self.region_screen = ScreenRegion.from_tuples((0, 0), (ZXScreen.SCREEN_WIDTH_CHARS, ZXScreen.SCREEN_HEIGHT_CHARS))
+        self.region_highlight = None
 
         self.zx_token = ZXToken()
         self.__create_boot_screen()
@@ -91,7 +93,6 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-C>", self.clicked_copy_attribute)
         self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
         self.master.bind("<Control-KeyPress-F>", self.clicked_swap_attribute)
-
         self.master.bind("<Control-Left>", self.move_contents_west)
         self.master.bind("<Control-Right>", self.move_contents_east)
         self.master.bind("<Control-Up>", self.move_contents_north)
@@ -100,7 +101,6 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Shift-Right>", self.nudge_contents_east)
         self.master.bind("<Shift-Up>", self.nudge_contents_north)
         self.master.bind("<Shift-Down>", self.nudge_contents_south)
-
         self.master.bind("<Escape>", self.clear_highlight)
         self.master.bind("<Key>", self.keyboard_event)
 
@@ -121,15 +121,15 @@ class ZXEditor(ttk.Frame):
         self.zx_token.changes = False
 
     def clicked_about(self, event=None):
-        AboutDialog(self).show()
+        AboutDialog(self, self).show()
         return 'break'
 
     def clicked_keyboard(self, event=None):
-        KeyboardDialog(self).show()
+        KeyboardDialog(self, self).show()
         return 'break'
 
     def clicked_license(self, event=None):
-        LicenseDialog(self).show()
+        LicenseDialog(self, self).show()
         return 'break'
 
     def clicked_background(self, event=None):
@@ -367,18 +367,18 @@ class ZXEditor(ttk.Frame):
         self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
         self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
         self.zx_token.debug_cell(self.cursor_x, self.cursor_y)
-        if self.highlight and not self.highlight.is_inside(self.cursor_x, self.cursor_y):
-            self.highlight = None
+        if self.region_highlight and not self.region_highlight.is_inside(self.cursor_x, self.cursor_y):
+            self.region_highlight = None
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed()
 
     def set_highlight(self, char_x, char_y):
-        self.highlight = ScreenRegion.from_tuples((self.cursor_x, self.cursor_y), (char_x, char_y))
+        self.region_highlight = ScreenRegion.from_tuples((self.cursor_x, self.cursor_y), (char_x, char_y))
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed()
 
     def clear_highlight(self, event=None):
-        self.highlight = None
+        self.region_highlight = None
         self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
         self.status.notify_cursor_changed()
         return 'break'
@@ -447,11 +447,11 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def __move_content(self, direction: CellDirection, nudge: bool=True):
-        if self.highlight and self.highlight.can_move(direction):
+        if self.region_highlight and self.region_highlight.can_move(direction):
             delta_x, delta_y = direction.get_delta()
-            for coord in self.highlight.cells(direction):
+            for coord in self.region_highlight.cells(direction):
                 self.__shift_highlight(coord, delta_x, delta_y, nudge)
-            self.highlight.move(direction)
+            self.region_highlight.move(direction)
             self.move_cursor(self.cursor_x + delta_x, self.cursor_y + delta_y)
 
     def __shift_highlight(self, coord: ScreenCoordinate, delta_x: int, delta_y: int, nudge: bool=True):
@@ -566,27 +566,6 @@ class ZXEditor(ttk.Frame):
         for key, val in image_files.items():
             _path = imgpath / val
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
-
-
-class AboutDialog(CustomDialog):
-    def __init__(self, master):
-        super().__init__(master, title="About")
-
-    def create_body(self, master):
-        lbl = ttk.Label(master, image='logo', justify=CENTER)
-        lbl.pack(expand=True, padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
-
-        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_TITLE)
-        lbl.pack(padx=self.custom_pad_x, pady=self.custom_pad_y)
-
-        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_COPYRIGHT)
-        lbl.pack(padx=self.custom_pad_x, pady=0)
-
-        lbl = ttk.Button(master, text=ZXEditor.PROGRAM_URL, style="info link", command=lambda: self.open_url(ZXEditor.PROGRAM_URL))
-        lbl.pack(padx=self.custom_pad_x, pady=0)
-
-        lbl = ttk.Label(master, text=ZXEditor.PROGRAM_LICENSE, justify=CENTER)
-        lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_y, self.custom_pad_border))
 
 
 class Menu(ttk.Frame):
@@ -846,8 +825,8 @@ class Main(ttk.Frame):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__refresh_cell(char_x, char_y, rgb_data)
 
-        if self.zx_editor.highlight:
-            for cell in self.zx_editor.highlight.cells(CellDirection.NORTH):
+        if self.zx_editor.region_highlight:
+            for cell in self.zx_editor.region_highlight.cells(CellDirection.NORTH):
                 self.__highlight_cell(cell.x, cell.y, self.highlight_colour)
 
         self.__highlight_cell(self.zx_editor.cursor_x, self.zx_editor.cursor_y, self.cursor_colour)
@@ -1274,12 +1253,12 @@ class Status(ttk.Frame):
             self.__cursor_status())
 
     def __cursor_status(self):
-        if not self.zx_editor.highlight:
+        if not self.zx_editor.region_highlight:
             return 'Cursor: ({},{})'.format(
                 str(self.zx_editor.cursor_x).rjust(2, '0'), 
                 str(self.zx_editor.cursor_y).rjust(2, '0')
             )
-        start, end = self.zx_editor.highlight.coordinates()
+        start, end = self.zx_editor.region_highlight.coordinates()
         return 'Cursor: ({},{}) to ({},{})'.format(
             str(start.x).rjust(2, '0'),
             str(start.y).rjust(2, '0'),
