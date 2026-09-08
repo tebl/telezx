@@ -135,7 +135,7 @@ class ZXEditor(ttk.Frame):
             filename = filedialog.askopenfilename(parent=self, title='Set background', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
             if filename:
                 self.zx_token.set_background(filename)
-                self.refresh()
+                self.refresh_canvas()
                 self.set_status(f'Background loaded: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
@@ -205,7 +205,7 @@ class ZXEditor(ttk.Frame):
         self.zx_token.clear(ZXToken.DEFAULT_ATTRIBUTE)
         self.__load_font()
         self.__load_glyph()
-        self.refresh()
+        self.refresh_canvas()
         self.set_status('New untitled document')
         self.update_title()
         return 'break'
@@ -227,7 +227,7 @@ class ZXEditor(ttk.Frame):
             Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
             self.set_status(f'Load error: {e}')
             print(e)
-        self.refresh()
+        self.refresh_canvas()
         return 'break'
 
     def __load_font(self):
@@ -257,7 +257,7 @@ class ZXEditor(ttk.Frame):
     def clicked_paste_cell(self, event=None):
         if self.copied_cell:
             if self.zx_token.set_cell(self.cursor.char_x, self.cursor.char_y, cell_copy=self.copied_cell):
-                self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+                self.refresh_editor()
                 self.set_status(f"Pasted {self.copied_cell}")
         return 'break'
 
@@ -277,7 +277,7 @@ class ZXEditor(ttk.Frame):
         changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.copied_format.attribute)
         changed = True if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.copied_format.is_inverted) else False
         if changed:
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         self.set_status(f"Pasted {self.copied_format}")
         return 'break'
         
@@ -326,8 +326,8 @@ class ZXEditor(ttk.Frame):
                         ascii_code = ord(event.char)
                         if ZXFont.validate_ascii(ascii_code):
                             self.set_cursor_character(ascii_code)
-                            return
                     # print('Unknown key:', event.char, event.keysym, event.keycode)
+            return 'break'
 
     def load_file(self, path):
         self.zx_token.load(path)
@@ -356,53 +356,54 @@ class ZXEditor(ttk.Frame):
 
     def move_cursor_up(self, event=None):
         if ScreenNavigator.up(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def move_cursor_down(self, event=None):
         if ScreenNavigator.down(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def move_cursor_left(self, event=None):
         if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def move_cursor_backspace(self, event=None):
         if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
             self.__clear_cursor_position()
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
 
     def move_cursor_delete(self, event=None):
         if self.__get_cursor_region().is_cursor_inside(self.cursor):
             self.__clear_cursor_position()
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
 
     def __clear_cursor_position(self):
         char_x, char_y = self.cursor.get()
-        self.zx_token.set_inverted(char_x, char_y, ZXToken.UNDEFINED)
-        self.zx_token.set_character(char_x, char_y, ZXToken.UNDEFINED)
-        self.zx_token.set_attribute(char_x, char_y, ZXToken.UNDEFINED)
+        self.zx_token.set_inverted(char_x, char_y, ZXToken.UNDEFINED, sync_screen=False)
+        self.zx_token.set_character(char_x, char_y, ZXToken.UNDEFINED, sync_screen=False)
+        self.zx_token.set_attribute(char_x, char_y, ZXToken.UNDEFINED, sync_screen=False)
+        self.zx_token.sync_cell(char_x, char_y)
 
     def move_cursor_right(self, event=None):
         if ScreenNavigator.next(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def move_cursor_newline(self, event=None):
         if ScreenNavigator.newline(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def move_cursor_end(self, event=None):
         if ScreenNavigator.end(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def move_cursor_home(self, event=None):
         if ScreenNavigator.home(self.cursor, self.__get_cursor_region()):
-            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+            self.refresh_editor()
         return 'break'
 
     def __get_cursor_region(self) -> ScreenRegion:
@@ -471,25 +472,40 @@ class ZXEditor(ttk.Frame):
         if not self.zx_token.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
             root.destroy()
 
-    def refresh(self):
+    def refresh_canvas(self):
+        '''
+        Refresh only the main canvas. This is mostly used when a refresh has
+        been triggered from parts such as the palette, and we therefore need
+        to avoid cases where refresh_editor would lead to a loop.
+
+        Also used when updating how flashing characters are to be displayed.
+        '''
         self.main.refresh()
+
+    def refresh_editor(self):
+        '''
+        Refresh editor, also notifies any associated panels.
+        '''
+        self.zx_token.debug_cell(self.cursor.char_x, self.cursor.char_y)
+        if self.region_highlight and not self.region_highlight.is_cursor_inside(self.cursor):
+            self.region_highlight = None
+        self.main.notify_cursor_changed()
+        self.status.notify_cursor_changed()
 
     def set_cursor_character(self, char_code):
         changed = False
-        if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code):
+        if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code, sync_screen=False):
             changed = True
-        if self.zx_token.set_attribute(
-            self.cursor.char_x,
-            self.cursor.char_y, 
-            self.sidebar.palette.get_attribute()):
+        if self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_attribute(), sync_screen=False):
             changed = True
-        if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_inverted()):
+        if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_inverted(), sync_screen=False):
             changed = True
+        if changed:
+            self.zx_token.sync_cell(self.cursor.char_x, self.cursor.char_y)
 
         if not self.is_overwrite_enabled:
-            self.move_cursor_right()
-        if changed:
-            self.refresh()
+            ScreenNavigator.next(self.cursor, self.__get_cursor_region())
+        self.refresh_editor()
 
     def set_cursor_attribute(self, attribute):
         self.set_sticky(True)
@@ -497,7 +513,7 @@ class ZXEditor(ttk.Frame):
             return
         changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, attribute)
         if changed:
-            self.refresh()
+            self.refresh_canvas()
 
     def set_cursor_inverted(self, is_inverted):
         self.set_sticky(True)
@@ -505,7 +521,7 @@ class ZXEditor(ttk.Frame):
             return
         changed = self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, is_inverted)
         if changed:
-            self.refresh()
+            self.refresh_canvas()
 
     def set_scale(self, value):
         self.scale = value
@@ -530,7 +546,7 @@ class ZXEditor(ttk.Frame):
     def update_flash_periodic(self, initial_setup=False):
         if not initial_setup:
             self.flash_value = not self.flash_value
-            self.refresh()
+            self.refresh_canvas()
         self.after(self.REFRESH_FLASH, self.update_flash_periodic)
 
     def update_title_periodic(self, initial_setup=False):

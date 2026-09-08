@@ -55,7 +55,8 @@ class ZXToken:
         self.set_selected_glyph(self.DEFAULT_GLYPH)
 
     def debug_cell(self, char_x, char_y):
-        self.__lookup_cell(char_x, char_y).debug(self)
+        # self.__lookup_cell(char_x, char_y).debug(self)
+        pass
 
     def export(self, document_path):
         with open(document_path, 'w') as file:
@@ -172,8 +173,8 @@ class ZXToken:
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__lookup_cell(char_x, char_y).sync_screen(self)
 
-    def set_attribute(self, char_x, char_y, char_attribute=UNDEFINED) -> bool:
-        result = self.__lookup_cell(char_x, char_y).set_attribute(self, char_attribute)
+    def set_attribute(self, char_x, char_y, char_attribute=UNDEFINED, sync_screen=True) -> bool:
+        result = self.__lookup_cell(char_x, char_y).set_attribute(self, char_attribute, sync_screen)
         if result:
             self.changes = True
         return result
@@ -209,8 +210,8 @@ class ZXToken:
             current_x, current_y = next(position)
             self.set_cell(current_x, current_y, char_code=ord(character), char_attribute=char_attribute, char_inverted=char_inverted)
 
-    def set_character(self, char_x, char_y, char_code=UNDEFINED) -> bool:
-        result = self.__lookup_cell(char_x, char_y).set_character(self, char_code)
+    def set_character(self, char_x, char_y, char_code=UNDEFINED, sync_screen=True) -> bool:
+        result = self.__lookup_cell(char_x, char_y).set_character(self, char_code, sync_screen)
         if result:
             self.changes = True
         return result
@@ -218,8 +219,8 @@ class ZXToken:
     def set_document(self, document_path):
         self.document_path = document_path
 
-    def set_inverted(self, char_x, char_y, char_inverted=UNDEFINED) -> bool:
-        result = self.__lookup_cell(char_x, char_y).set_inverted(self, char_inverted)
+    def set_inverted(self, char_x, char_y, char_inverted=UNDEFINED, sync_screen=True) -> bool:
+        result = self.__lookup_cell(char_x, char_y).set_inverted(self, char_inverted, sync_screen)
         if result:
             self.changes = True
         return result
@@ -243,6 +244,15 @@ class ZXToken:
             self.changes = False
             return
         raise Exception('No document set')
+
+    def sync_cell(self, char_x, char_y):
+        '''
+        Used to explicitly render a specific cell, this is needed with
+        functions that support sync_screen with the value set to False.
+        Without it we won't get any contents written to the display
+        memory.
+        '''
+        self.__lookup_cell(char_x, char_y).sync_screen(self)
 
     def to_dict(self):
         result = self.__yaml_defaults()
