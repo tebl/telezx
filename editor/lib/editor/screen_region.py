@@ -106,6 +106,57 @@ class ScreenCoordinate:
 
 
 class ScreenNavigator:
+    '''
+    Helper class with functions used to simplify navigation within the editor,
+    ensuring that navigation within the editor remains consistent inside a
+    specified (the entire screen can be specified as such a region). The returned
+    bool indicates if the cursor position was updated.
+
+    We shouldn't encounter any positions outside of the region specified, but if
+    we do then we'll try to find the nearest point inside the given region. 
+    '''
+
+    @classmethod
+    def down(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_y < region.max_char_y():
+            cursor.set(cursor.char_x, cursor.char_y + 1)
+            return True
+        
+        return False
+
+    @classmethod
+    def end(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_x < region.max_char_x():
+            cursor.set(region.max_char_x(), cursor.char_y)
+            return True
+
+        if cursor.char_y < region.max_char_y():
+            cursor.set(region.max_char_x(), region.max_char_y())
+            return True
+
+        return False
+
+    @classmethod
+    def home(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_x > region.min_char_x():
+            cursor.set(region.min_char_x(), cursor.char_y)
+            return True
+
+        if cursor.char_y > region.min_char_y():
+            cursor.set(region.min_char_x(), region.min_char_y())
+            return True
+
+        return False
+
     @classmethod
     def newline(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
@@ -142,6 +193,17 @@ class ScreenNavigator:
 
         if cursor.char_y > region.min_char_y():
             cursor.set(region.max_char_x(), cursor.char_y - 1)
+            return True
+        
+        return False
+
+    @classmethod
+    def up(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+        if not region.is_cursor_inside(cursor):
+            return cls.__force_inside(cursor, region)
+
+        if cursor.char_y > region.min_char_y():
+            cursor.set(cursor.char_x, cursor.char_y - 1)
             return True
         
         return False
@@ -271,9 +333,25 @@ class ScreenRegion:
 
     @classmethod
     def from_tuples(cls, coord_a: tuple[int, int], coord_b: tuple[int, int]):
+        '''
+        Create a screen region between two coordinates.
+        '''
         return ScreenRegion(
             ScreenCoordinate(char_x = coord_a[0], char_y = coord_a[1]),
             ScreenCoordinate(char_x = coord_b[0], char_y = coord_b[1])
+        )
+
+    @classmethod
+    def from_cursor(cls, cursor: ScreenCoordinate, char_x: int, char_y: int):
+        '''
+        Creates a region between the cursor and the specified (char_x, char_y)
+        coordinate. Note that when these two points are the same we end up with
+        a selectection of 1 cell, this is intended as we can now move that around
+        on the screen.
+        '''
+        return cls.from_tuples(
+            (cursor.char_x, cursor.char_y),
+            (char_x, char_y)
         )
 
     @classmethod

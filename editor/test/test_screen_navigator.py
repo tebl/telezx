@@ -61,6 +61,67 @@ class TestEditor(unittest.TestCase):
         self.assertEqual(self.__get_results(ScreenNavigator.newline(cursor, region), cursor), (True, (30, 10)))
 
 
+    def test_navigation_home(self):
+        region = ScreenRegion.from_tuples((10, 10), (15, 15))
+
+        cursor = ScreenCoordinate(10, 10)
+        self.assertEqual(self.__get_results(ScreenNavigator.home(cursor, region), cursor), (False, (10, 10)))
+
+        cursor = ScreenCoordinate(15, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.home(cursor, region), cursor), (True, (10, 15)))
+
+        cursor = ScreenCoordinate(10, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.home(cursor, region), cursor), (True, (10, 10)))
+
+        # Cursor position should be updated with something valid for the region
+        cursor = ScreenCoordinate(31, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.home(cursor, region), cursor), (True, (15, 15)))
+
+
+    def test_navigation_end(self):
+        region = ScreenRegion.from_tuples((10, 10), (15, 15))
+
+        cursor = ScreenCoordinate(10, 10)
+        self.assertEqual(self.__get_results(ScreenNavigator.end(cursor, region), cursor), (True, (15, 10)))
+
+        cursor = ScreenCoordinate(15, 10)
+        self.assertEqual(self.__get_results(ScreenNavigator.end(cursor, region), cursor), (True, (15, 15)))
+
+        cursor = ScreenCoordinate(15, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.end(cursor, region), cursor), (False, (15, 15)))
+
+        # Cursor position should be updated with something valid for the region
+        cursor = ScreenCoordinate(31, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.end(cursor, region), cursor), (True, (15, 15)))
+
+
+    def test_navigation_up(self):
+        region = ScreenRegion.from_tuples((10, 10), (15, 15))
+
+        cursor = ScreenCoordinate(15, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.up(cursor, region), cursor), (True, (15, 14)))
+
+        cursor = ScreenCoordinate(10, 10)
+        self.assertEqual(self.__get_results(ScreenNavigator.up(cursor, region), cursor), (False, (10, 10)))
+
+        # Cursor position should be updated with something valid for the region
+        cursor = ScreenCoordinate(31, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.up(cursor, region), cursor), (True, (15, 15)))
+
+
+    def test_navigation_down(self):
+        region = ScreenRegion.from_tuples((10, 10), (15, 15))
+
+        cursor = ScreenCoordinate(13, 10)
+        self.assertEqual(self.__get_results(ScreenNavigator.down(cursor, region), cursor), (True, (13, 11)))
+
+        cursor = ScreenCoordinate(13, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.down(cursor, region), cursor), (False, (13, 15)))
+
+        # Cursor position should be updated with something valid for the region
+        cursor = ScreenCoordinate(31, 15)
+        self.assertEqual(self.__get_results(ScreenNavigator.down(cursor, region), cursor), (True, (15, 15)))
+
 
     def __get_results(self, updated, cursor: ScreenCoordinate):
         return (updated, cursor.get())

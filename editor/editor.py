@@ -11,7 +11,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -48,8 +48,6 @@ class ZXEditor(ttk.Frame):
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
         self.is_overwrite_enabled = False
-        self.cursor_x = 0
-        self.cursor_y = 0
 
         self.cursor = ScreenCoordinate(0, 0)
         self.region_screen = ScreenRegion.full()
@@ -84,7 +82,7 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-b>", self.clicked_background)
         self.master.bind("<Control-KeyPress-h>", self.clicked_keyboard)
         self.master.bind("<Control-KeyPress-g>", self.clicked_grid)
-        self.master.bind("<Control-KeyPress-z>", self.move_cursor_left)
+        self.master.bind("<Control-KeyPress-z>", self.move_cursor_backspace)
         self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)
         self.master.bind("<Control-KeyPress-q>", self.clicked_quit)
         self.master.bind("<Control-KeyPress-i>", self.clicked_invert)
@@ -252,14 +250,14 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def clicked_copy_cell(self, event=None):
-        self.copied_cell = self.zx_token.get_cell(self.cursor_x, self.cursor_y)
+        self.copied_cell = self.zx_token.get_cell(self.cursor.char_x, self.cursor.char_y)
         self.set_status(f"Copied {self.copied_cell}")
         return 'break'
 
     def clicked_paste_cell(self, event=None):
         if self.copied_cell:
-            if self.zx_token.set_cell(self.cursor_x, self.cursor_y, cell_copy=self.copied_cell):
-                self.move_cursor(self.cursor_x, self.cursor_y)
+            if self.zx_token.set_cell(self.cursor.char_x, self.cursor.char_y, cell_copy=self.copied_cell):
+                self.move_cursor(self.cursor.char_x, self.cursor.char_y)
                 self.set_status(f"Pasted {self.copied_cell}")
         return 'break'
 
@@ -270,16 +268,16 @@ class ZXEditor(ttk.Frame):
 
     def clicked_paste_attribute(self, event=None):
         # Check if cell is defined
-        if not self.zx_token.is_defined(self.cursor_x, self.cursor_y):
+        if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
             return 'break'
         # Check if we have an attribute
         if not self.copied_format:
             return 'break'
         
-        changed = self.zx_token.set_attribute(self.cursor_x, self.cursor_y, self.copied_format.attribute)
-        changed = True if self.zx_token.set_inverted(self.cursor_x, self.cursor_y, self.copied_format.is_inverted) else False
+        changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.copied_format.attribute)
+        changed = True if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.copied_format.is_inverted) else False
         if changed:
-            self.move_cursor(self.cursor_x, self.cursor_y)
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
         self.set_status(f"Pasted {self.copied_format}")
         return 'break'
         
@@ -304,19 +302,9 @@ class ZXEditor(ttk.Frame):
                 case 'Enter' | 'KP_Enter' | 'Return':
                     self.move_cursor_newline()
                 case 'Home' | 'KP_Home':
-                    if self.cursor_x == 0:
-                        self.move_cursor(0, 0)
-                        return
-                    self.move_cursor(0, self.cursor_y)
+                    self.move_cursor_home()
                 case 'End' | 'KP_End':
-                    if self.cursor_x == (ZXScreen.SCREEN_WIDTH_CHARS - 1):
-                        self.move_cursor(
-                            ZXScreen.SCREEN_WIDTH_CHARS - 1, 
-                            ZXScreen.SCREEN_HEIGHT_CHARS - 1)
-                        return
-                    self.move_cursor(
-                        ZXScreen.SCREEN_WIDTH_CHARS - 1, 
-                        self.cursor_y)
+                    self.move_cursor_end()
                 case 'Up' | 'KP_Up':
                     self.move_cursor_up()
                 case 'Down' | 'KP_Down':
@@ -326,27 +314,11 @@ class ZXEditor(ttk.Frame):
                 case 'Right' | 'KP_Right':
                     self.move_cursor_right()
                 case 'BackSpace':
-                    char_x = self.cursor_x
-                    char_y = self.cursor_y
-                    if char_x > 0:
-                        char_x -= 1
-                    else:
-                        if char_y > 0:
-                            char_x = 0
-                            char_y -= 1
-                    self.zx_token.set_inverted(char_x, char_y, ZXToken.UNDEFINED)
-                    self.zx_token.set_character(char_x, char_y, ZXToken.UNDEFINED)
-                    self.zx_token.set_attribute(char_x, char_y, ZXToken.UNDEFINED)
-                    self.move_cursor(char_x, char_y)
-                    self.refresh()
+                    self.move_cursor_backspace()
                 case 'Shift_L' | 'Shift_R' | 'Control_L' | 'Control_R':
                     pass
                 case 'Delete' | 'KP_Delete':
-                    self.zx_token.set_inverted(self.cursor_x, self.cursor_y, ZXToken.UNDEFINED)
-                    self.zx_token.set_character(self.cursor_x, self.cursor_y, ZXToken.UNDEFINED)
-                    self.zx_token.set_attribute(self.cursor_x, self.cursor_y, ZXToken.UNDEFINED)
-                    self.move_cursor(self.cursor_x, self.cursor_y)
-                    self.refresh()
+                    self.move_cursor_delete()
                 case 'Insert' | 'KP_Insert':
                     self.set_overwrite(not self.is_overwrite_enabled)
                 case _:
@@ -365,56 +337,80 @@ class ZXEditor(ttk.Frame):
 
     def move_cursor(self, char_x, char_y):
         self.cursor.set(char_x, char_y)
-
-        self.cursor_x = (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
-        self.cursor_y = (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
-        self.zx_token.debug_cell(self.cursor_x, self.cursor_y)
-        if self.region_highlight and not self.region_highlight.is_inside(self.cursor_x, self.cursor_y):
+        self.zx_token.debug_cell(self.cursor.char_x, self.cursor.char_y)
+        if self.region_highlight and not self.region_highlight.is_cursor_inside(self.cursor):
             self.region_highlight = None
-        self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
+        self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
 
     def set_highlight(self, char_x, char_y):
-        self.region_highlight = ScreenRegion.from_tuples((self.cursor_x, self.cursor_y), (char_x, char_y))
-        self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
+        self.region_highlight = ScreenRegion.from_cursor(self.cursor, char_x, char_y)
+        self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
 
     def clear_highlight(self, event=None):
         self.region_highlight = None
-        self.main.notify_cursor_changed(self.cursor_x, self.cursor_y)
+        self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
         return 'break'
 
     def move_cursor_up(self, event=None):
-        if self.cursor_y > 0:
-            self.move_cursor(self.cursor_x, self.cursor_y - 1)
+        if ScreenNavigator.up(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
         return 'break'
 
     def move_cursor_down(self, event=None):
-        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
-            self.move_cursor(self.cursor_x, self.cursor_y + 1)
+        if ScreenNavigator.down(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
         return 'break'
 
     def move_cursor_left(self, event=None):
-        if self.cursor_x > 0:
-            self.move_cursor(self.cursor_x - 1, self.cursor_y)
-        else:
-            if self.cursor_y > 0:
-                self.move_cursor(ZXScreen.SCREEN_WIDTH_CHARS - 1, self.cursor_y - 1)
+        if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
         return 'break'
-    
+
+    def move_cursor_backspace(self, event=None):
+        if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
+            self.__clear_cursor_position()
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+
+    def move_cursor_delete(self, event=None):
+        if self.__get_cursor_region().is_cursor_inside(self.cursor):
+            self.__clear_cursor_position()
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+
+    def __clear_cursor_position(self):
+        char_x, char_y = self.cursor.get()
+        self.zx_token.set_inverted(char_x, char_y, ZXToken.UNDEFINED)
+        self.zx_token.set_character(char_x, char_y, ZXToken.UNDEFINED)
+        self.zx_token.set_attribute(char_x, char_y, ZXToken.UNDEFINED)
+
     def move_cursor_right(self, event=None):
-        if self.cursor_x < (ZXScreen.SCREEN_WIDTH_CHARS - 1):
-            self.move_cursor(self.cursor_x + 1, self.cursor_y)
-            return
-        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
-            self.move_cursor(0, self.cursor_y + 1)
+        if ScreenNavigator.next(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
         return 'break'
 
     def move_cursor_newline(self, event=None):
-        if self.cursor_y < (ZXScreen.SCREEN_HEIGHT_CHARS - 1):
-            self.move_cursor(0, self.cursor_y + 1)
+        if ScreenNavigator.newline(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
         return 'break'
+
+    def move_cursor_end(self, event=None):
+        if ScreenNavigator.end(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+        return 'break'
+
+    def move_cursor_home(self, event=None):
+        if ScreenNavigator.home(self.cursor, self.__get_cursor_region()):
+            self.move_cursor(self.cursor.char_x, self.cursor.char_y)
+        return 'break'
+
+    def __get_cursor_region(self) -> ScreenRegion:
+        '''
+        Cursor movement is performed within either the highlighted region or
+        within the entire screen.
+        '''
+        return self.region_highlight if self.region_highlight else self.region_screen
 
     def move_contents_north(self, event=None):
         self.__move_content(CellDirection.NORTH, False)
@@ -454,7 +450,7 @@ class ZXEditor(ttk.Frame):
             for coord in self.region_highlight.cells(direction):
                 self.__shift_highlight(coord, delta_x, delta_y, nudge)
             self.region_highlight.transpose(direction)
-            self.move_cursor(self.cursor_x + delta_x, self.cursor_y + delta_y)
+            self.move_cursor(self.cursor.char_x + delta_x, self.cursor.char_y + delta_y)
 
     def __shift_highlight(self, coord: ScreenCoordinate, delta_x: int, delta_y: int, nudge: bool=True):
         original = self.zx_token.get_cell(coord.char_x + delta_x, coord.char_y + delta_y)
@@ -480,14 +476,14 @@ class ZXEditor(ttk.Frame):
 
     def set_cursor_character(self, char_code):
         changed = False
-        if self.zx_token.set_character(self.cursor_x, self.cursor_y, char_code):
+        if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code):
             changed = True
         if self.zx_token.set_attribute(
-            self.cursor_x, 
-            self.cursor_y, 
+            self.cursor.char_x,
+            self.cursor.char_y, 
             self.sidebar.palette.get_attribute()):
             changed = True
-        if self.zx_token.set_inverted(self.cursor_x, self.cursor_y, self.sidebar.palette.get_inverted()):
+        if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_inverted()):
             changed = True
 
         if not self.is_overwrite_enabled:
@@ -497,17 +493,17 @@ class ZXEditor(ttk.Frame):
 
     def set_cursor_attribute(self, attribute):
         self.set_sticky(True)
-        if not self.zx_token.is_defined(self.cursor_x, self.cursor_y):
+        if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
             return
-        changed = self.zx_token.set_attribute(self.cursor_x, self.cursor_y, attribute)
+        changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, attribute)
         if changed:
             self.refresh()
 
     def set_cursor_inverted(self, is_inverted):
         self.set_sticky(True)
-        if not self.zx_token.is_defined(self.cursor_x, self.cursor_y):
+        if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
             return
-        changed = self.zx_token.set_inverted(self.cursor_x, self.cursor_y, is_inverted)
+        changed = self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, is_inverted)
         if changed:
             self.refresh()
 
@@ -738,9 +734,9 @@ class Main(ttk.Frame):
         self.in_focus = False
 
         self.notify_scale_changed(self.zx_editor.scale)
-        self.label.bind('<Motion>', self.mouse_moved)
+        # self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
-        self.label.bind('<Shift-Button-1>', self.mouse_clicked_alt)
+        self.label.bind('<Shift-Button-1>', self.mouse_select_region)
         self.label.bind('<Enter>', lambda x: self.set_custom_focus(True))
         self.label.bind('<Leave>', lambda x: self.set_custom_focus(False))
 
@@ -787,15 +783,15 @@ class Main(ttk.Frame):
 
     def mouse_clicked(self, event):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-            cursor_x, cursor_y = self.__get_cursor_from(event.x, event.y)
-            if cursor_x >= 0 and cursor_y >= 0:
-                self.zx_editor.move_cursor(cursor_x, cursor_y)
+            char_x, char_y = self.__get_cursor_from(event.x, event.y)
+            if self.zx_editor.region_screen.is_inside(char_x, char_y):
+                self.zx_editor.move_cursor(char_x, char_y)
 
-    def mouse_clicked_alt(self, event):
+    def mouse_select_region(self, event):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
-            cursor_x, cursor_y = self.__get_cursor_from(event.x, event.y)
-            if cursor_x >= 0 and cursor_y >= 0:
-                self.zx_editor.set_highlight(cursor_x, cursor_y)
+            char_x, char_y = self.__get_cursor_from(event.x, event.y)
+            if self.zx_editor.region_screen.is_inside(char_x, char_y):
+                self.zx_editor.set_highlight(char_x, char_y)
 
     def mouse_moved(self, event):
         # if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
@@ -804,9 +800,9 @@ class Main(ttk.Frame):
         #     self.refresh()
         pass
 
-    def notify_cursor_changed(self, cursor_x, cursor_y):
-        attr = self.zx_editor.zx_token.get_attribute(cursor_x, cursor_y)
-        is_inverted = not self.zx_editor.zx_token.get_inverted(cursor_x, cursor_y) == ZXToken.UNDEFINED
+    def notify_cursor_changed(self):
+        attr = self.zx_editor.zx_token.get_attribute(self.zx_editor.cursor.char_x, self.zx_editor.cursor.char_y)
+        is_inverted = not self.zx_editor.zx_token.get_inverted(self.zx_editor.cursor.char_x, self.zx_editor.cursor.char_y) == ZXToken.UNDEFINED
         self.zx_editor.sidebar.palette.from_data(attr, is_inverted)
         self.refresh()
 
@@ -827,11 +823,13 @@ class Main(ttk.Frame):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__refresh_cell(char_x, char_y, rgb_data)
 
+        # Highligh selected screen region
         if self.zx_editor.region_highlight:
             for cell in self.zx_editor.region_highlight.cells(CellDirection.NORTH):
                 self.__highlight_cell(cell.char_x, cell.char_y, self.highlight_colour)
 
-        self.__highlight_cell(self.zx_editor.cursor_x, self.zx_editor.cursor_y, self.cursor_colour)
+        # Highlight character position
+        self.__highlight_cell(self.zx_editor.cursor.char_x, self.zx_editor.cursor.char_y, self.cursor_colour)
 
         self.flip_canvas()
 
@@ -1257,11 +1255,13 @@ class Status(ttk.Frame):
     def __cursor_status(self):
         if not self.zx_editor.region_highlight:
             return 'Cursor: ({},{})'.format(
-                str(self.zx_editor.cursor_x).rjust(2, '0'), 
-                str(self.zx_editor.cursor_y).rjust(2, '0')
+                str(self.zx_editor.cursor.char_x).rjust(2, '0'), 
+                str(self.zx_editor.cursor.char_y).rjust(2, '0')
             )
         start, end = self.zx_editor.region_highlight.coordinates()
-        return 'Cursor: ({},{}) to ({},{})'.format(
+        return 'Cursor: ({},{}), selected ({},{}) to ({},{})'.format(
+            str(self.zx_editor.cursor.char_x).rjust(2, '0'), 
+            str(self.zx_editor.cursor.char_y).rjust(2, '0'),
             str(start.char_x).rjust(2, '0'),
             str(start.char_y).rjust(2, '0'),
             str(end.char_x).rjust(2, '0'),
