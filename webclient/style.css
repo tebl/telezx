@@ -13,16 +13,18 @@ canvas {
 }
 
 /* Top navigation bar */
-.navbar {
+#navbar {
     display: flex;
     font-family: 'Times New Roman', serif;
     background-color: #375a7f;
     border-width: 2px 0 2px 0;
     border-style: solid;
+    width: 768px;
+    margin: 0 auto;
 }
 
 /* Navigation bar links */
-.navbar a {
+#navbar a {
     color: white;
     padding: 5px 10px;
     text-decoration: none;
@@ -30,7 +32,7 @@ canvas {
 }
 
 /* Change color on hover */
-.navbar a:hover {
+#navbar a:hover {
     background-color: #345475;
 }
 
@@ -168,18 +170,24 @@ span.key:hover, span.key_mod:hover, .key_input:hover {
     color: white;
     display: inline-block;
     vertical-align: middle;
-    min-width: 50px;
-    min-height: 50px;
+    min-width: 80px;
+    min-height: 80px;
     margin: 0 4px 4px 0;
-    border-radius: 8px;
+    border-radius: 16px;
+    font-size: x-large;
+}
+
+.key_input img {
+    vertical-align: middle;
+    vertical-align: -10%;
 }
 
 .key_input_wide {
-    min-width: 80px;
+    min-width: 130px;
 }
 
 .key_input_expand {
-    min-width: 170px;
+    min-width: 260px;
 }
 
 .key_input_blue {
@@ -209,21 +217,24 @@ header {
     text-align: center;
     color: white;
     background: #202326;
+    width: 768px;
+    margin: 0 auto;
 }
 
 /* Footer */
-footer {
+#footer {
     background: #375a7f;
     color: white;
     font-size: medium;
     margin: 0;
     padding: 10px;
     text-align: center;
-    width: 100%;
+    width: 768px;
+    margin: 0 auto;
 }
-footer a {
+#footer a {
     color: lightblue;
 }
-footer p {
+#footer p {
     margin: 0;
 }
