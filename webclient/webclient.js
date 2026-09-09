@@ -343,10 +343,10 @@ async function fetch_index() {
         if (content.length >= 3) {
             parse_index(content);
         } else {
-            set_error("Empty index");
+            ui_set_error("Empty index");
         }
     } catch (error) {
-        set_error(error.message);
+        ui_set_error(error.message);
         console.error("Failed to fetch data:", error);
     }
 
@@ -452,14 +452,14 @@ async function fetch_scr_asset(document_id, page_id) {
                 memory[i] = data[i];
             }
         } else {
-            set_error("Not SCR");
+            ui_set_error("Not SCR");
             console.error("Data not consistent with SCR:", data.length);
         }
 
         ui_clear_status();
     } catch (error) {
         console.error("Failed to fetch data:", error);
-        set_error(error.message);
+        ui_set_error(error.message);
     }
 
     request_render_screen();
@@ -500,7 +500,7 @@ async function fetch_token_asset(page, subpage, default_attribute) {
         ui_clear_status();
     } catch (error) {
         console.error("Failed to fetch data:", error);
-        set_error(error.message, false);
+        ui_set_error(error.message, false);
         return;
     }
 
@@ -538,42 +538,44 @@ function handle_key(key_name) {
         case "Enter":
             var document_id = Number('0x' + current_input.padEnd(4, '0'));
             if (isNaN(document_id) || document_id == DOCUMENT_ZERO) {
-                set_document(DOCUMENT_DEFAULT);
+                ui_set_document(DOCUMENT_DEFAULT);
             } else {
-                set_document(document_id);
+                ui_set_document(document_id);
             }
             fetch_index();
             break;
 
         case "End":
-            set_document(DOCUMENT_TOC);
+            ui_set_document(DOCUMENT_TOC);
             fetch_index();
             break;
 
         case "Escape":
-            current_input = "";
+            ui_clear_input();
             request_render_screen();
             break;
 
         case "Home":
-            set_document(DOCUMENT_DEFAULT);
+            ui_set_document(DOCUMENT_DEFAULT);
             fetch_index();
             break;
 
         case "PageUp":
         case "ArrowUp":
+            ui_clear_input();
             fetch_page_previous();
             break;
 
         case "PageDown":
         case "ArrowDown":
+            ui_clear_input();
             fetch_page_next();
             break;
 
         case "ArrowLeft":
         case "o":
             if (current_document > PAGE_MINIMUM) {
-                current_document--;
+                ui_set_document(current_document - 1);
                 fetch_index();
             }
             break;
@@ -581,28 +583,28 @@ function handle_key(key_name) {
         case "ArrowRight":
         case "p":
             if (current_document < PAGE_MAXIMUM) {
-                current_document++;
+                ui_set_document(current_document + 1);
                 fetch_index();
             }
             break;
 
         /* Link A (Blue) */
         case 'j':
-            if (set_document(get_link_id('link_a'))) {
+            if (ui_set_document(get_link_id('link_a'))) {
                 fetch_index();
             }
             break;
 
         /* Link B (Red) */
         case 'k':
-            if (set_document(get_link_id('link_b'))) {
+            if (ui_set_document(get_link_id('link_b'))) {
                 fetch_index();
             }
             break;
 
         /* Link C (Magenta) */
         case 'l':
-            if (set_document(get_link_id('link_c'))) {
+            if (ui_set_document(get_link_id('link_c'))) {
                 fetch_index();
             }
             break;
@@ -618,109 +620,6 @@ function handle_keydown(event) {
     if (handle_key(event.key)) {
         event.preventDefault();
     }
-    // var key_handled = true;
-    // switch (event.key) {
-    //     case "0":
-    //     case "1":
-    //     case "2":
-    //     case "3":
-    //     case "4":
-    //     case "5":
-    //     case "6":
-    //     case "7":
-    //     case "8":
-    //     case "9":
-    //     case "a":
-    //     case "b":
-    //     case "c":
-    //     case "d":
-    //     case "e":
-    //     case "f":
-    //         current_input = (current_input + event.key.toUpperCase()).slice(-4);
-    //         break;
-    //     case "Enter":
-    //         var document_id = Number('0x' + current_input.padEnd(4, '0'));
-    //         if (isNaN(document_id) || document_id == DOCUMENT_ZERO) {
-    //             set_document(DOCUMENT_DEFAULT);
-    //         } else {
-    //             set_document(document_id);
-    //         }
-    //         fetch_index();
-    //         break;
-
-    //     case "End":
-    //         set_document(DOCUMENT_TOC);
-    //         fetch_index();
-    //         break;
-
-    //     case "Escape":
-    //         current_input = "";
-    //         break;
-
-    //     case "Home":
-    //         set_document(DOCUMENT_DEFAULT);
-    //         fetch_index();
-    //         break
-
-    //     case "PageUp":
-    //     case "ArrowUp":
-    //         event.preventDefault();
-    //         fetch_page_previous();
-    //         break;
-
-    //     case "PageDown":
-    //     case "ArrowDown":
-    //         event.preventDefault();
-    //         fetch_page_next();
-    //         break;
-
-    //     case "ArrowLeft":
-    //     case "o":
-    //         if (current_document > PAGE_MINIMUM) {
-    //             current_document--;
-    //             fetch_index();
-    //         }
-    //         break;
-
-    //     case "ArrowRight":
-    //     case "p":
-    //         if (current_document < PAGE_MAXIMUM) {
-    //             current_document++;
-    //             fetch_index();
-    //         }
-    //         break;
-
-    //     /* Link A (Blue) */
-    //     case 'j':
-    //         if (set_document(get_link_id('link_a'))) {
-    //             fetch_index();
-    //         }
-    //         break;
-
-    //     /* Link B (Red) */
-    //     case 'k':
-    //         if (set_document(get_link_id('link_b'))) {
-    //             fetch_index();
-    //         }
-    //         break;
-
-    //     /* Link C (Magenta) */
-    //     case 'l':
-    //         if (set_document(get_link_id('link_c'))) {
-    //             fetch_index();
-    //         }
-    //         break;
-        
-    //     default:
-    //         key_handled = false;
-    //         break;
-    // }
-
-    // if (key_handled) {
-    //     event.preventDefault();
-    // }
-
-    // request_render_screen();
 }
 
 function parse_index(content) {
@@ -733,7 +632,7 @@ function parse_index(content) {
             }
             return parse_index_IDX(content)
     }
-    set_error("Unknown type");
+    ui_set_error("Unknown type");
 }
 
 function parse_index_IDX(content) {
@@ -862,32 +761,6 @@ function process_tokens(data, default_attribute) {
     }
 }
 
-/**
- * Set document ID that should be loaded. Return value is used to determine
- * if there were any changes.
- */
-function set_document(document_id) {
-    if (document_id > DOCUMENT_ZERO) {
-        current_document = document_id;
-        current_input = "";
-        return true;
-    }
-
-    return false;
-}
-
-function set_error(description, clear_index=true) {
-    set_status(description, STATUS_TYPES.ERROR);
-    if (clear_index) {
-        current_index = null;
-    }
-}
-
-function set_status(description, status_type) {
-    current_status = description;
-    current_status_type = status_type;
-}
-
 function ui_clear_canvas(red, green, blue, alpha) {
     for (var x = 0; x < canvas_width; x++) {
         for (var y = 0; y < canvas_height; y++) {
@@ -905,6 +778,14 @@ function ui_clear_canvas(red, green, blue, alpha) {
 function ui_clear_status() {
     current_status = "";
     current_status_type = STATUS_TYPES.NONE;
+}
+
+/**
+ * Page numbers are entered in hex, normally up to four hex digits with
+ * the first chopped off to get rid of overflow.
+ */
+function ui_clear_input() {
+    current_input = "";
 }
 
 /**
@@ -1081,6 +962,32 @@ function ui_set_cursor_data(values) {
     zx_set_pixels_at(cursor_x, cursor_y, values);
 }
 
+/**
+ * Set document ID that should be loaded. Return value is used to determine
+ * if there were any changes.
+ */
+function ui_set_document(document_id) {
+    if (document_id > DOCUMENT_ZERO) {
+        current_document = document_id;
+        ui_clear_input();
+        return true;
+    }
+
+    return false;
+}
+
+function ui_set_error(description, clear_index=true) {
+    current_status = description;
+    current_status_type = STATUS_TYPES.ERROR;
+    if (clear_index) {
+        current_index = null;
+    }
+}
+
+/**
+ * Set current font. This points to the character data used when printing
+ * characters into display memory.
+ */
 function ui_set_font(font) {
     current_font = font;
 }
