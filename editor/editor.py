@@ -11,7 +11,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
