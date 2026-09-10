@@ -1,3 +1,4 @@
+import re
 import yaml
 from pathlib import Path
 from typing import Generator
@@ -455,12 +456,23 @@ class ZXPage:
             self.logger.warning('Line', f'"{original_line}"', 'changed to', f'"{result}"')
         return QuotedYAML(result)
 
-    def _overlay_text(self, zx_token: ZXToken, text_lines: list[str], text_attribute: int) -> bool:
+    def _overlay_text(self, zx_token: ZXToken, text_lines: list[str], text_attribute: int, text_link_attribute: int|None=None, text_blank_character: str|None=None) -> bool:
         for char_y, line in enumerate(text_lines):
             char_x = len(line) - len(line.lstrip())
             if char_x == ZXScreen.SCREEN_WIDTH_CHARS:
                 continue
-            zx_token.set_string(char_x, char_y, line.strip(), char_attribute=text_attribute)
+            line = line.strip()
+            if text_blank_character is not None:
+                line = line.replace(text_blank_character, ' ')
+            if text_link_attribute is not None:
+                links = [m for m in self.find_text_links(line)]
+                for start, end, value in links:
+                    line = line[0:start] + ' '*6 + line[end:]
+                zx_token.set_string(char_x, char_y, line, char_attribute=text_attribute)
+                for start, end, value in links:
+                    zx_token.set_string(char_x+start+1, char_y, value[1:-1], char_attribute=text_link_attribute)
+            else:
+                zx_token.set_string(char_x, char_y, line, char_attribute=text_attribute)
         return True
 
     @classmethod
@@ -483,6 +495,13 @@ class ZXPage:
                 return subclass.from_dataset(parent, data)
         raise ValueError("failed to find suitable implementation of page type")
 
+    @classmethod
+    def find_text_links(cls, text_line):
+        for match in re.finditer(r'\[[0-9a-fA-F]{4}\]', text_line):
+            start, end = match.span()
+            group = f' {match.group()[1:-1].upper()} '
+            yield (start, end, group)
+
 
 class ZXPage_Overlay(ZXPage):
     parent: ZXDocument
@@ -490,14 +509,18 @@ class ZXPage_Overlay(ZXPage):
     scr_about: dict
     text_lines: list[str]
     text_attribute: int
+    text_link_attribute: int
+    text_blank_character: str
 
-    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about, text_lines=None, text_attribute=ZXToken.UNDEFINED, register_parent=True):
+    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about, text_lines=None, text_attribute=ZXToken.UNSPECIFIED, text_link_attribute=ZXToken.UNSPECIFIED, text_blank_character=None, register_parent=True):
         super().__init__(parent, register_parent)
         self.scr_path = scr_path
         self.parent.check_file_exists(self.scr_path)
         self.scr_about = scr_about
         self.text_lines = text_lines
         self.text_attribute = text_attribute
+        self.text_blank_character = text_blank_character
+        self.text_link_attribute = text_link_attribute
 
     def __str__(self):
         return f'{self.__class__.__name__} (input={self.scr_path.name})'
@@ -509,7 +532,7 @@ class ZXPage_Overlay(ZXPage):
 
         zx_token = ZXToken()
         zx_token.set_background(self.scr_path)
-        self._overlay_text(zx_token, self.text_lines, self.text_attribute)
+        self._overlay_text(zx_token, self.text_lines, self.text_attribute, text_link_attribute=self.text_link_attribute, text_blank_character=self.text_blank_character)
 
         zx_token.export_to_scr(target_path)
         if self.parent.enable_preview:
@@ -524,6 +547,8 @@ class ZXPage_Overlay(ZXPage):
         root['scr_about'] = self.scr_about
         root['text_lines'] = self._get_text()
         root['text_attribute'] = self.text_attribute
+        root['text_link_attribute'] = self.text_link_attribute
+        root['text_blank_character'] = self.text_blank_character
         return result
 
     @classmethod
@@ -542,7 +567,9 @@ class ZXPage_Overlay(ZXPage):
             parent.get_asset_path(root['scr_path']), 
             root['scr_about'],
             root['text_lines'],
-            root['text_attribute'])
+            root['text_attribute'],
+            root['text_link_attribute'],
+            root['text_blank_character'])
 
     @classmethod
     def __yaml_defaults(cls) -> dict:
@@ -551,7 +578,9 @@ class ZXPage_Overlay(ZXPage):
                 'scr_path': None,
                 'scr_about': cls.blank_about(),
                 'text_lines': cls.blank_text(),
-                'text_attribute': ZXToken.UNDEFINED
+                'text_attribute': ZXToken.UNSPECIFIED,
+                'text_link_attribute': ZXToken.UNSPECIFIED,
+                'text_blank_character': None
             }
         }
 
@@ -629,14 +658,16 @@ class ZXPage_ClearText(ZXPage):
     frame_path: Path
     text_lines: list[str]
     text_attribute: int
+    text_link_attribute: int
 
-    def __init__(self, parent: ZXDocument, frame_path: Path, text_lines, text_attribute=ZXToken.UNDEFINED, register_parent=True):
+    def __init__(self, parent: ZXDocument, frame_path: Path, text_lines, text_attribute=ZXToken.UNSPECIFIED, text_link_attribute=ZXToken.UNSPECIFIED, register_parent=True):
         super().__init__(parent, register_parent)
         self.frame_path = frame_path
         if self.frame_path:
             self.parent.check_file_exists(self.frame_path)
         self.text_lines = text_lines
         self.text_attribute = text_attribute
+        self.text_link_attribute = text_link_attribute
 
     def __str__(self):
         return f'{self.__class__.__name__} (frame={self.frame_path.name if self.frame_path else None})'
@@ -647,7 +678,7 @@ class ZXPage_ClearText(ZXPage):
         self.logger.debug('export', target_path, indent=(log_indent+1))
 
         zx_token = self.__get_zx_token()
-        self._overlay_text(zx_token, self.text_lines, self.text_attribute)
+        self._overlay_text(zx_token, self.text_lines, self.text_attribute, text_link_attribute=self.text_link_attribute)
             
         zx_token.export_to_specscii(target_path)
         if self.parent.enable_preview:
@@ -670,6 +701,7 @@ class ZXPage_ClearText(ZXPage):
         root['frame_path'] = str(self.parent.get_relative_path(self.frame_path)) if self.frame_path else None
         root['text_lines'] = self._get_text()
         root['text_attribute'] = self.text_attribute
+        root['text_link_attribute'] = self.text_link_attribute
         return result
 
     @classmethod
@@ -687,7 +719,8 @@ class ZXPage_ClearText(ZXPage):
             parent, 
             parent.get_asset_path(root['frame_path']) if root['frame_path'] else None,
             root['text_lines'],
-            root['text_attribute'])
+            root['text_attribute'],
+            root['text_link_attribute'])
 
     @classmethod
     def __yaml_defaults(cls) -> dict:
@@ -695,7 +728,8 @@ class ZXPage_ClearText(ZXPage):
             cls.__name__: {
                 'frame_path': None,
                 'text_lines': cls.blank_text(),
-                'text_attribute': ZXToken.UNDEFINED
+                'text_attribute': ZXToken.UNSPECIFIED,
+                'text_link_attribute': ZXToken.UNSPECIFIED
             }
         }
 
