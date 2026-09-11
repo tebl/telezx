@@ -39,41 +39,41 @@ class ZXFrame(ZXToken):
     def frame_colours(cls):
         yield (
             'black', 
-            ZXScreen.to_attribute(ink=ZXScreen.BLACK), 
+            ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
         ) 
         yield (
             'blue', 
-            ZXScreen.to_attribute(ink=ZXScreen.BLUE), 
+            ZXScreen.to_attribute(ink=ZXScreen.BLUE, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLUE)
         ) 
         yield (
             'red', 
-            ZXScreen.to_attribute(ink=ZXScreen.RED), 
+            ZXScreen.to_attribute(ink=ZXScreen.RED, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.RED)
         ) 
         yield (
             'magenta', 
-            ZXScreen.to_attribute(ink=ZXScreen.MAGENTA), 
+            ZXScreen.to_attribute(ink=ZXScreen.MAGENTA, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.MAGENTA)
         ) 
         yield (
             'green', 
-            ZXScreen.to_attribute(ink=ZXScreen.GREEN), 
+            ZXScreen.to_attribute(ink=ZXScreen.GREEN, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.GREEN)
         ) 
         yield (
             'cyan', 
-            ZXScreen.to_attribute(ink=ZXScreen.CYAN), 
+            ZXScreen.to_attribute(ink=ZXScreen.CYAN, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.CYAN)
         ) 
         yield (
             'yellow', 
-            ZXScreen.to_attribute(ink=ZXScreen.YELLOW), 
+            ZXScreen.to_attribute(ink=ZXScreen.YELLOW, paper=ZXScreen.WHITE), 
             ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.YELLOW)
         ) 
         yield (
             'white', 
-            ZXScreen.to_attribute(ink=ZXScreen.WHITE), 
+            ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK), 
             ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE)
         )

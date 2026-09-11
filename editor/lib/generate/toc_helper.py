@@ -6,6 +6,8 @@ from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage
 class TOCHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
     TOC_ABBREVIATION = 'TOC'
+    COLOUR_DESCRIPTION = ZXScreen.to_attribute(ink=ZXScreen.BLUE, paper=ZXScreen.WHITE)
+    COLOUR_REFERENCE = ZXScreen.to_attribute(ink=ZXScreen.MAGENTA, paper=ZXScreen.WHITE)
 
     enable_preview = True
 
@@ -53,7 +55,7 @@ class TOCHelper(RepositoryHelper):
                         first_item = False
 
                     current_page.set_string(1, current_y, self.__pad_entry(description))
-                    current_page.set_string(27, current_y, link_id, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.CYAN))
+                    current_page.set_string(27, current_y, link_id, char_attribute=self.COLOUR_REFERENCE)
 
                 current_page.save()
                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
@@ -91,8 +93,8 @@ class TOCHelper(RepositoryHelper):
                 current_y = start_y
                 for number, letter in enumerate(self.registry.LETTERS_AZ):
                     document_id = next(address)
-                    page.set_string(current_x, current_y, f'[{letter}]', ZXScreen.to_attribute(ink=ZXScreen.GREEN))
-                    page.set_string(current_x + 4, current_y, utilities.format_padded_id(document_id), ZXScreen.to_attribute(ink=ZXScreen.CYAN))
+                    page.set_string(current_x, current_y, f'[{letter}]', self.COLOUR_DESCRIPTION)
+                    page.set_string(current_x + 4, current_y, utilities.format_padded_id(document_id), self.COLOUR_REFERENCE)
 
                     current_y += 1
                     if current_y > (start_y + 8):

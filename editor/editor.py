@@ -107,6 +107,7 @@ class ZXEditor(ttk.Frame):
 
     def __create_boot_screen(self):
         start_x = 11
+        self.zx_token.clear(ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK))
         self.zx_token.set_string(start_x + 1, 9, "ZX Editor")
 
         start_y = 11

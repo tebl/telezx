@@ -12,7 +12,7 @@ from .utilities import update_tree, get_project_root
 class ZXToken:
     UNDEFINED = -1
     UNSPECIFIED = -2
-    DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK)
+    DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
     FILE_EXTENSION = '.zxtoken'
@@ -55,8 +55,7 @@ class ZXToken:
         self.set_selected_glyph(self.DEFAULT_GLYPH)
 
     def debug_cell(self, char_x, char_y):
-        # self.__lookup_cell(char_x, char_y).debug(self)
-        pass
+        self.__lookup_cell(char_x, char_y).debug(self)
 
     def export(self, document_path):
         with open(document_path, 'w') as file:
