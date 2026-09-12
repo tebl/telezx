@@ -11,27 +11,27 @@ class AssetHelper(RepositoryHelper):
     def create_frames(self, indent: int=0):
         base_path = self.repository / 'src' / 'assets'
         self.logger.info(f'Creating frames in {base_path}', indent=indent)
-        for colour, value, title_value in ZXFrame.frame_colours():
-            frame_path = base_path / f'frame_{colour}{ZXToken.FILE_EXTENSION}'
+        for description, foreground, background, text_attribute in ZXFrame.frame_colours():
+            frame_path = base_path / f'frame_{description}{ZXToken.FILE_EXTENSION}'
             frame = ZXFrame.create_frame(frame_path)
-            frame.overlay_box(value, title_value)
+            frame.overlay_box(foreground, background, text_attribute)
             frame.save()
             frame.set_string(1, 2, 'Example text')
             frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
             self.logger.debug(f'{frame_path.name} created.', indent=indent+1)
 
-            frame_path = base_path / f'frame_{colour}_title{ZXToken.FILE_EXTENSION}'
+            frame_path = base_path / f'frame_{description}_title{ZXToken.FILE_EXTENSION}'
             frame = ZXFrame.create_frame(frame_path)
-            frame.overlay_title_box(value, title_value)
+            frame.overlay_title_box(foreground, background, text_attribute)
             frame.save()
             frame.set_string(1, 2, 'Title here')
             frame.set_string(1, 4, 'Example text')
             frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
             self.logger.debug(f'{frame_path.name} created.', indent=indent+1)
 
-            frame_path = base_path / f'title_{colour}{ZXToken.FILE_EXTENSION}'
+            frame_path = base_path / f'title_{description}{ZXToken.FILE_EXTENSION}'
             frame = ZXFrame.create_frame(frame_path)
-            frame.overlay_title(value, title_value)
+            frame.overlay_title(foreground, background, text_attribute)
             frame.save()
             frame.set_string(2, 2, 'Title here')
             frame.set_string(0, 4, 'Example text')

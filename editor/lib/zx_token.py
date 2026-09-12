@@ -20,9 +20,10 @@ class ZXToken:
     # Defined so that ZXFrame generates identical files
     DOCUMENT_TYPE = 'ZXToken'
 
-    def __init__(self):
+    def __init__(self, init_attribute: int|None=None):
         self.zx_screen = ZXScreen()
-        self.clear(attribute=self.DEFAULT_ATTRIBUTE)
+        init_attribute = self.DEFAULT_ATTRIBUTE if init_attribute is None else init_attribute
+        self.clear(attribute=init_attribute)
 
     def __enter__(self):
         return self
