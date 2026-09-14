@@ -29,6 +29,7 @@ class KeyboardDialog(CustomDialog):
             ('Ctrl', None, 'i', 'Invert cell'),
             ('Ctrl', None, 'c', 'Copy cell'),
             ('Ctrl', None, 'v', 'Paste cell'),
+            ('Ctrl', None, 'z', 'Undo previous operation'),
             ('Ctrl', 'Shift', 'c', 'Copy cell attribute'),
             ('Ctrl', 'Shift', 'v', 'Paste cell attribute'),
             ('Ctrl', 'Shift', 'f', 'Swap ink/paper'),

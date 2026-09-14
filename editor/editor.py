@@ -121,6 +121,21 @@ class ZXEditor(ttk.Frame):
         self.zx_token.set_string(7, start_y + 3, "(Ctrl + n to clear)")
         self.zx_token.changes = False
 
+    def clear_highlight(self, event=None):
+        self.region_highlight = None
+        self.main.notify_cursor_changed()
+        self.status.notify_cursor_changed()
+        return 'break'
+
+    def clear_state(self):
+        '''
+        Clear state objects when documents are created or loaded. Copied
+        information intentionally left out so that this becomes a viable
+        way of moving content between documents. 
+        '''
+        self.region_highlight = None
+        self.undo_list: list[UndoOperation] = []
+
     def clicked_about(self, event=None):
         AboutDialog(self, self).show()
         return 'break'
@@ -205,6 +220,7 @@ class ZXEditor(ttk.Frame):
         if self.zx_token.has_changes():
             if not self.__allow_discard('Document unsaved') == 'OK':
                 return
+        self.clear_state()
         self.zx_token.clear(ZXToken.DEFAULT_ATTRIBUTE)
         self.__load_font()
         self.__load_glyph()
@@ -224,7 +240,8 @@ class ZXEditor(ttk.Frame):
                     self.zx_token.load(filename)
                     self.__load_font()
                     self.__load_glyph()
-            self.set_status(f'Document loaded: {self.zx_token.document_path}')
+                    self.clear_state()
+                    self.set_status(f'Document loaded: {self.zx_token.document_path}')
         except Exception as e:
             traceback.print_exc()
             Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
@@ -417,12 +434,6 @@ class ZXEditor(ttk.Frame):
         self.region_highlight = ScreenRegion.from_cursor(self.cursor, char_x, char_y)
         self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
-
-    def clear_highlight(self, event=None):
-        self.region_highlight = None
-        self.main.notify_cursor_changed()
-        self.status.notify_cursor_changed()
-        return 'break'
 
     def move_cursor_up(self, event=None):
         if ScreenNavigator.up(self.cursor, self.__get_cursor_region()):
