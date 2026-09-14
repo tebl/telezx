@@ -1,4 +1,5 @@
 import enum
+from typing import Generator
 from .. import ZXScreen, utilities
 
 
@@ -30,6 +31,9 @@ class ScreenCoordinate:
     def __init__(self, char_x: int, char_y: int):
         self.char_x = self.__filter_x(char_x)
         self.char_y = self.__filter_y(char_y)
+
+    def __str__(self):
+        return f'(X={self.char_x}, Y={self.char_y})'
 
     def get(self):
         return (self.char_x, self.char_y)
@@ -258,7 +262,7 @@ class ScreenRegion:
     def can_transpose_west(self):
         return self.coord_start.can_move_west()
 
-    def cells(self, from_direction: CellDirection):
+    def cells(self, from_direction: CellDirection) -> Generator[ScreenCoordinate]:
         match from_direction:
             case CellDirection.NORTH | CellDirection.ANY:
                 for char_y in range(self.coord_start.char_y, self.coord_end.char_y + 1):
@@ -279,30 +283,36 @@ class ScreenRegion:
             case _:
                 raise ValueError('Unknown direction')
 
-    def coordinates(self):
+    def coordinates(self) -> tuple[ScreenCoordinate, ScreenCoordinate]:
         return (self.coord_start, self.coord_end)
 
-    def is_cursor_inside(self, cursor: ScreenCoordinate):
+    def is_cursor_inside(self, cursor: ScreenCoordinate) -> bool:
         return self.is_inside(cursor.char_x, cursor.char_y)
 
-    def is_inside(self, char_x, char_y):
+    def is_inside(self, char_x, char_y) -> bool:
         if not (char_x >= self.coord_start.char_x and char_x <= self.coord_end.char_x):
             return False
         if not (char_y >= self.coord_start.char_y and char_y <= self.coord_end.char_y):
             return False
         return True
 
-    def min_char_x(self):
+    def min_char_x(self) -> int:
         return self.coord_start.char_x
 
-    def max_char_x(self):
+    def max_char_x(self) -> int:
         return self.coord_end.char_x
 
-    def min_char_y(self):
+    def min_char_y(self) -> int:
         return self.coord_start.char_y
 
-    def max_char_y(self):
+    def max_char_y(self) -> int:
         return self.coord_end.char_y
+
+    def size(self) -> tuple[int, int]:
+        return (
+            self.coord_end.char_x - self.coord_start.char_x + 1,
+            self.coord_end.char_y - self.coord_start.char_y + 1
+        )
 
     def transpose(self, direction: CellDirection):
         self.coord_start.move(direction)
@@ -332,16 +342,6 @@ class ScreenRegion:
         )
 
     @classmethod
-    def from_tuples(cls, coord_a: tuple[int, int], coord_b: tuple[int, int]):
-        '''
-        Create a screen region between two coordinates.
-        '''
-        return ScreenRegion(
-            ScreenCoordinate(char_x = coord_a[0], char_y = coord_a[1]),
-            ScreenCoordinate(char_x = coord_b[0], char_y = coord_b[1])
-        )
-
-    @classmethod
     def from_cursor(cls, cursor: ScreenCoordinate, char_x: int, char_y: int):
         '''
         Creates a region between the cursor and the specified (char_x, char_y)
@@ -352,6 +352,26 @@ class ScreenRegion:
         return cls.from_tuples(
             (cursor.char_x, cursor.char_y),
             (char_x, char_y)
+        )
+
+    @classmethod
+    def from_point(cls, coordinate: ScreenCoordinate, shape: tuple[int, int]) -> ScreenRegion:
+        '''
+        Create a region from a given coordinate specified by a shape (width, height).
+        '''
+        return ScreenRegion(
+            coordinate, 
+            ScreenCoordinate(coordinate.char_x + shape[0], 
+                             coordinate.char_y + shape[1]))
+
+    @classmethod
+    def from_tuples(cls, coord_a: tuple[int, int], coord_b: tuple[int, int]) -> ScreenRegion:
+        '''
+        Create a screen region between two coordinates.
+        '''
+        return ScreenRegion(
+            ScreenCoordinate(char_x = coord_a[0], char_y = coord_a[1]),
+            ScreenCoordinate(char_x = coord_b[0], char_y = coord_b[1])
         )
 
     @classmethod

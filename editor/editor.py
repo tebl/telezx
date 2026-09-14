@@ -11,7 +11,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellCopy, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -37,6 +37,7 @@ class ZXEditor(ttk.Frame):
     TITLEBAR_REFRESH = 250
     REFRESH_FLASH = int(1000/50*32)
     TOOLTIP_DELAY = 1000
+    MAX_UNDO = 30
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,8 +56,9 @@ class ZXEditor(ttk.Frame):
 
         self.zx_token = ZXToken()
         self.__create_boot_screen()
-        self.copied_cell = None
+        self.copied_cells = None
         self.copied_format = None
+        self.undo_list: list[UndoOperation] = []
 
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
@@ -82,12 +84,12 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-b>", self.clicked_background)
         self.master.bind("<Control-KeyPress-h>", self.clicked_keyboard)
         self.master.bind("<Control-KeyPress-g>", self.clicked_grid)
-        self.master.bind("<Control-KeyPress-z>", self.move_cursor_backspace)
+        self.master.bind("<Control-KeyPress-z>", self.clicked_undo)
         self.master.bind("<Control-KeyPress-f>", self.clicked_toggle_sticky)
         self.master.bind("<Control-KeyPress-q>", self.clicked_quit)
         self.master.bind("<Control-KeyPress-i>", self.clicked_invert)
-        self.master.bind("<Control-KeyPress-c>", self.clicked_copy_cell)
-        self.master.bind("<Control-KeyPress-v>", self.clicked_paste_cell)
+        self.master.bind("<Control-KeyPress-c>", self.clicked_copy)
+        self.master.bind("<Control-KeyPress-v>", self.clicked_paste)
         self.master.bind("<Control-KeyPress-C>", self.clicked_copy_attribute)
         self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
         self.master.bind("<Control-KeyPress-F>", self.clicked_swap_attribute)
@@ -250,17 +252,83 @@ class ZXEditor(ttk.Frame):
         self.set_status(f'Document saved: {self.zx_token.document_path}')
         return 'break'
 
-    def clicked_copy_cell(self, event=None):
-        self.copied_cell = self.zx_token.get_cell(self.cursor.char_x, self.cursor.char_y)
-        self.set_status(f"Copied {self.copied_cell}")
+    def clicked_copy(self, event=None):
+        self.copied_cells = self.__copy_selection()
+        self.set_status(f"Copied {self.copied_cells}")
         return 'break'
 
-    def clicked_paste_cell(self, event=None):
-        if self.copied_cell:
-            if self.zx_token.set_cell(self.cursor.char_x, self.cursor.char_y, cell_copy=self.copied_cell):
+    def __copy_selection(self):
+        if self.region_highlight:
+            return CopiedCells(
+                shape=self.region_highlight.size(),
+                cells=[self.__get_cell_copy(v, self.region_highlight) for v in self.region_highlight.cells(from_direction=CellDirection.NORTH)]
+            )
+        else:
+            return CopiedCells(
+                shape=(1, 1), 
+                cells=[ CellData(ScreenCoordinate(0, 0), self.zx_token.get_cell(self.cursor.char_x, self.cursor.char_y)) ])
+
+    def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CellData:
+        return CellData(
+            ScreenCoordinate(coordinate.char_x - region.coord_start.char_x, 
+                             coordinate.char_y - region.coord_start.char_y),
+            self.zx_token.get_cell(coordinate.char_x, coordinate.char_y)
+        )
+
+    def clicked_paste(self, event=None):
+        changes = False
+        cells_ignored = 0
+        if self.copied_cells:
+            self.create_undo(coordinate=self.cursor, shape=self.copied_cells.shape)
+
+            region: ScreenRegion = self.region_highlight if self.region_highlight else self.region_screen
+            for cell_data in self.copied_cells.cells:
+                char_x, char_y = cell_data.get_relative_to(self.cursor)
+                if region.is_inside(char_x, char_y):
+                    if self.zx_token.set_cell(char_x, char_y, cell_copy=cell_data.cell_copy):
+                        changes = True
+                else:
+                    cells_ignored += 1
+            if changes:
                 self.refresh_editor()
-                self.set_status(f"Pasted {self.copied_cell}")
+
+            if not cells_ignored:
+                self.set_status(f"Pasted {self.copied_cells}")
+            else:
+                self.set_status(f"Pasted {self.copied_cells} ({cells_ignored} cells dropped)")
         return 'break'
+
+    def clicked_undo(self, event=None):
+        changes = False
+        if self.undo_list:
+            undo_operation: UndoOperation = self.undo_list.pop()
+            for (char_x, char_y), cell_copy in undo_operation.items():
+                if self.zx_token.set_cell(char_x, char_y, cell_copy=cell_copy):
+                    changes = True
+            if changes:
+                self.refresh_editor()
+            self.set_status(f"Undo {undo_operation.size()} cells")
+        else:
+            self.set_status(f"Undo memory empty!")
+        
+    def create_undo(self, coordinate: ScreenCoordinate, shape: tuple[int, int]):
+        '''
+        NB! The implementation of ScreenRegion will recreate the coordinate
+        from values provided, this ensures that we're tracking the values
+        instead of an object that _may_ change at any point. Leaving this
+        notice here in case I break things in the future.
+
+        '''
+        self.create_undo_region(ScreenRegion.from_point(coordinate, shape))
+
+    def create_undo_region(self, region: ScreenRegion):
+        undo_operation = UndoOperation()
+        for c in region.cells(from_direction=CellDirection.NORTH):
+            undo_operation.add_cell(c.char_x, c.char_y, self.zx_token.get_cell(c.char_x, c.char_y))
+        if undo_operation.size():
+            self.undo_list.append(undo_operation)
+        if (len(self.undo_list) > self.MAX_UNDO):
+            self.undo_list.pop(0)
 
     def clicked_copy_attribute(self, event=None):
         self.copied_format = self.sidebar.palette.get_dataset()
@@ -274,7 +342,8 @@ class ZXEditor(ttk.Frame):
         # Check if we have an attribute
         if not self.copied_format:
             return 'break'
-        
+
+        self.create_undo(self.cursor, (1, 1))
         changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.copied_format.attribute)
         changed = True if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.copied_format.is_inverted) else False
         if changed:
@@ -447,27 +516,53 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def __move_content(self, direction: CellDirection, nudge: bool=True):
+        '''
+        Move screen contents in the specified direction. Using nudge set to
+        True we can specify if we want overwritten cell contents to pop out
+        behind the region that was moved, alternatively we can leave the 
+        cells empty (effectively a cut and paste one cell over).
+        '''
         if self.region_highlight and self.region_highlight.can_transpose(direction):
             delta_x, delta_y = direction.get_delta()
+
+            undo_operation = UndoOperation()
             for coord in self.region_highlight.cells(direction):
-                self.__shift_highlight(coord, delta_x, delta_y, nudge)
+                self.__shift_highlight(
+                    coord, 
+                    delta_x, 
+                    delta_y, 
+                    undo_operation,
+                    nudge)
+            if undo_operation.size():
+                self.undo_list.append(undo_operation)
             self.region_highlight.transpose(direction)
             self.move_cursor(self.cursor.char_x + delta_x, self.cursor.char_y + delta_y)
 
-    def __shift_highlight(self, coord: ScreenCoordinate, delta_x: int, delta_y: int, nudge: bool=True):
-        original = self.zx_token.get_cell(coord.char_x + delta_x, coord.char_y + delta_y)
+    def __shift_highlight(self, coord: ScreenCoordinate, delta_x: int, delta_y: int, undo_operation: UndoOperation, nudge: bool=True):
+        char_x_old = coord.char_x
+        char_y_old = coord.char_y
+        undo_operation.add_cell(char_x_old, 
+                                char_y_old, 
+                                self.zx_token.get_cell(char_x_old, char_y_old))
+
+        char_x_new = char_x_old + delta_x
+        char_y_new = char_y_old + delta_y
+        original = self.zx_token.get_cell(char_x_new, char_y_new)
+        undo_operation.add_cell(char_x_new, char_y_new, original)
+
+        # Cell being overwritten
         self.zx_token.set_cell(
-            coord.char_x + delta_x, 
-            coord.char_y + delta_y, 
-            cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
+            char_x_new, 
+            char_y_new, 
+            cell_copy = self.zx_token.get_cell(char_x_old, char_y_old)
         )
 
         # Nudge wraps the original cell out the other side, with it disabled
         # we instead leave empty cells in its place (effectively ereasing them).
         if nudge:
-            self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=original)
+            self.zx_token.set_cell(char_x_old, char_y_old, cell_copy=original)
         else:
-            self.zx_token.set_cell(coord.char_x, coord.char_y)
+            self.zx_token.set_cell(char_x_old, char_y_old)
 
     def on_quit(self, root):
         if not self.zx_token.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
@@ -494,6 +589,7 @@ class ZXEditor(ttk.Frame):
         self.status.notify_cursor_changed()
 
     def set_cursor_character(self, char_code):
+        self.create_undo(self.cursor, (1, 1))
         changed = False
         if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code, sync_screen=False):
             changed = True
@@ -512,6 +608,7 @@ class ZXEditor(ttk.Frame):
         self.set_sticky(True)
         if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
             return
+        self.create_undo(self.cursor, (1, 1))
         changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, attribute)
         if changed:
             self.refresh_canvas()
@@ -520,6 +617,7 @@ class ZXEditor(ttk.Frame):
         self.set_sticky(True)
         if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
             return
+        self.create_undo(self.cursor, (1, 1))
         changed = self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, is_inverted)
         if changed:
             self.refresh_canvas()
@@ -734,6 +832,61 @@ class Canvas(ttk.Frame):
         self.pixel_data[:] = rgb_data
 
 
+class CopiedCells:
+    shape: tuple[int, int]
+    cells: list[CellData]
+
+    def __init__(self, shape: tuple[int, int], cells: list[CellData]):
+        self.shape = shape
+        self.cells = cells
+
+    def __str__(self):
+        x, y = self.shape
+        return f'{x}x{y} cells'
+
+    def count(self) -> int:
+        x, y = self.shape
+        return x*y
+
+
+class CellData:
+    coordinate: ScreenCoordinate
+    cell_copy: CellCopy
+
+    def __init__(self, coordinate: ScreenCoordinate, cell_copy: CellCopy):
+        self.coordinate = coordinate
+        self.cell_copy = cell_copy
+
+    def get_relative_to(self, cursor: ScreenCoordinate) -> tuple[int, int]:
+        return (
+            cursor.char_x + self.coordinate.char_x,
+            cursor.char_y + self.coordinate.char_y
+        )
+
+
+class UndoOperation:
+    entries: dict[(int, int), CellCopy]
+
+    def __init__(self):
+        self.entries = {}
+
+    def add_cell(self, char_x, char_y, cell_copy: CellCopy) -> UndoOperation:
+        '''
+        Add entries, but note we'll actively discard any information about any
+        subsequent updates to a specific coordinate. Doing it this way ensures
+        that we can roll back everything consistently.
+        '''
+        if not (char_x, char_y) in self.entries:
+            self.entries[(char_x, char_y)] = cell_copy
+        return self
+
+    def items(self):
+        return self.entries.items()
+
+    def size(self):
+        return len(self.entries)
+
+
 class Main(ttk.Frame):
     NOGRID_Y_OFFSET = 2
     HIGHLIGHT_EFFECT_AVERAGE = 0
@@ -750,12 +903,15 @@ class Main(ttk.Frame):
         self.label.pack(padx=5, pady=5)
         self.in_focus = False
 
+        self.context_menu = ContextMenu(self, self.zx_editor)
+
         self.notify_scale_changed(self.zx_editor.scale)
         # self.label.bind('<Motion>', self.mouse_moved)
         self.label.bind('<Button-1>', self.mouse_clicked)
         self.label.bind('<Shift-Button-1>', self.mouse_select_region)
         self.label.bind('<Enter>', lambda x: self.set_custom_focus(True))
         self.label.bind('<Leave>', lambda x: self.set_custom_focus(False))
+        self.label.bind('<Button-3>', self.mouse_clicked_alt)
 
     def check_focus(self):
         return self.in_focus
@@ -799,10 +955,18 @@ class Main(ttk.Frame):
         self.image = tk_img
 
     def mouse_clicked(self, event):
+        self.context_menu.hide_menu()
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
             char_x, char_y = self.__get_cursor_from(event.x, event.y)
             if self.zx_editor.region_screen.is_inside(char_x, char_y):
                 self.zx_editor.move_cursor(char_x, char_y)
+
+    def mouse_clicked_alt(self, event):
+        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+            char_x, char_y = self.__get_cursor_from(event.x, event.y)
+            in_highlight = (self.zx_editor.region_highlight and self.zx_editor.region_highlight.is_inside(char_x, char_y))
+
+            self.context_menu.show_menu(event, in_highlight)
 
     def mouse_select_region(self, event):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
@@ -914,6 +1078,36 @@ class Main(ttk.Frame):
         if char_y < 0 or char_y >= ZXScreen.SCREEN_HEIGHT_CHARS:
             char_y = -1
         return (char_x, char_y)
+
+
+class ContextMenu(ttk.Menu):
+    OFFSET_X = 10
+    OFFSET_Y = 10
+    ENTRY_COPY = 'Copy'
+    ENTRY_PASTE = 'Paste'
+    ENTRY_CLEAR_SELECTED = 'Clear selection'
+
+
+    def __init__(self, master, zx_editor: ZXEditor):
+        super().__init__(zx_editor, takefocus=True, title='Context menu', tearoff=False)
+        self.zx_editor = zx_editor
+
+        self.add_command(label=self.ENTRY_COPY, command=lambda: print(self.ENTRY_COPY))
+        self.add_command(label=self.ENTRY_CLEAR_SELECTED, command=lambda: print(self.ENTRY_CLEAR_SELECTED))
+
+    def show_menu(self, event, in_highlight: bool):
+        try:
+            self.__reconfigure(in_highlight)
+            self.tk_popup(event.x_root + self.OFFSET_X, event.y_root + self.OFFSET_Y, 0)
+        finally:
+            self.grab_release()
+
+    def __reconfigure(self, in_highlight):
+        self.entryconfigure(self.ENTRY_CLEAR_SELECTED, 
+                            state='normal' if in_highlight else 'disabled')
+
+    def hide_menu(self):
+        self.unpost()
 
 
 class Sidebar(ttk.Frame):
