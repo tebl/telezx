@@ -89,6 +89,7 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Control-KeyPress-q>", self.clicked_quit)
         self.master.bind("<Control-KeyPress-i>", self.clicked_invert)
         self.master.bind("<Control-KeyPress-c>", self.clicked_copy)
+        self.master.bind("<Control-KeyPress-x>", self.clicked_cut)
         self.master.bind("<Control-KeyPress-v>", self.clicked_paste)
         self.master.bind("<Control-KeyPress-C>", self.clicked_copy_attribute)
         self.master.bind("<Control-KeyPress-V>", self.clicked_paste_attribute)
@@ -274,16 +275,50 @@ class ZXEditor(ttk.Frame):
         self.set_status(f"Copied {self.copied_cells}")
         return 'break'
 
+    def clicked_cut(self, event=None):
+        self.copied_cells = self.__copy_selection()
+
+        undo_operation = UndoOperation()
+        if self.region_highlight:
+            for c in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+                undo_operation.add_cell(
+                    c.char_x,
+                    c.char_y,
+                    self.zx_token.get_cell(c.char_x, 
+                                           c.char_y)
+                )
+                self.zx_token.set_cell(c.char_x, c.char_y)
+        else:
+            undo_operation.add_cell(
+                self.cursor.char_x, 
+                self.cursor.char_y,
+                self.zx_token.get_cell(self.cursor.char_x, 
+                                       self.cursor.char_y))
+            self.zx_token.set_cell(self.cursor.char_x, 
+                                   self.cursor.char_y)            
+        self.undo_list.append(undo_operation)
+
+        self.refresh_editor()
+        self.set_status(f"Cut {self.copied_cells}")
+        return 'break'
+
     def __copy_selection(self):
         if self.region_highlight:
             return CopiedCells(
                 shape=self.region_highlight.size(),
-                cells=[self.__get_cell_copy(v, self.region_highlight) for v in self.region_highlight.cells(from_direction=CellDirection.NORTH)]
+                cells=[
+                    self.__get_cell_copy(coord, self.region_highlight) for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH)
+                ]
             )
         else:
             return CopiedCells(
                 shape=(1, 1), 
-                cells=[ CellData(ScreenCoordinate(0, 0), self.zx_token.get_cell(self.cursor.char_x, self.cursor.char_y)) ])
+                cells=[ 
+                    CellData(ScreenCoordinate(0, 0), 
+                             self.zx_token.get_cell(self.cursor.char_x,
+                                                    self.cursor.char_y))
+                ]
+            )
 
     def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CellData:
         return CellData(
