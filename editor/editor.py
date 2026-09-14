@@ -102,7 +102,7 @@ class ZXEditor(ttk.Frame):
         self.master.bind("<Shift-Right>", self.nudge_contents_east)
         self.master.bind("<Shift-Up>", self.nudge_contents_north)
         self.master.bind("<Shift-Down>", self.nudge_contents_south)
-        self.master.bind("<Escape>", self.clear_highlight)
+        self.master.bind("<Escape>", self.clicked_unselect_highlight)
         self.master.bind("<Key>", self.keyboard_event)
 
         self.update_flash_periodic(initial_setup=True)
@@ -122,12 +122,6 @@ class ZXEditor(ttk.Frame):
         self.zx_token.set_string(7, start_y + 3, "(Ctrl + n to clear)")
         self.zx_token.changes = False
 
-    def clear_highlight(self, event=None):
-        self.region_highlight = None
-        self.main.notify_cursor_changed()
-        self.status.notify_cursor_changed()
-        return 'break'
-
     def clear_state(self):
         '''
         Clear state objects when documents are created or loaded. Copied
@@ -141,14 +135,6 @@ class ZXEditor(ttk.Frame):
         AboutDialog(self, self).show()
         return 'break'
 
-    def clicked_keyboard(self, event=None):
-        KeyboardDialog(self, self).show()
-        return 'break'
-
-    def clicked_license(self, event=None):
-        LicenseDialog(self, self).show()
-        return 'break'
-
     def clicked_background(self, event=None):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Set background', filetypes=[("SCR", ('*.scr')), ("All files", "*.*")], multiple=False)
@@ -158,6 +144,75 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f'Background loaded: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Failed to open file', message=f'Failed with error:\n{e}')
+        return 'break'
+
+    def clicked_copy(self, event=None):
+        self.copied_cells = self.__copy_selection()
+        self.set_status(f"Copied {self.copied_cells}")
+        return 'break'
+
+    def clicked_cut(self, event=None):
+        self.copied_cells = self.__copy_selection()
+
+        undo_operation = UndoOperation()
+        if self.region_highlight:
+            for c in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+                undo_operation.add_cell(
+                    c.char_x,
+                    c.char_y,
+                    self.zx_token.get_cell(c.char_x, 
+                                           c.char_y)
+                )
+                self.zx_token.set_cell(c.char_x, c.char_y)
+        else:
+            undo_operation.add_cell(
+                self.cursor.char_x, 
+                self.cursor.char_y,
+                self.zx_token.get_cell(self.cursor.char_x, 
+                                       self.cursor.char_y))
+            self.zx_token.set_cell(self.cursor.char_x, 
+                                   self.cursor.char_y)            
+        self.undo_list.append(undo_operation)
+
+        self.refresh_editor()
+        self.set_status(f"Cut {self.copied_cells}")
+        return 'break'
+
+    def __copy_selection(self):
+        if self.region_highlight:
+            return CopiedCells(
+                shape=self.region_highlight.size(),
+                cells=[
+                    self.__get_cell_copy(coord, self.region_highlight) for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH)
+                ]
+            )
+        else:
+            return CopiedCells(
+                shape=(1, 1), 
+                cells=[ 
+                    CellData(ScreenCoordinate(0, 0), 
+                             self.zx_token.get_cell(self.cursor.char_x,
+                                                    self.cursor.char_y))
+                ]
+            )
+
+    def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CellData:
+        return CellData(
+            ScreenCoordinate(coordinate.char_x - region.coord_start.char_x, 
+                             coordinate.char_y - region.coord_start.char_y),
+            self.zx_token.get_cell(coordinate.char_x, coordinate.char_y)
+        )
+
+    def clicked_delete_highlight(self, event=None):
+        if self.region_highlight:
+            undo_operation = UndoOperation()
+            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+                undo_operation.add_cell(
+                    coord.char_x, coord.char_y, 
+                    self.zx_token.get_cell(coord.char_x, coord.char_y))
+                self.zx_token.set_cell(coord.char_x, coord.char_y)
+            self.undo_list.append(undo_operation)
+            self.refresh_editor()
         return 'break'
 
     def clicked_grid(self, event=None):
@@ -217,6 +272,14 @@ class ZXEditor(ttk.Frame):
             self.main.focus_set()
         return 'break'
 
+    def clicked_keyboard(self, event=None):
+        KeyboardDialog(self, self).show()
+        return 'break'
+
+    def clicked_license(self, event=None):
+        LicenseDialog(self, self).show()
+        return 'break'
+
     def clicked_new(self, event=None):
         if self.zx_token.has_changes():
             if not self.__allow_discard('Document unsaved') == 'OK':
@@ -269,63 +332,6 @@ class ZXEditor(ttk.Frame):
         self.zx_token.save()
         self.set_status(f'Document saved: {self.zx_token.document_path}')
         return 'break'
-
-    def clicked_copy(self, event=None):
-        self.copied_cells = self.__copy_selection()
-        self.set_status(f"Copied {self.copied_cells}")
-        return 'break'
-
-    def clicked_cut(self, event=None):
-        self.copied_cells = self.__copy_selection()
-
-        undo_operation = UndoOperation()
-        if self.region_highlight:
-            for c in self.region_highlight.cells(from_direction=CellDirection.NORTH):
-                undo_operation.add_cell(
-                    c.char_x,
-                    c.char_y,
-                    self.zx_token.get_cell(c.char_x, 
-                                           c.char_y)
-                )
-                self.zx_token.set_cell(c.char_x, c.char_y)
-        else:
-            undo_operation.add_cell(
-                self.cursor.char_x, 
-                self.cursor.char_y,
-                self.zx_token.get_cell(self.cursor.char_x, 
-                                       self.cursor.char_y))
-            self.zx_token.set_cell(self.cursor.char_x, 
-                                   self.cursor.char_y)            
-        self.undo_list.append(undo_operation)
-
-        self.refresh_editor()
-        self.set_status(f"Cut {self.copied_cells}")
-        return 'break'
-
-    def __copy_selection(self):
-        if self.region_highlight:
-            return CopiedCells(
-                shape=self.region_highlight.size(),
-                cells=[
-                    self.__get_cell_copy(coord, self.region_highlight) for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH)
-                ]
-            )
-        else:
-            return CopiedCells(
-                shape=(1, 1), 
-                cells=[ 
-                    CellData(ScreenCoordinate(0, 0), 
-                             self.zx_token.get_cell(self.cursor.char_x,
-                                                    self.cursor.char_y))
-                ]
-            )
-
-    def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CellData:
-        return CellData(
-            ScreenCoordinate(coordinate.char_x - region.coord_start.char_x, 
-                             coordinate.char_y - region.coord_start.char_y),
-            self.zx_token.get_cell(coordinate.char_x, coordinate.char_y)
-        )
 
     def clicked_paste(self, event=None):
         changes = False
@@ -413,6 +419,15 @@ class ZXEditor(ttk.Frame):
             self.main.focus_set()
         return 'break'
 
+    def clicked_unselect_highlight(self, event=None):
+        '''
+        Unselect highlight if it exists.
+        '''
+        self.region_highlight = None
+        self.main.notify_cursor_changed()
+        self.status.notify_cursor_changed()
+        return 'break'
+
     def clicked_quit(self, event=None):
         self.on_quit(self.master)
         return 'break'
@@ -497,10 +512,11 @@ class ZXEditor(ttk.Frame):
 
     def __clear_cursor_position(self):
         char_x, char_y = self.cursor.get()
-        self.zx_token.set_inverted(char_x, char_y, ZXToken.UNDEFINED, sync_screen=False)
-        self.zx_token.set_character(char_x, char_y, ZXToken.UNDEFINED, sync_screen=False)
-        self.zx_token.set_attribute(char_x, char_y, ZXToken.UNDEFINED, sync_screen=False)
-        self.zx_token.sync_cell(char_x, char_y)
+        self.undo_list.append(UndoOperation().add_cell(char_x, 
+                                                       char_y, 
+                                                       self.zx_token.get_cell(char_x, 
+                                                                              char_y)))
+        self.zx_token.set_cell(char_x, char_y)
 
     def move_cursor_right(self, event=None):
         if ScreenNavigator.next(self.cursor, self.__get_cursor_region()):
@@ -1138,8 +1154,8 @@ class ContextMenu(ttk.Menu):
         super().__init__(zx_editor, takefocus=True, title='Context menu', tearoff=False)
         self.zx_editor = zx_editor
 
-        self.add_command(label=self.ENTRY_COPY, command=lambda: print(self.ENTRY_COPY))
-        self.add_command(label=self.ENTRY_CLEAR_SELECTED, command=lambda: print(self.ENTRY_CLEAR_SELECTED))
+        self.add_command(label=self.ENTRY_COPY, command=lambda: self.zx_editor.clicked_copy())
+        self.add_command(label=self.ENTRY_CLEAR_SELECTED, command=lambda: self.zx_editor.clicked_delete_highlight())
 
     def show_menu(self, event, in_highlight: bool):
         try:
