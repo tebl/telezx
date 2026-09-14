@@ -37,7 +37,7 @@ class ZXEditor(ttk.Frame):
     TITLEBAR_REFRESH = 250
     REFRESH_FLASH = int(1000/50*32)
     TOOLTIP_DELAY = 1000
-    MAX_UNDO = 30
+    MAX_UNDO = 100
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

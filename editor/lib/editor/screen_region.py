@@ -35,16 +35,11 @@ class ScreenCoordinate:
     def __str__(self):
         return f'(X={self.char_x}, Y={self.char_y})'
 
+    def __eq__(self, value):
+        return (self.char_x == value.x and self.char_y == value.y)
+
     def get(self):
         return (self.char_x, self.char_y)
-
-    @classmethod
-    def __filter_x(cls, char_x):
-        return (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
-
-    @classmethod
-    def __filter_y(cls, char_y):
-        return (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
 
     def set(self, char_x, char_y) -> bool:
         prev_x, prev_y = self.get()
@@ -105,8 +100,19 @@ class ScreenCoordinate:
     def can_move_west(self):
         return self.char_x > 0
 
-    def __eq__(self, value):
-        return (self.char_x == value.x and self.char_y == value.y)
+    @classmethod
+    def combine_with_shape(cls, coordinate: ScreenCoordinate, shape: tuple[int, int]) -> ScreenCoordinate:
+        char_x = min(coordinate.char_x + shape[0], ZXScreen.SCREEN_WIDTH_CHARS - 1)
+        char_y = min(coordinate.char_y + shape[1], ZXScreen.SCREEN_HEIGHT_CHARS - 1)
+        return ScreenCoordinate(char_x, char_y)
+
+    @classmethod
+    def __filter_x(cls, char_x):
+        return (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
+
+    @classmethod
+    def __filter_y(cls, char_y):
+        return (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
 
 
 class ScreenNavigator:
@@ -228,12 +234,22 @@ class ScreenNavigator:
 
 
 class ScreenRegion:
+    '''
+    Used to refer to a region of character cells within the available space,
+    providing a means of enumerating coordinate points within the region. Note
+    that while two coordinates are used to create a square region, the
+    coordinates themselves may be swapped around to ensure that we always have
+    offsets that are positive relative to start coordinate.
+    '''
     coord_start: ScreenCoordinate
     coord_end: ScreenCoordinate
 
     def __init__(self, coord_a: ScreenCoordinate, coord_b: ScreenCoordinate):
         self.coord_start = self.get_filtered_coordinate(min, coord_a, coord_b)
         self.coord_end = self.get_filtered_coordinate(max, coord_a, coord_b)
+
+    def __str__(self):
+        return f'{self.coord_start} to {self.coord_end}'
 
     def can_transpose(self, direction):
         '''
@@ -361,8 +377,8 @@ class ScreenRegion:
         '''
         return ScreenRegion(
             coordinate, 
-            ScreenCoordinate(coordinate.char_x + shape[0], 
-                             coordinate.char_y + shape[1]))
+            ScreenCoordinate.combine_with_shape(coordinate, shape)
+        )
 
     @classmethod
     def from_tuples(cls, coord_a: tuple[int, int], coord_b: tuple[int, int]) -> ScreenRegion:
