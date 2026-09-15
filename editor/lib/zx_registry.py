@@ -1,58 +1,80 @@
-import string
+import string, yaml, typing
 import yaml
 from pathlib import Path
-from .utilities import format_padded_id, update_tree, HexYAML
+from .utilities import format_padded_id, update_tree, HexYAML, QuotedYAML
 from .zx_logger import ZXLogger
 
 class ZXRegistry:
     FILE_EXTENSION = '.registry'
     ABBREVIATION_CHARS = 8
     LETTERS_AZ = f'#{string.ascii_uppercase}'
-    register: dict[str, ZXRegistryEntry]
+    entries: dict[str, ZXRegistryEntry]
+    tags: dict[str, ZXRegistryTag]
+    ignored: list[int]
 
-    def __init__(self, registry_path, ignored_list):
+    def __init__(self, registry_path, tags, ignored_list):
         self.logger = ZXLogger.get_instance()
         self.registry_path = Path(registry_path)
-        self.register = {}
+        self.entries = {}
+        self.tags = tags
         self.ignored = ignored_list
 
     def clear(self):
-        self.register.clear()
+        self.entries.clear()
 
     def generate_TOC_AZ(self):
         results = {}
         for char in self.LETTERS_AZ:
             results[char] = []
-        for (document_id, data) in self.__sorted_description():
+        for (document_id, data) in self.__sorted_description(self.entries):
             if not data.description:
                 continue
             letter = data.description[0].upper() if data.description[0].isalpha() else '#'
             results[letter].append([data.description, document_id])
         return results
 
-    def __sorted_description(self):
+    def generate_tag_AZ(self, tag_name):
+        results = {}
+        for char in self.LETTERS_AZ:
+            results[char] = []
+        tag = self.lookup_tag(tag_name)
+        if tag:
+            entry: ZXRegistryEntry
+            for entry in sorted(tag.entries, key=lambda x: x.description):
+                if not entry.description:
+                    continue
+                letter = entry.description[0].upper() if entry.description[0].isalpha() else '#'
+                results[letter].append([entry.description, entry.document_id])
+        return results
+
+    def __sorted_description(self, entries_list):
         return sorted(
-            self.register.items(),
+            entries_list.items(),
             key = lambda entry: entry[1].description
         )
 
     def __sorted_id(self):
         return sorted(
-            self.register.items(),
+            self.entries.items(),
             key = lambda entry: entry[0]
         )
 
-    def lookup(self, document_id):
-        registry_key = format_padded_id(document_id, width=4)
-        if registry_key in self.register:
-            return self.register[registry_key]
+    def lookup(self, document_id: int):
+        if document_id in self.entries:
+            return self.entries[document_id]
         return None
 
-    def lookup_abbreviation(self, document_id):
+    def lookup_abbreviation(self, document_id: int):
         record = self.lookup(document_id)
         if record and record.abbreviation:
             return record.abbreviation[0:self.ABBREVIATION_CHARS]
         return "0x{}".format(format_padded_id(document_id, width=4).ljust(self.ABBREVIATION_CHARS - 2))
+
+    def lookup_tag(self, name: str) -> ZXRegistryTag|None:
+        name = self.__clean_tag_name(name)
+        if name in self.tags:
+            return self.tags[name]
+        return None
 
     def save(self) -> bool:
         with open(self.registry_path, 'w') as file:
@@ -65,49 +87,105 @@ class ZXRegistry:
             )
         return True
 
-    def set_ignored(self, document_id, value: bool):
+    def set_ignored(self, document_id: int, value: bool):
         if value:
             if document_id not in self.ignored:
                 self.ignored.append(document_id)
+            self.__delete_record(document_id)
         else:
             while document_id in self.ignored:
                 self.ignored.remove(document_id)
 
-    def sync_record(self, document_id, description=None, abbreviation=None) -> bool:
-        registry_key = format_padded_id(document_id, width=4)
-        if registry_key in self.ignored:
+
+    def sync_record(self, document_id: int, description: str|None=None, abbreviation: str|None=None, tags:list[str]|None=None) -> bool:
+        if document_id in self.ignored:
             return False
         
-        # self.logger.debug('sync_record', f'{document_id=}, {description=}, {abbreviation=}')
-        record = self.__get_updated_record(registry_key, document_id, description, abbreviation)
+        record = self.__get_updated_record(document_id, description, abbreviation, tags)
         if record.is_valid():
-            self.register[registry_key] = record
+            self.entries[document_id] = record
             return True
-        self.__delete_record(registry_key)
+        self.__delete_record(document_id)
         return False
 
-    def __get_updated_record(self, registry_key, document_id, description=None, abbreviation=None) -> ZXRegistryEntry:
-        if registry_key in self.register:
-            record = self.register[registry_key]
+    def __get_updated_record(self, document_id: int, description: str|None=None, abbreviation: str|None=None, tags:list[str]|None=None) -> ZXRegistryEntry:
+        if document_id in self.entries:
+            record = self.entries[document_id]
             record.description = description
             record.abbreviation = abbreviation
-            return record
-        return ZXRegistryEntry(document_id, description, abbreviation)
+        else:
+            record = ZXRegistryEntry(document_id, description, abbreviation)
 
-    def __delete_record(self, registry_key) -> True:
-        if registry_key in self.register:
-            del self.register[registry_key]
+        # Sync tags
+        tags_removed = [ tag_name for tag_name in record.tags ]
+        for tag_name in self.__ensure_tags(tags):
+            if tag_name in tags_removed:
+                tags_removed.remove(tag_name)
+
+            record.add_tag(tag_name)
+            tag = self.lookup_tag(tag_name)
+            tag.add_entry(record)
+
+        # Any tags still in tags_removed are no longer referenced
+        for tag_name in tags_removed:
+            record.remove_tag(tag_name)
+            self.lookup_tag(tag_name).remove_entry(record)
+        
+        return record
+
+    def __ensure_tags(self, tags:list[str]|None=None) -> typing.Iterator[str]:
+        '''
+        Ensures that the referenced tag exists in some way, just not in a way
+        that includes any interesting details (for later editing).
+        '''
+        if tags is None:
+            return []
+        for tag_name in tags:
+            tag_name = self.__clean_tag_name(tag_name)
+            if not tag_name in self.tags:
+                self.sync_tag(name=tag_name)
+            yield tag_name
+
+    def __delete_record(self, document_id: str) -> True:
+        if document_id in self.entries:
+            del self.entries[document_id]
         return True
+
+    def sync_tag(self, name: str, title: str|None=None, export_id: int|None=None) -> ZXRegistryTag:
+        name = self.__clean_tag_name(name)
+        self.tags[name] = self.__get_updated_tag(name, title, export_id)
+        return self.tags[name]
+
+    def __clean_tag_name(self, name: str) -> str:
+        name = name.strip() if name else None
+        if not name:
+            raise ValueError('Encountered empty tag name')
+        return name
+
+    def __get_updated_tag(self, name: str, title: str|None=None, export_id: int|None=None) -> ZXRegistryTag:
+        if name in self.tags:
+            tag = self.tags[name]
+            tag.title = title
+            tag.export_id = export_id
+            return tag
+        return ZXRegistryTag(name, title, export_id)
 
     def to_dict(self):
         result = {
             self.__class__.__name__: {
                 'entries': {}, 
-                'ignored': []
+                'ignored': [],
+                'tags': {}
             }
         }
+
+        node_tags = result[self.__class__.__name__]['tags']
+        tag_entry: ZXRegistryTag
+        for index, (tag_name, tag_entry) in enumerate(self.tags.items()):
+            node_tags[tag_name] = tag_entry.to_dict()
+
         node_entries = result[self.__class__.__name__]['entries']
-        for index, (document_id, entry) in enumerate(self.register.items()):
+        for index, (document_id, entry) in enumerate(self.entries.items()):
             registry_key = entry.document_id
             if registry_key in self.ignored:
                 continue
@@ -126,12 +204,24 @@ class ZXRegistry:
             raise ValueError("does not look like a {}-file".format(cls.__name__))
         root = data[cls.__name__]
 
-        zx_registry = ZXRegistry(registry_path, ignored_list=root['ignored'])
+        zx_registry = ZXRegistry(registry_path, 
+                                 tags={} ,
+                                 ignored_list=root['ignored'])
+
+        for i, (tag_name, data) in enumerate(root['tags'].items()):
+            zx_registry.sync_tag(
+                tag_name,
+                title=data['title'],
+                export_id=data['export_id']
+            )
+
         for i, (document_id, data) in enumerate(root['entries'].items()):
             zx_registry.sync_record(
                 document_id, 
                 description=data['description'], 
-                abbreviation=data['abbreviation'])
+                abbreviation=data['abbreviation'],
+                tags=data['tags'] if 'tags' in data else []
+            )
         return zx_registry
 
     @classmethod
@@ -155,7 +245,8 @@ class ZXRegistry:
         return {
             cls.__name__: {
                 'entries':  {},
-                'ignored': []
+                'ignored': [],
+                'tags': {}
             }
         }
 
@@ -169,16 +260,22 @@ class ZXRegistry:
 
 
 class ZXRegistryEntry:
-    def __init__(self, document_id, description=None, abbreviation=None):
+    def __init__(self, document_id: int, description: str|None=None, abbreviation: str|None=None):
         self.document_id = document_id
         self.description = description
         self.abbreviation = abbreviation
+        self.tags = []
 
     def __str__(self):
         return self.description
 
-    def get_padded_id(self):
-        return format_padded_id(self.document_id, width=4)
+    def add_tag(self, tag_name: str):
+        if tag_name not in self.tags:
+            self.tags.append(tag_name)
+
+    def remove_tag(self, tag_name: str):
+        if tag_name in self.tags:
+            self.tags.remove(tag_name)
 
     def is_valid(self):
         '''
@@ -191,5 +288,34 @@ class ZXRegistryEntry:
     def to_dict(self):
         return {
             'description': self.description,
-            'abbreviation': self.abbreviation
+            'abbreviation': self.abbreviation,
+            'tags': self.tags
+        }
+
+
+class ZXRegistryTag:
+    name: str
+    title: str
+    export_id: int
+    entries: list[ZXRegistryEntry]
+
+    def __init__(self, name: str, title: str|None=None, export_id: int|None=None):
+        self.name = name
+        self.title = title
+        self.export_id = export_id
+        self.entries = []
+
+    def add_entry(self, entry: ZXRegistryEntry):
+        if not entry in self.entries:
+            self.entries.append(entry)
+
+    def remove_entry(self, entry: ZXRegistryEntry):
+        if entry in self.entries:
+            self.entries.remove(entry)
+
+    def to_dict(self):
+        return {
+            'export_id': HexYAML(self.export_id) if self.export_id is not None else None,
+            'name': self.name,
+            'title': QuotedYAML(self.title) if self.title else None
         }

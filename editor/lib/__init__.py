@@ -4,7 +4,7 @@ from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_token import ZXToken, CellCopy
 from .zx_frame import ZXFrame
 from .zx_document import ZXDocument, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, DocumentIdentifierIterator, ReadableIdentifierIterator
-from .zx_registry import ZXRegistry
+from .zx_registry import ZXRegistry, ZXRegistryEntry, ZXRegistryTag
 from .zx_logger import ZXLogger
 from .utilities import update_tree
 from .generate import RepositoryHelper, TOCHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError

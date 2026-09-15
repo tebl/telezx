@@ -36,7 +36,7 @@ class ZXDocument:
 
     enable_preview = True
 
-    def __init__(self, repository: Path, document_path: Path, document_id=0, description=None, abbreviation=None, link_a=None, link_a_txt=None, link_b=None, link_b_txt=None, link_c=None, link_c_txt=None):
+    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str=None, abbreviation: str=None, link_a: int=None, link_a_txt: str=None, link_b: int=None, link_b_txt: str=None, link_c: int=None, link_c_txt: str=None, tags: list[str]|None=None):
         self.logger = ZXLogger.get_instance()
         self.repository = Path(repository)
         self.document_path = Path(document_path)
@@ -44,6 +44,7 @@ class ZXDocument:
         self.document_id = document_id
         self.description = description
         self.abbreviation = abbreviation
+        self.tags = tags if tags is not None else []
         self.link_a = link_a
         self.link_a_txt = link_a_txt
         self.link_b = link_b
@@ -94,7 +95,7 @@ class ZXDocument:
             key=lambda path: path.name
         )
 
-    def export(self, output_directory: Path, registry: ZXRegistry, log_indent=0, sync_registry=True) -> True:
+    def export(self, output_directory: Path, registry: ZXRegistry, log_indent: int=0, sync_registry: bool=True) -> True:
         '''
         Create index file from registered pages, using the data structure as
         listed below. Note that with room for 99 subpages we should leave
@@ -118,7 +119,7 @@ class ZXDocument:
         target_directory = Path(output_directory) / format_padded_id(self.document_id)
         self.logger.info('export', self.document_path, '->', target_directory, indent=log_indent)
         if not target_directory.is_dir():
-            target_directory.mkdir()
+            target_directory.mkdir(parents=True, exist_ok=True)
         self.clean_output(target_directory, indent=(log_indent+1))
         with open(self.get_output_path(target_directory), 'w') as file:
             file.write('IDX')
@@ -139,17 +140,17 @@ class ZXDocument:
                 self.__export_hex(file, parameter)
 
         if registry and sync_registry:
-            registry.sync_record(self.document_id, self.description, self.abbreviation)
+            registry.sync_record(self.document_id, self.description, self.abbreviation, self.tags)
 
         return True
 
     def __export_record(self, file, value, pad_to_size, pad_chr):
         file.write(self.__pad_record(value, pad_to_size, pad_chr))
 
-    def __export_hex(self, file, value):
+    def __export_hex(self, file, value: int):
         file.write(f'{value:02X}')
 
-    def __export_link(self, file, link, link_txt, registry: ZXRegistry):
+    def __export_link(self, file, link: int, link_txt: str, registry: ZXRegistry):
         if link is not None:
             file.write(f'{link:04x}')
             if link_txt is None:
@@ -162,10 +163,10 @@ class ZXDocument:
     def __pad_record(self, value, pad_to_size, pad_chr):
         return value.ljust(pad_to_size, pad_chr)[0:(pad_to_size + 1)]
 
-    def get_output_path(self, output_directory: Path):
+    def get_output_path(self, output_directory: Path) -> Path:
         return self.get_output_base(output_directory).with_suffix(self.EXTENSION_INDEX)
 
-    def get_output_base(self, output_directory: Path):
+    def get_output_base(self, output_directory: Path) -> Path:
         if isinstance(output_directory, str):
             output_directory = Path(output_directory)
         return output_directory / format_padded_id(self.document_id)
@@ -256,6 +257,10 @@ class ZXDocument:
         the contents when an exception is raised.
         '''
         self.logger.debug('saving to', self.document_path)
+        if not self.document_path.parent.is_dir():
+            self.logger.debug('creating parent directories', self.document_path.parent)
+            self.document_path.parent.mkdir(parents=True, exist_ok=True)
+
         tmp_name = self.document_path.with_suffix(self.EXTENSION_DOCUMENT_TMP)
         with open(tmp_name, 'w') as file:
             yaml.dump(
@@ -284,6 +289,7 @@ class ZXDocument:
         root['link_c_txt'] = self.link_c_txt
         for page_idx, page in enumerate(self.pages):
             root['pages'].append(page.to_dict(page_idx))
+        root['tags'] = self.tags
         return result
 
     @classmethod
@@ -305,7 +311,8 @@ class ZXDocument:
             link_b=root['link_b'],
             link_b_txt=root['link_b_txt'],
             link_c=root['link_c'],
-            link_c_txt=root['link_c_txt']
+            link_c_txt=root['link_c_txt'],
+            tags=root['tags'] if 'tags' in root else []
         )
         for page_data in root['pages']:
             ZXPage.from_dict(zx_document, page_data)
@@ -660,12 +667,12 @@ class ZXPage_ClearText(ZXPage):
     text_attribute: int
     text_link_attribute: int
 
-    def __init__(self, parent: ZXDocument, frame_path: Path, text_lines, text_attribute=ZXToken.UNSPECIFIED, text_link_attribute=ZXToken.UNSPECIFIED, register_parent=True):
+    def __init__(self, parent: ZXDocument, frame_path: Path|None=None, text_lines: list[str]|None=None, text_attribute=ZXToken.UNSPECIFIED, text_link_attribute=ZXToken.UNSPECIFIED, register_parent=True):
         super().__init__(parent, register_parent)
         self.frame_path = frame_path
-        if self.frame_path:
+        if self.frame_path is not None:
             self.parent.check_file_exists(self.frame_path)
-        self.text_lines = text_lines
+        self.text_lines = text_lines if text_lines is not None else ZXPage.blank_text()
         self.text_attribute = text_attribute
         self.text_link_attribute = text_link_attribute
 

@@ -2,7 +2,7 @@
 import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXFrame, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPage_ClearText, ZXRegistry, ZXLogger, utilities, VERSION
+from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXLogger, utilities, VERSION
 from lib.generate import AssetHelper, DocumentHelper, TOCHelper, TransformationHelper, TransformationFormatError
 
 def cmd_attribute(args, parser: ArgumentParser):
