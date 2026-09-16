@@ -280,7 +280,7 @@ class ZXToken:
         return zx_token
 
 
-class CellCopy():
+class CellCopy:
     UNDEFINED = 'UNDEFINED'
 
     def __init__(self, char_code=ZXToken.UNDEFINED, char_attribute=ZXToken.UNDEFINED, char_inverted=ZXToken.UNDEFINED):

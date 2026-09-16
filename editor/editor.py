@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!python3
 from argparse import ArgumentParser, ArgumentError
 import numpy
 import traceback

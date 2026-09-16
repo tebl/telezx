@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!python3
 import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
