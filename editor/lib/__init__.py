@@ -7,6 +7,6 @@ from .zx_document import ZXDocument, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXPag
 from .zx_registry import ZXRegistry, ZXRegistryEntry, ZXRegistryTag
 from .zx_logger import ZXLogger
 from .utilities import update_tree
-from .generate import RepositoryHelper, TOCHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
+from .generate import RepositoryHelper, RegistryHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
 from .editor import CellDirection, ScreenCoordinate, ScreenNavigator, ScreenRegion, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
 VERSION = "TeleZX v0.1"

@@ -3,7 +3,7 @@ from pathlib import Path
 from .repository_helper import RepositoryHelper
 from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage_Token, utilities
 
-class TOCHelper(RepositoryHelper):
+class RegistryHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
     TOC_ABBREVIATION = 'TOC'
     COLOUR_DESCRIPTION = ZXScreen.to_attribute(ink=ZXScreen.BLUE, paper=ZXScreen.WHITE)
@@ -156,3 +156,6 @@ class TOCHelper(RepositoryHelper):
 
     def __page_path(self, document: ZXDocument, path_hint: str=None) -> Path:
         return self.generate_asset_path(document, document.get_next_asset_id(), ZXToken.FILE_EXTENSION, path_hint)
+
+    def get_exportable_tags(self):
+        return  [tag.name for tag in self.registry.get_tags(only_exportable=True)]

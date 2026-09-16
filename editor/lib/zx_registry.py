@@ -59,6 +59,15 @@ class ZXRegistry:
             key = lambda entry: entry[0]
         )
 
+    def get_tags(self, only_exportable: bool=True):
+        tag: ZXRegistryTag
+        for tag in self.tags:
+            if only_exportable:
+                if tag.is_exportable():
+                    yield tag
+            else:
+                yield tag
+
     def lookup(self, document_id: int):
         if document_id in self.entries:
             return self.entries[document_id]
@@ -304,6 +313,15 @@ class ZXRegistryTag:
         self.title = title
         self.export_id = export_id
         self.entries = []
+
+    def is_exportable(self):
+        if not self.name:
+            return False
+        if not self.title:
+            return False
+        if not self.export_id:
+            return False
+        return True
 
     def add_entry(self, entry: ZXRegistryEntry):
         if not entry in self.entries:

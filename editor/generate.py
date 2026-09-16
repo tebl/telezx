@@ -3,7 +3,7 @@ import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXLogger, utilities, VERSION
-from lib.generate import AssetHelper, DocumentHelper, TOCHelper, TransformationHelper, TransformationFormatError
+from lib.generate import AssetHelper, DocumentHelper, RegistryHelper, TransformationHelper, TransformationFormatError
 
 def cmd_attribute(args, parser: ArgumentParser):
     '''
@@ -315,10 +315,14 @@ def cmd_toc(args, parser: ArgumentParser):
     print_repository_details(repository)
     print()
 
-    helper = TOCHelper(args.repository)
+    helper = RegistryHelper(args.repository)
     if args.update:
         print('Updating TOC:')
         helper.create_toc()
+
+    if args.update_tags:
+        for tag_name in helper.get_exportable_tags():
+            print(f'Updating {tag_name}')
     print('Done.')
 
 def cmd_transform(args, parser: ArgumentParser):
@@ -532,6 +536,7 @@ def main():
     parser_toc.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     group = parser_toc.add_mutually_exclusive_group(required=True)
     group.add_argument('-u', '--update', action='store_true', help="Update TOC from registry")
+    group.add_argument('-t', '--update-tags', action='store_true', help="Update tags from registry")
     parser_toc.set_defaults(function=cmd_toc)
 
     parser_transform = subparsers.add_parser('transform', help='Transform page contents')
