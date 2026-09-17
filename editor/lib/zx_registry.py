@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 from .utilities import format_padded_id, update_tree, HexYAML, QuotedYAML
 from .zx_logger import ZXLogger
+from .name_tree_resolver import NameTreeResolver
 
 class ZXRegistry:
     FILE_EXTENSION = '.registry'
@@ -67,6 +68,16 @@ class ZXRegistry:
                     yield tag
             else:
                 yield tag
+
+    def get_tag_dependency_tree(self, only_exportable: bool=True) -> list[str]:
+        resolver = NameTreeResolver(ZXRegistryTag.resolver_name, 
+                                    ZXRegistryTag.resolver_parent, 
+                                    raise_on_errors=False)
+
+        item: ZXRegistryTag
+        for item in self.get_tags(only_exportable):
+            resolver.add_resolver_item(item)
+        return [ tag.name for (key, tag) in resolver.reverse_order() ]
 
     def lookup(self, document_id: int):
         if document_id in self.entries:
@@ -328,7 +339,7 @@ class ZXRegistryTag:
             return False
         if not self.title:
             return False
-        if not self.export_id:
+        if self.export_id is None:
             return False
         return True
 
@@ -347,3 +358,11 @@ class ZXRegistryTag:
             'tag_group': self.tag_group,
             'title': QuotedYAML(self.title) if self.title else None
         }
+
+    @classmethod
+    def resolver_name(cls, item: ZXRegistryTag) -> str:
+        return item.name
+
+    @classmethod
+    def resolver_parent(cls, item: ZXRegistryTag) -> str|None:
+        return item.tag_group

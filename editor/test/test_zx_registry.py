@@ -144,3 +144,25 @@ class TestZXDocument(unittest.TestCase):
         self.assertEqual(len(toc['B']), 3)
         self.assertEqual(toc['B'][0], ['Believe', 0x1001])
         self.assertEqual(toc['B'][1], ['Bozo the clown', 0x1002])
+
+    def test_tag_dependency_sequence(self):
+        id = iter(range(0x1000))
+        self.registry.sync_tag('genres', 'Genres')
+        self.registry.sync_tag('genre_action', 'Games: Action', next(id), 'genres')
+        self.registry.sync_tag('genre_adventure', 'Games: Adventure', next(id), 'genres')
+        self.registry.sync_tag('genre_shooter', 'Games: Shooter', next(id), 'genre_action')
+        self.registry.sync_tag('genre_scrolling', 'Games: Shoot\'em up', next(id), 'genre_action')
+        self.registry.sync_tag('genre_platformer', 'Games: Platformer', next(id), 'genre_adventure')
+
+        # Dependency trees should be processed in the opposite order, this is
+        # because processing the ends of the trees may cause information to
+        # trickle up (a subcategory gets added to a main category).
+        self.assertEqual(self.registry.get_tag_dependency_tree(only_exportable=False), 
+                         ['genre_platformer', 'genre_adventure', 'genre_shooter', 'genre_scrolling', 'genre_action', 'genres']
+        )
+
+        # Top entry lacks the export_id, so it should disappear from the end
+        # of the list.
+        self.assertEqual(self.registry.get_tag_dependency_tree(only_exportable=True), 
+                         ['genre_platformer', 'genre_adventure', 'genre_shooter', 'genre_scrolling', 'genre_action']
+        )

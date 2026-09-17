@@ -210,14 +210,7 @@ class RegistryHelper(RepositoryHelper):
 
     def get_exportable_tags(self):
         '''
-        Get a list of tags that can be exported, but note that tag set to be
-        a member of a tag_group will always be added last. This will hopefully
-        increase the chances of information being created before we attempt to
-        use it when exporting tag groups to separate pages later.
-        
-        Note that this is only processed at one level, a tree of dependencies
-        is left to chance or careful choice of alphabetical sorting.
+        Get a list of exportable tags, the contents of which should be sorted
+        so that created subcategories will get added to main categories.
         '''
-        return  [tag.name for tag in sorted(self.registry.get_tags(only_exportable=True),
-                                            key=lambda x: f'ZZZ{x.name}' if x.tag_group else x.name)]
-
+        return self.registry.get_tag_dependency_tree()
