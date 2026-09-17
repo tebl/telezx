@@ -160,9 +160,9 @@ class ZXRegistry:
             del self.entries[document_id]
         return True
 
-    def sync_tag(self, name: str, title: str|None=None, export_id: int|None=None) -> ZXRegistryTag:
+    def sync_tag(self, name: str, title: str|None=None, export_id: int|None=None, tag_group: str|None=None) -> ZXRegistryTag:
         name = self.__clean_tag_name(name)
-        self.tags[name] = self.__get_updated_tag(name, title, export_id)
+        self.tags[name] = self.__get_updated_tag(name, title, export_id, tag_group)
         return self.tags[name]
 
     def __clean_tag_name(self, name: str) -> str:
@@ -171,13 +171,14 @@ class ZXRegistry:
             raise ValueError('Encountered empty tag name')
         return name
 
-    def __get_updated_tag(self, name: str, title: str|None=None, export_id: int|None=None) -> ZXRegistryTag:
+    def __get_updated_tag(self, name: str, title: str|None=None, export_id: int|None=None, tag_group: str|None=None) -> ZXRegistryTag:
         if name in self.tags:
             tag = self.tags[name]
             tag.title = title
             tag.export_id = export_id
+            tag.tag_group = tag_group
             return tag
-        return ZXRegistryTag(name, title, export_id)
+        return ZXRegistryTag(name, title, export_id, tag_group)
 
     def to_dict(self):
         result = {
@@ -221,7 +222,8 @@ class ZXRegistry:
             zx_registry.sync_tag(
                 tag_name,
                 title=data['title'],
-                export_id=data['export_id']
+                export_id=data['export_id'],
+                tag_group=data['tag_group']
             )
 
         for i, (document_id, data) in enumerate(root['entries'].items()):
@@ -304,15 +306,22 @@ class ZXRegistryEntry:
 
 class ZXRegistryTag:
     name: str
-    title: str
-    export_id: int
+    title: str|None
+    export_id: int|None
     entries: list[ZXRegistryEntry]
+    tag_group: str|None
 
-    def __init__(self, name: str, title: str|None=None, export_id: int|None=None):
+    def __init__(self, name: str, title: str|None=None, export_id: int|None=None, tag_group: str|None=None):
         self.name = name
         self.title = title
         self.export_id = export_id
         self.entries = []
+        self.tag_group = tag_group
+
+    def get_export_tags(self) -> list[str]:
+        if not self.tag_group:
+            return []
+        return [ self.tag_group ]
 
     def is_exportable(self):
         if not self.name:
@@ -335,5 +344,6 @@ class ZXRegistryTag:
         return {
             'export_id': HexYAML(self.export_id) if self.export_id is not None else None,
             'name': self.name,
+            'tag_group': self.tag_group,
             'title': QuotedYAML(self.title) if self.title else None
         }

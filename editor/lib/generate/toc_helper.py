@@ -1,6 +1,6 @@
 from pathlib import Path
 from .repository_helper import RepositoryHelper
-from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage_Token, utilities
+from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage_Token, utilities, ZXRegistry, ZXRegistryEntry, ZXRegistryTag
 
 class RegistryHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
@@ -158,7 +158,7 @@ class RegistryHelper(RepositoryHelper):
         return self.generate_asset_path(document, document.get_next_asset_id(), ZXToken.FILE_EXTENSION, path_hint)
 
     def create_tag_page(self, tag_name, log_indent: int=0):
-        tag = self.registry.lookup_tag(tag_name)
+        tag: ZXRegistryTag = self.registry.lookup_tag(tag_name)
         if not tag:
             raise ValueError(f'No such tag: {tag_name}')
         self.logger.info('Creating', tag.title, 'on', utilities.format_padded_id(tag.export_id))
@@ -166,6 +166,7 @@ class RegistryHelper(RepositoryHelper):
 
         target_directory = self.__create_path(tag.export_id, path_hint=tag_name, log_indent=(log_indent+1))
         with self.__get_document(tag.export_id, tag.title, None, target_directory) as document:
+            document.tags = tag.get_export_tags()
             current_y = 3
             page_id = 0
 
@@ -202,11 +203,21 @@ class RegistryHelper(RepositoryHelper):
                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
 
             document.save(log_indent=(log_indent+1))
-            document.export(self.out_path, self.registry, sync_registry=False, log_indent=(log_indent+1))
+            document.export(self.out_path, self.registry, sync_registry=True, log_indent=(log_indent+1))
 
         self.registry.save()
         self.logger.info(f'Registry saved', indent=(log_indent+1))
 
     def get_exportable_tags(self):
-        return  [tag.name for tag in self.registry.get_tags(only_exportable=True)]
+        '''
+        Get a list of tags that can be exported, but note that tag set to be
+        a member of a tag_group will always be added last. This will hopefully
+        increase the chances of information being created before we attempt to
+        use it when exporting tag groups to separate pages later.
+        
+        Note that this is only processed at one level, a tree of dependencies
+        is left to chance or careful choice of alphabetical sorting.
+        '''
+        return  [tag.name for tag in sorted(self.registry.get_tags(only_exportable=True),
+                                            key=lambda x: f'ZZZ{x.name}' if x.tag_group else x.name)]
 
