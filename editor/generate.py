@@ -316,13 +316,14 @@ def cmd_toc(args, parser: ArgumentParser):
     print()
 
     helper = RegistryHelper(args.repository)
-    if args.update:
+    if args.update or args.update_toc:
         print('Updating TOC:')
-        helper.create_toc()
+        helper.create_toc_page()
 
-    if args.update_tags:
+    if args.update or args.update_tags:
+        print('Updating tags:')
         for tag_name in helper.get_exportable_tags():
-            print(f'Updating {tag_name}')
+            helper.create_tag_page(tag_name)
     print('Done.')
 
 def cmd_transform(args, parser: ArgumentParser):
@@ -535,7 +536,8 @@ def main():
     parser_toc = subparsers.add_parser('toc', help='Table of contents')
     parser_toc.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     group = parser_toc.add_mutually_exclusive_group(required=True)
-    group.add_argument('-u', '--update', action='store_true', help="Update TOC from registry")
+    group.add_argument('-u', '--update', action='store_true', help="Update from registry")
+    group.add_argument('-i', '--update-toc', action='store_true', help="Update TOC from registry")
     group.add_argument('-t', '--update-tags', action='store_true', help="Update tags from registry")
     parser_toc.set_defaults(function=cmd_toc)
 

@@ -36,7 +36,7 @@ class ZXDocument:
 
     enable_preview = True
 
-    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str=None, abbreviation: str=None, link_a: int=None, link_a_txt: str=None, link_b: int=None, link_b_txt: str=None, link_c: int=None, link_c_txt: str=None, tags: list[str]|None=None):
+    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str|None=None, abbreviation: str|None=None, link_a: int|None=None, link_a_txt: str|None=None, link_b: int|None=None, link_b_txt: str|None=None, link_c: int|None=None, link_c_txt: str|None=None, tags: list[str]|None=None):
         self.logger = ZXLogger.get_instance()
         self.repository = Path(repository)
         self.document_path = Path(document_path)
@@ -250,15 +250,15 @@ class ZXDocument:
         self.pages.append(page)
         return page_id
 
-    def save(self) -> bool:
+    def save(self, log_indent: int=0) -> bool:
         '''
         Creates a new temporary file, and if everything succeeds we'll move
         that into its final location. This keeps us from accidentally ereasing
         the contents when an exception is raised.
         '''
-        self.logger.debug('saving to', self.document_path)
+        self.logger.debug('saving to', self.document_path, indent=log_indent)
         if not self.document_path.parent.is_dir():
-            self.logger.debug('creating parent directories', self.document_path.parent)
+            self.logger.debug('creating parent directories', self.document_path.parent, indent=(log_indent+1))
             self.document_path.parent.mkdir(parents=True, exist_ok=True)
 
         tmp_name = self.document_path.with_suffix(self.EXTENSION_DOCUMENT_TMP)

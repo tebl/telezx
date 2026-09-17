@@ -1,4 +1,3 @@
-from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from .repository_helper import RepositoryHelper
 from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage_Token, utilities
@@ -6,6 +5,7 @@ from .. import ZXScreen, ZXDocument, DocumentIdentifierIterator, ZXToken, ZXPage
 class RegistryHelper(RepositoryHelper):
     TOC_TITLE = 'Table of contents'
     TOC_ABBREVIATION = 'TOC'
+    COLOUR_CATEGORY = ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLUE)
     COLOUR_DESCRIPTION = ZXScreen.to_attribute(ink=ZXScreen.BLUE, paper=ZXScreen.WHITE)
     COLOUR_REFERENCE = ZXScreen.to_attribute(ink=ZXScreen.MAGENTA, paper=ZXScreen.WHITE)
 
@@ -16,7 +16,7 @@ class RegistryHelper(RepositoryHelper):
         self.create_path_structure()
         self.open_registry()
 
-    def create_toc(self, document_id_start=ZXDocument.DOCUMENT_ID_TOC):
+    def create_toc_page(self, document_id_start=ZXDocument.DOCUMENT_ID_TOC):
         self.__create_toc_index(document_id_start)
 
         registry_toc = self.registry.generate_TOC_AZ()
@@ -55,7 +55,7 @@ class RegistryHelper(RepositoryHelper):
                         first_item = False
 
                     current_page.set_string(1, current_y, self.__pad_entry(description))
-                    current_page.set_string(27, current_y, link_id, char_attribute=self.COLOUR_REFERENCE)
+                    current_page.set_string(27, current_y, utilities.format_padded_id(link_id), char_attribute=self.COLOUR_REFERENCE)
 
                 current_page.save()
                 ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
@@ -109,7 +109,7 @@ class RegistryHelper(RepositoryHelper):
             document.save()
             document.export(self.out_path, self.registry, sync_registry=True)
 
-    def __get_document(self, document_id: int, description, abbreviation, target_directory: Path):
+    def __get_document(self, document_id: int, description: str|None, abbreviation: str|None, target_directory: Path):
         return ZXDocument(
             self.repository,
             document_path=target_directory / ZXDocument.FILENAME_DEFAULT,
@@ -136,20 +136,20 @@ class RegistryHelper(RepositoryHelper):
     def __centered_position(self, title):
         return (ZXScreen.SCREEN_WIDTH_CHARS - len(title)) // 2
 
-    def __create_path(self, document_id: int, path_hint: str) -> Path:
+    def __create_path(self, document_id: int, path_hint: str, log_indent: int=0) -> Path:
         directory = self.src_path / utilities.suggest_document_directory(document_id, path_hint)
         if not directory.is_dir():
             directory.mkdir()
         else:
-            self.__clear_directory(directory)
+            self.__clear_directory(directory, log_indent)
         return directory
 
-    def __clear_directory(self, directory: Path, indent: int=0):
-        self.logger.debug('Clearing existing assets', indent=indent)
+    def __clear_directory(self, directory: Path, log_indent: int=0):
+        self.logger.debug('Clearing existing assets', indent=log_indent)
         for page_id in range(ZXDocument.ASSET_ID_MIN, ZXDocument.ASSET_ID_MAX + 1):
             asset_path = Path(directory) / utilities.suggest_asset_path(page_id, ZXToken.FILE_EXTENSION)
             if asset_path.is_file():
-                self.logger.debug('Removing', asset_path, indent=(indent+1))
+                self.logger.debug('Removing', asset_path, indent=(log_indent+1))
                 asset_path.unlink()
             else:
                 return
@@ -157,5 +157,56 @@ class RegistryHelper(RepositoryHelper):
     def __page_path(self, document: ZXDocument, path_hint: str=None) -> Path:
         return self.generate_asset_path(document, document.get_next_asset_id(), ZXToken.FILE_EXTENSION, path_hint)
 
+    def create_tag_page(self, tag_name, log_indent: int=0):
+        tag = self.registry.lookup_tag(tag_name)
+        if not tag:
+            raise ValueError(f'No such tag: {tag_name}')
+        self.logger.info('Creating', tag.title, 'on', utilities.format_padded_id(tag.export_id))
+        entries = self.registry.generate_tag_AZ(tag_name)
+
+        target_directory = self.__create_path(tag.export_id, path_hint=tag_name, log_indent=(log_indent+1))
+        with self.__get_document(tag.export_id, tag.title, None, target_directory) as document:
+            current_y = 3
+            page_id = 0
+
+            current_page = self.__get_titlepage(document, tag.title)
+            current_letter = None
+            for letter in self.registry.LETTERS_AZ:
+                items = entries[letter] if letter in entries else []
+                if not items:
+                    continue
+
+                for (description, link_id) in items:
+                    if current_y >= 20:
+                        if page_id < 99:
+                            current_page.save()
+                            ZXPage_Token(parent=document, zxtoken_path=current_page.document_path.name, export_format='TKN')
+
+                            page_id += 1
+                            current_page = self.__get_page(document)
+                        else:
+                            self.logger.error(f'Item count for letter {letter} was truncated')
+                            break
+                        current_y = 3
+                    else:
+                        current_y += 1
+
+                    if not current_letter == letter:
+                        current_letter = letter
+                        current_page.set_string(1, current_y, f' {letter} ', char_attribute=self.COLOUR_CATEGORY)
+
+                    current_page.set_string(5, current_y, self.__pad_entry(description, max_length=21))
+                    current_page.set_string(27, current_y, utilities.format_padded_id(link_id), char_attribute=self.COLOUR_REFERENCE)
+
+                current_page.save()
+                ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
+
+            document.save(log_indent=(log_indent+1))
+            document.export(self.out_path, self.registry, sync_registry=False, log_indent=(log_indent+1))
+
+        self.registry.save()
+        self.logger.info(f'Registry saved', indent=(log_indent+1))
+
     def get_exportable_tags(self):
         return  [tag.name for tag in self.registry.get_tags(only_exportable=True)]
+

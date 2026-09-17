@@ -61,7 +61,7 @@ class ZXRegistry:
 
     def get_tags(self, only_exportable: bool=True):
         tag: ZXRegistryTag
-        for tag in self.tags:
+        for i, (tag_name, tag) in enumerate(self.tags.items()):
             if only_exportable:
                 if tag.is_exportable():
                     yield tag
