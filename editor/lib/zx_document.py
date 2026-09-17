@@ -473,14 +473,28 @@ class ZXPage:
                 line = line.replace(text_blank_character, ' ')
             if text_link_attribute is not None:
                 links = [m for m in self.find_text_links(line)]
-                for start, end, value in links:
-                    line = line[0:start] + ' '*6 + line[end:]
+                # for start, end, value in links:
+                #     line = line[0:start] + ' '*6 + line[end:]
                 zx_token.set_string(char_x, char_y, line, char_attribute=text_attribute)
                 for start, end, value in links:
-                    zx_token.set_string(char_x+start+1, char_y, value[1:-1], char_attribute=text_link_attribute)
+                    zx_token.set_string(char_x+start, char_y, self.__format_overlay_link(value), char_attribute=text_link_attribute)
+                    # zx_token.set_string(char_x+start+1, char_y, value[1:-1], char_attribute=text_link_attribute)
             else:
                 zx_token.set_string(char_x, char_y, line, char_attribute=text_attribute)
         return True
+
+    def __format_overlay_link(self, value: str, style: str|None=None) -> str:
+        '''
+        Takes a written link in the format of [XXXX] where XXXX is a four-digit
+        hex number.
+        '''
+        match style:
+            case 'center':
+                return ' ' + value[1:-1] + ' '
+            case '0x':
+                return '0x' + value[1:-1]
+            case 'right' | _:
+                return value[1:-1].rjust(6)
 
     @classmethod
     def blank_about(cls) -> dict:
