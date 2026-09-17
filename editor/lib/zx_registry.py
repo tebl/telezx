@@ -171,9 +171,22 @@ class ZXRegistry:
             del self.entries[document_id]
         return True
 
-    def sync_tag(self, name: str, title: str|None=None, export_id: int|None=None, tag_group: str|None=None) -> ZXRegistryTag:
+    def sync_tag(self, name: str, tag_group: str|None=None, export_id: int|None=None, export_description: str|None=None, export_abbreviation: str|None=None, export_link_a: int|None=None, export_link_a_txt: str|None=None, export_link_b: int|None=None, export_link_b_txt: str|None=None, export_link_c: int|None=None, export_link_c_txt: str|None=None) -> ZXRegistryTag:
         name = self.__clean_tag_name(name)
-        self.tags[name] = self.__get_updated_tag(name, title, export_id, tag_group)
+
+        tag = self.tags[name] if name in self.tags else ZXRegistryTag(name)
+        self.tags[name] = tag
+
+        tag.tag_group = tag_group
+        tag.export_id = export_id
+        tag.export_description = export_description
+        tag.export_abbreviation = export_abbreviation
+        tag.export_link_a = export_link_a
+        tag.export_link_b = export_link_b
+        tag.export_link_c = export_link_c
+        tag.export_link_a_txt = export_link_a_txt
+        tag.export_link_b_txt = export_link_b_txt
+        tag.export_link_c_txt = export_link_c_txt
         return self.tags[name]
 
     def __clean_tag_name(self, name: str) -> str:
@@ -181,15 +194,6 @@ class ZXRegistry:
         if not name:
             raise ValueError('Encountered empty tag name')
         return name
-
-    def __get_updated_tag(self, name: str, title: str|None=None, export_id: int|None=None, tag_group: str|None=None) -> ZXRegistryTag:
-        if name in self.tags:
-            tag = self.tags[name]
-            tag.title = title
-            tag.export_id = export_id
-            tag.tag_group = tag_group
-            return tag
-        return ZXRegistryTag(name, title, export_id, tag_group)
 
     def to_dict(self):
         result = {
@@ -231,10 +235,17 @@ class ZXRegistry:
 
         for i, (tag_name, data) in enumerate(root['tags'].items()):
             zx_registry.sync_tag(
-                tag_name,
-                title=data['title'],
+                name=tag_name,
+                tag_group=data['tag_group'],
                 export_id=data['export_id'],
-                tag_group=data['tag_group']
+                export_description=data['export_description'],
+                export_abbreviation=data['export_abbreviation'],
+                export_link_a=data['export_link_a'] if 'export_link_a' in data else None,
+                export_link_b=data['export_link_b'] if 'export_link_b' in data else None,
+                export_link_c=data['export_link_c'] if 'export_link_c' in data else None,
+                export_link_a_txt=data['export_link_a_txt'] if 'export_link_a_txt' in data else None,
+                export_link_b_txt=data['export_link_b_txt'] if 'export_link_b_txt' in data else None,
+                export_link_c_txt=data['export_link_c_txt'] if 'export_link_c_txt' in data else None
             )
 
         for i, (document_id, data) in enumerate(root['entries'].items()):
@@ -317,17 +328,43 @@ class ZXRegistryEntry:
 
 class ZXRegistryTag:
     name: str
-    title: str|None
-    export_id: int|None
-    entries: list[ZXRegistryEntry]
     tag_group: str|None
+    entries: list[ZXRegistryEntry]
 
-    def __init__(self, name: str, title: str|None=None, export_id: int|None=None, tag_group: str|None=None):
+    export_id: int|None
+    export_description: str|None
+    export_abbreviation: str|None
+    export_link_a: int|None
+    export_link_a_txt: str|None
+    export_link_b: int|None
+    export_link_b_txt: str|None
+    export_link_c: int|None
+    export_link_c_txt: str|None
+
+    def __init__(self,
+                 name: str, tag_group: str|None=None, 
+                 export_id: int|None=None, 
+                 export_description: str|None=None, 
+                 export_abbreviation: str|None=None,
+                 export_link_a: int|None=None,
+                 export_link_a_txt: str|None=None,
+                 export_link_b: int|None=None,
+                 export_link_b_txt: str|None=None,
+                 export_link_c: int|None=None,
+                 export_link_c_txt: str|None=None):
         self.name = name
-        self.title = title
-        self.export_id = export_id
-        self.entries = []
         self.tag_group = tag_group
+        self.entries = []
+
+        self.export_id = export_id
+        self.export_description = export_description
+        self.export_abbreviation = export_abbreviation
+        self.export_link_a = export_link_a
+        self.export_link_a_txt = export_link_a_txt
+        self.export_link_b = export_link_b
+        self.export_link_b_txt = export_link_b_txt
+        self.export_link_c = export_link_c
+        self.export_link_c_txt = export_link_c_txt
 
     def get_export_tags(self) -> list[str]:
         if not self.tag_group:
@@ -337,9 +374,9 @@ class ZXRegistryTag:
     def is_exportable(self):
         if not self.name:
             return False
-        if not self.title:
-            return False
         if self.export_id is None:
+            return False
+        if not self.export_description:
             return False
         return True
 
@@ -353,10 +390,17 @@ class ZXRegistryTag:
 
     def to_dict(self):
         return {
-            'export_id': HexYAML(self.export_id) if self.export_id is not None else None,
             'name': self.name,
             'tag_group': self.tag_group,
-            'title': QuotedYAML(self.title) if self.title else None
+            'export_id': HexYAML(self.export_id) if self.export_id is not None else None,
+            'export_description': QuotedYAML(self.export_description) if self.export_description else None,
+            'export_abbreviation': QuotedYAML(self.export_abbreviation) if self.export_abbreviation else None,
+            'export_link_a': HexYAML(self.export_link_a) if self.export_link_a is not None else None,
+            'export_link_a_txt': QuotedYAML(self.export_link_a_txt) if self.export_link_a_txt else None,
+            'export_link_b': HexYAML(self.export_link_b) if self.export_link_b is not None else None,
+            'export_link_b_txt': QuotedYAML(self.export_link_b_txt) if self.export_link_b_txt else None,
+            'export_link_c': HexYAML(self.export_link_c) if self.export_link_c is not None else None,
+            'export_link_c_txt': QuotedYAML(self.export_link_c_txt) if self.export_link_c_txt else None
         }
 
     @classmethod

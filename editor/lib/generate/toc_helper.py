@@ -161,16 +161,26 @@ class RegistryHelper(RepositoryHelper):
         tag: ZXRegistryTag = self.registry.lookup_tag(tag_name)
         if not tag:
             raise ValueError(f'No such tag: {tag_name}')
-        self.logger.info('Creating', tag.title, 'on', utilities.format_padded_id(tag.export_id))
+        self.logger.info('Creating', tag.export_description, 'on', utilities.format_padded_id(tag.export_id))
         entries = self.registry.generate_tag_AZ(tag_name)
 
         target_directory = self.__create_path(tag.export_id, path_hint=tag_name, log_indent=(log_indent+1))
-        with self.__get_document(tag.export_id, tag.title, None, target_directory) as document:
+        with self.__get_document(tag.export_id, tag.export_description, tag.export_abbreviation, target_directory) as document:
             document.tags = tag.get_export_tags()
+            if tag.export_link_a is not None:
+                document.link_a = tag.export_link_a
+                document.link_a_txt = tag.export_link_a_txt
+            if tag.export_link_b is not None:
+                document.link_b = tag.export_link_b
+                document.link_b_txt = tag.export_link_b_txt
+            if tag.export_link_c is not None:
+                document.link_c = tag.export_link_c
+                document.link_c_txt = tag.export_link_c_txt
+
             current_y = 3
             page_id = 0
 
-            current_page = self.__get_titlepage(document, tag.title)
+            current_page = self.__get_titlepage(document, tag.export_description)
             current_letter = None
             for letter in self.registry.LETTERS_AZ:
                 items = entries[letter] if letter in entries else []

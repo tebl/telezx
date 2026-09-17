@@ -25,10 +25,10 @@ class TestZXDocument(unittest.TestCase):
         self.assertTrue(self.registry.save())
 
     def test_sync_tag(self):
-        self.registry.sync_tag('test_tag', 'This is a test', 0x9999)
+        self.registry.sync_tag(name='test_tag', export_description='This is a test', export_id=0x9999)
         tag = self.registry.lookup_tag('test_tag')
         self.assertIsNotNone(tag)
-        self.assertEqual(tag.title, 'This is a test')
+        self.assertEqual(tag.export_description, 'This is a test')
         self.assertEqual(tag.export_id, 0x9999)
         self.assertTrue(self.registry.save())
 
@@ -57,10 +57,10 @@ class TestZXDocument(unittest.TestCase):
         self.assertIsNotNone(self.registry.lookup_tag('test_tag2'))
 
         # Supplement tag information
-        self.registry.sync_tag('test_tag', 'This is a test', 0x9999)
+        self.registry.sync_tag(name='test_tag', export_description='This is a test', export_id=0x9999)
         tag = self.registry.lookup_tag('test_tag')
         self.assertIsNotNone(tag)
-        self.assertEqual(tag.title, 'This is a test')
+        self.assertEqual(tag.export_description, 'This is a test')
         self.assertEqual(tag.export_id, 0x9999)
 
         # Ensure that the record got added to the tag
@@ -92,7 +92,7 @@ class TestZXDocument(unittest.TestCase):
         self.assertTrue(record not in tag.entries)
         self.assertTrue(self.registry.save())
 
-    def test_data_persistence(self):
+    def test_record_persistence(self):
         self.registry.sync_record(0x1000, 'This is a test', 'Test', ['test_tag', 'test_tag2'])
         record: ZXRegistryEntry = self.registry.lookup(0x1000)
         self.assertIsNotNone(record)
@@ -110,6 +110,34 @@ class TestZXDocument(unittest.TestCase):
         self.assertIsNotNone(tag)
         self.assertTrue(record in tag.entries)
         self.assertTrue(self.registry.save())
+
+    def test_tag_persistence(self):
+        self.registry.sync_tag('test_tag', 
+                               tag_group='parent_tag', 
+                               export_id=0x1000,
+                               export_description='description',
+                               export_abbreviation='abbreviation',
+                               export_link_a=0x1001,
+                               export_link_a_txt='LNK_A',
+                               export_link_b=0x1002,
+                               export_link_b_txt='LNK_B',
+                               export_link_c=0x1003,
+                               export_link_c_txt='LNK_C')
+        self.assertTrue(self.registry.save())
+
+        # Reload from file
+        self.registry = ZXRegistry.from_file(document_path=self.registry_path, allow_create=False)
+        tag = self.registry.lookup_tag('test_tag')
+        self.assertIsNotNone(tag)
+        self.assertEqual(tag.name, 'test_tag')
+        self.assertEqual(tag.tag_group, 'parent_tag')
+        self.assertEqual(tag.export_description, 'description')
+        self.assertEqual(tag.export_link_a, 0x1001)
+        self.assertEqual(tag.export_link_a_txt, 'LNK_A')
+        self.assertEqual(tag.export_link_b, 0x1002)
+        self.assertEqual(tag.export_link_b_txt, 'LNK_B')
+        self.assertEqual(tag.export_link_c, 0x1003)
+        self.assertEqual(tag.export_link_c_txt, 'LNK_C')
 
     def test_random_toc(self):
         allowed_letters = string.ascii_uppercase + '#'
@@ -147,12 +175,12 @@ class TestZXDocument(unittest.TestCase):
 
     def test_tag_dependency_sequence(self):
         id = iter(range(0x1000))
-        self.registry.sync_tag('genres', 'Genres')
-        self.registry.sync_tag('genre_action', 'Games: Action', next(id), 'genres')
-        self.registry.sync_tag('genre_adventure', 'Games: Adventure', next(id), 'genres')
-        self.registry.sync_tag('genre_shooter', 'Games: Shooter', next(id), 'genre_action')
-        self.registry.sync_tag('genre_scrolling', 'Games: Shoot\'em up', next(id), 'genre_action')
-        self.registry.sync_tag('genre_platformer', 'Games: Platformer', next(id), 'genre_adventure')
+        self.registry.sync_tag(name='genres', export_description='Genres')
+        self.registry.sync_tag(name='genre_action', export_description='Games: Action', export_id=next(id), tag_group='genres')
+        self.registry.sync_tag(name='genre_adventure', export_description='Games: Adventure', export_id=next(id), tag_group='genres')
+        self.registry.sync_tag(name='genre_shooter', export_description='Games: Shooter', export_id=next(id), tag_group='genre_action')
+        self.registry.sync_tag(name='genre_scrolling', export_description='Games: Shoot\'em up', export_id=next(id), tag_group='genre_action')
+        self.registry.sync_tag(name='genre_platformer', export_description='Games: Platformer', export_id=next(id), tag_group='genre_adventure')
 
         # Dependency trees should be processed in the opposite order, this is
         # because processing the ends of the trees may cause information to
