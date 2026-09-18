@@ -398,6 +398,9 @@ class ZXPage:
     INDEX_TYPE_TKN = 0xAA
     BLANK_PARAMETER = 0x00
 
+    OVERLAY_TEXT = ZXScreen.to_attribute(is_bright=True, ink=ZXScreen.BLACK, paper=ZXScreen.WHITE)
+    OVERLAY_TEXT_LINK = ZXScreen.to_attribute(is_bright=True, ink=ZXScreen.MAGENTA, paper=ZXScreen.WHITE)
+
     logger: ZXLogger
     parent: ZXDocument
 
@@ -525,6 +528,8 @@ class ZXPage:
 
 
 class ZXPage_Overlay(ZXPage):
+    DEFAULT_BLANK_CHARACTER = '_'
+
     parent: ZXDocument
     scr_path: Path
     scr_about: dict
@@ -533,7 +538,7 @@ class ZXPage_Overlay(ZXPage):
     text_link_attribute: int
     text_blank_character: str
 
-    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about, text_lines=None, text_attribute=ZXToken.UNSPECIFIED, text_link_attribute=ZXToken.UNSPECIFIED, text_blank_character=None, register_parent=True):
+    def __init__(self, parent: ZXDocument, scr_path: Path, scr_about, text_lines=None, text_attribute=ZXPage.OVERLAY_TEXT, text_link_attribute=ZXPage.OVERLAY_TEXT_LINK, text_blank_character=None, register_parent=True):
         super().__init__(parent, register_parent)
         self.scr_path = scr_path
         self.parent.check_file_exists(self.scr_path)
@@ -567,8 +572,8 @@ class ZXPage_Overlay(ZXPage):
         root['scr_path'] = str(self.parent.get_relative_path(self.scr_path))
         root['scr_about'] = self.scr_about
         root['text_lines'] = self._get_text()
-        root['text_attribute'] = self.text_attribute
-        root['text_link_attribute'] = self.text_link_attribute
+        root['text_attribute'] = HexYAML(self.text_attribute)
+        root['text_link_attribute'] = HexYAML(self.text_link_attribute)
         root['text_blank_character'] = self.text_blank_character
         return result
 
@@ -599,9 +604,9 @@ class ZXPage_Overlay(ZXPage):
                 'scr_path': None,
                 'scr_about': cls.blank_about(),
                 'text_lines': cls.blank_text(),
-                'text_attribute': ZXToken.UNSPECIFIED,
-                'text_link_attribute': ZXToken.UNSPECIFIED,
-                'text_blank_character': None
+                'text_attribute': ZXPage.OVERLAY_TEXT,
+                'text_link_attribute': ZXPage.OVERLAY_TEXT_LINK,
+                'text_blank_character': '_'
             }
         }
 
@@ -721,8 +726,8 @@ class ZXPage_ClearText(ZXPage):
         root = result[self.__class__.__name__]
         root['frame_path'] = str(self.parent.get_relative_path(self.frame_path)) if self.frame_path else None
         root['text_lines'] = self._get_text()
-        root['text_attribute'] = self.text_attribute
-        root['text_link_attribute'] = self.text_link_attribute
+        root['text_attribute'] = HexYAML(self.text_attribute)
+        root['text_link_attribute'] = HexYAML(self.text_link_attribute)
         return result
 
     @classmethod

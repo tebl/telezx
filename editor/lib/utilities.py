@@ -144,7 +144,10 @@ class HexYAML(int):
     pass
 
 def hexed_yaml_presenter(dumper, data):
-    return yaml.ScalarNode('tag:yaml.org,2002:int', hex(data))
+    return yaml.ScalarNode(
+        'tag:yaml.org,2002:int', 
+        data if data < 0 else hex(data)
+    )
 
 class QuotedYAML(str):
     '''

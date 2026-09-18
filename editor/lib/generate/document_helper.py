@@ -54,7 +54,7 @@ class DocumentHelper(RepositoryHelper):
         document.save()
         return zx_page
 
-    def create_overlay(self, document: ZXDocument, scr_path: Path, scr_about: dict, text_lines: list[str]=None, text_attribute=ZXToken.UNSPECIFIED, path_hint: str=None) -> ZXPage:
+    def create_overlay(self, document: ZXDocument, scr_path: Path, scr_about: dict, text_lines: list[str]=None, text_attribute=ZXPage.OVERLAY_TEXT, text_link_attribute=ZXPage.OVERLAY_TEXT_LINK, path_hint: str=None) -> ZXPage:
         scr_path = Path(scr_path)
         if not text_lines:
             text_lines = ZXPage_ClearText.blank_text()
@@ -68,7 +68,13 @@ class DocumentHelper(RepositoryHelper):
         asset_path = self.generate_scr_path(document, document.get_next_asset_id(), path_hint)
         scr_path.copy(asset_path)
 
-        zx_page = ZXPage_Overlay(document, asset_path, scr_about, text_lines, text_attribute)
+        zx_page = ZXPage_Overlay(document, 
+                                 scr_path=asset_path, 
+                                 scr_about=scr_about, 
+                                 text_lines=text_lines, 
+                                 text_attribute=text_attribute, 
+                                 text_link_attribute=text_link_attribute, 
+                                 text_blank_character=ZXPage_Overlay.DEFAULT_BLANK_CHARACTER)
         document.save()
         return zx_page
 
