@@ -280,7 +280,7 @@ def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPa
 
 def __open_editor(args, parser: ArgumentParser, page: ZXPage):
     if isinstance(page, ZXPage_Token):
-        subprocess.run([utilities.get_project_root() / 'editor.py', page.zxtoken_path])
+        subprocess.run(['python3', (utilities.get_project_root() / 'editor.py'), page.zxtoken_path])
         return
     parser.error(f'No asset editor for {page}')
 
