@@ -1409,8 +1409,8 @@ class Palette(ttk.Frame):
         if self.zx_editor.is_sticky_enabled:
             return
         parsed = ZXScreen.to_parsed_attribute(attribute)
-        self.is_bright = parsed['bright']
-        self.is_flash = parsed['flash']
+        self.is_bright = parsed['is_bright']
+        self.is_flash = parsed['is_flashing']
         self.current_ink = parsed['ink']
         self.current_paper = parsed['paper']
         self.is_inverted = is_inverted

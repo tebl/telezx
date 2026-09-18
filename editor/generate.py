@@ -30,8 +30,8 @@ def cmd_attribute(args, parser: ArgumentParser):
 def __print_attribute(value, col_width=8, indent_count: int=0):
     parsed = ZXScreen.to_parsed_attribute(value)
     print_indented(f'Attribute  0x{value:02x}', indent_count=indent_count)
-    print_indented('Flash:'.ljust(col_width), 'yes' if parsed['flash'] else 'no', indent_count=(indent_count+1))
-    print_indented('Bright:'.ljust(col_width), 'yes' if parsed['bright'] else 'no', indent_count=(indent_count+1))
+    print_indented('Flash:'.ljust(col_width), 'yes' if parsed['is_flashing'] else 'no', indent_count=(indent_count+1))
+    print_indented('Bright:'.ljust(col_width), 'yes' if parsed['is_bright'] else 'no', indent_count=(indent_count+1))
     print_indented('Ink:'.ljust(col_width), __get_colour(parsed['ink']), indent_count=(indent_count+1))
     print_indented('Paper:'.ljust(col_width), __get_colour(parsed['paper']), indent_count=(indent_count+1))
 

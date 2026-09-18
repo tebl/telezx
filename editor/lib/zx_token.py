@@ -481,8 +481,8 @@ class ZXTokenCell:
             return attribute
         parsed = ZXScreen.to_parsed_attribute(attribute)
         return ZXScreen.to_attribute(
-            is_flashing=parsed['flash'],
-            is_bright=parsed['bright'],
+            is_flashing=parsed['is_flashing'],
+            is_bright=parsed['is_bright'],
             ink=parsed['paper'],
             paper=parsed['ink']
         )
@@ -528,8 +528,8 @@ class SpecsciiFormat:
         parsed = ZXScreen.to_parsed_attribute(self.current_attribute)
         self.last_ink = parsed['ink']
         self.last_paper = parsed['paper']
-        self.last_bright = parsed['bright']
-        self.last_flash = parsed['flash']
+        self.last_bright = parsed['is_bright']
+        self.last_flash = parsed['is_flashing']
         self.last_xor = False
         self.last_inverted = False
         self.last_xor = False
@@ -570,8 +570,8 @@ class SpecsciiFormat:
         parsed = ZXScreen.to_parsed_attribute(attribute)
         self.__write_ink(file, parsed['ink'])
         self.__write_paper(file, parsed['paper'])
-        self.__write_flash(file, parsed['flash'])
-        self.__write_bright(file, parsed['bright'])
+        self.__write_flash(file, parsed['is_flashing'])
+        self.__write_bright(file, parsed['is_bright'])
 
     def __write_ink(self, file, ink):
         assert ink >= ZXScreen.BLACK and ink <= ZXScreen.WHITE

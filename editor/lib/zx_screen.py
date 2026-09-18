@@ -165,18 +165,18 @@ class ZXScreen:
     @classmethod
     def to_attribute_rgb(cls, is_on, parsed_attribute, flash_value):
         base_colour = parsed_attribute['ink'] if is_on else parsed_attribute['paper']
-        if parsed_attribute['flash'] and flash_value:
+        if parsed_attribute['is_flashing'] and flash_value:
             base_colour = parsed_attribute['paper'] if is_on else parsed_attribute['ink']
         return cls.colour_to_rgb(
             base_colour,
-            parsed_attribute['bright']
+            parsed_attribute['is_bright']
         )
 
     @classmethod
     def to_parsed_attribute(cls, attribute):
         return {
-            'flash': bool((attribute & cls.FLASH) == cls.FLASH),
-            'bright': bool((attribute & cls.BRIGHT) == cls.BRIGHT),
+            'is_flashing': bool((attribute & cls.FLASH) == cls.FLASH),
+            'is_bright': bool((attribute & cls.BRIGHT) == cls.BRIGHT),
             'paper': (attribute & 0b00111000) >> 3,
             'ink': attribute & 0b00000111
         }
@@ -185,9 +185,9 @@ class ZXScreen:
     def to_tokens(cls, attribute):
         parsed = cls.to_parsed_attribute(attribute)
         parts = []
-        if parsed['flash']:
+        if parsed['is_flashing']:
             parts.append('FLASH')
-        if parsed['bright']:
+        if parsed['is_bright']:
             parts.append('BRIGHT')
         parts.append(cls.to_colour_token(parsed['ink']))
         parts.append(cls.to_colour_token(parsed['paper']))
