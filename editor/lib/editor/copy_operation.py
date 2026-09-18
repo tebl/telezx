@@ -1,5 +1,5 @@
 from .screen_region import ScreenCoordinate
-from .. import CellCopy
+from .. import CellCopy, ZXFont
 
 class CopyOperation:
     shape: tuple[int, int]
@@ -17,6 +17,17 @@ class CopyOperation:
         x, y = self.shape
         return x*y
 
+    @classmethod
+    def get_single_character(cls, copy_operation: CopyOperation|None) -> str:
+        for cell in copy_operation.cells:
+            return cell.cell_copy.char_code
+        return ZXFont.ASCII_SPACE
+
+    @classmethod
+    def is_single_character(cls, copy_operation: CopyOperation|None) -> bool:
+        if not copy_operation:
+            return False
+        return copy_operation.shape == (1,1)
 
 class CopyData:
     coordinate: ScreenCoordinate

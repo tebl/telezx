@@ -249,7 +249,8 @@ class ScreenRegion:
         self.coord_end = self.get_filtered_coordinate(max, coord_a, coord_b)
 
     def __str__(self):
-        return f'{self.coord_start} to {self.coord_end}'
+        x, y = self.size()
+        return f'{x}x{y} cells'
 
     def can_transpose(self, direction):
         '''

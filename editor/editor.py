@@ -147,7 +147,13 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def clicked_copy(self, event=None):
-        self.copied_cells = self.__copy_selection()
+        return self.__clicked_copy_cell(include_highlight=True)
+
+    def clicked_copy_cell(self, event=None):
+        return self.__clicked_copy_cell(include_highlight=False)
+
+    def __clicked_copy_cell(self, include_highlight: bool) -> str:
+        self.copied_cells = self.__copy_selection(include_highlight)
         self.set_status(f"Copied {self.copied_cells}")
         return 'break'
 
@@ -178,8 +184,8 @@ class ZXEditor(ttk.Frame):
         self.set_status(f"Cut {self.copied_cells}")
         return 'break'
 
-    def __copy_selection(self):
-        if self.region_highlight:
+    def __copy_selection(self, include_highlight: bool=True):
+        if include_highlight and self.region_highlight:
             return CopyOperation(
                 shape=self.region_highlight.size(),
                 cells=[
@@ -203,17 +209,79 @@ class ZXEditor(ttk.Frame):
             self.zx_token.get_cell(coordinate.char_x, coordinate.char_y)
         )
 
-    def clicked_delete_highlight(self, event=None):
+    def clicked_clear_attribute(self, event=None):
         if self.region_highlight:
-            undo_operation = UndoOperation()
-            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
-                undo_operation.add_cell(
-                    coord.char_x, coord.char_y, 
-                    self.zx_token.get_cell(coord.char_x, coord.char_y))
-                self.zx_token.set_cell(coord.char_x, coord.char_y)
-            self.undo_list.append(undo_operation)
-            self.refresh_editor()
+            if self.__fill_attribute(self.region_highlight, ZXToken.UNDEFINED):
+                self.refresh_editor()
+                self.set_status(f"Clear {self.region_highlight}")
         return 'break'
+
+    def clicked_clear_cells(self, event=None):
+        if self.region_highlight:
+            self.create_undo_region(self.region_highlight)
+            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+                self.zx_token.set_cell(coord.char_x, coord.char_y)
+        return 'break'
+
+    def clicked_clear_characters(self, event=None):
+        if self.region_highlight:
+            self.create_undo_region(self.region_highlight)
+            if self.__fill_character(self.region_highlight, ZXToken.UNDEFINED):
+                self.refresh_editor()
+                self.set_status(f"Clear {self.region_highlight}")
+
+    def clicked_fill_from_cell(self, event=None):
+        if self.region_highlight:
+            if self.__fill_attribute(self.region_highlight, self.get_palette_from(self.cursor).attribute):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
+    def clicked_fill_palette(self, event=None):
+        if self.region_highlight:
+            if self.__fill_attribute(self.region_highlight, self.sidebar.palette.get_dataset().attribute):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
+    def clicked_fill_character(self, event=None):
+        if self.region_highlight and CopyOperation.is_single_character(self.copied_cells):
+            if self.__fill_character(self.region_highlight, CopyOperation.get_single_character(self.copied_cells)):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
+    def clicked_fill_copied_format(self, event=None):
+        if self.region_highlight and self.copied_format:
+            if self.__fill_attribute(self.region_highlight, self.copied_format.attribute):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
+    def __fill_attribute(self, region: ScreenRegion, attribute) -> bool:
+        if region:
+            self.create_undo_region(region)            
+            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+                cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
+                # Allow setting attribute to undefined
+                if not attribute == ZXToken.UNDEFINED:
+                    # Add spaces so that foreground now matches as expected
+                    if cell_copy.char_code == ZXToken.UNDEFINED:
+                        cell_copy.char_code = ZXFont.ASCII_SPACE
+                cell_copy.char_attribute = attribute
+                self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=cell_copy)
+            return True
+        return False
+
+    def __fill_character(self, region: ScreenRegion, char_code) -> bool:
+        if region:
+            self.create_undo_region(region)            
+            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+                cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
+                cell_copy.char_code = char_code
+                self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=cell_copy)
+            return True
+        return False
 
     def clicked_grid(self, event=None):
         self.is_grid_enabled = (not self.is_grid_enabled)
@@ -389,7 +457,7 @@ class ZXEditor(ttk.Frame):
             self.undo_list.pop(0)
 
     def clicked_copy_attribute(self, event=None):
-        self.copied_format = self.sidebar.palette.get_dataset()
+        self.copied_format = self.get_palette_from(self.cursor) 
         self.set_status(f"Copied {self.copied_format}")
         return 'break'
 
@@ -431,6 +499,21 @@ class ZXEditor(ttk.Frame):
     def clicked_quit(self, event=None):
         self.on_quit(self.master)
         return 'break'
+
+    def get_coordinate(self, char_x: int, char_y: int) -> tuple[int, int, int]:
+        '''
+        Get pixel location of a specific cell (X, Y) along with its size in
+        pixels.
+        '''
+        return self.main.get_canvas_position(char_x, char_y)
+
+    def get_palette_from(self, coord: ScreenCoordinate) -> PaletteData:
+        '''
+        Get palette data from a location on the screen in a format suitable
+        for copy/paste. 
+        '''
+        return PaletteData(self.zx_token.get_attribute(coord.char_x, coord.char_y), 
+                           self.zx_token.get_inverted(coord.char_x, coord.char_y))
 
     def keyboard_event(self, event):
         if self.main.check_focus():
@@ -955,6 +1038,23 @@ class Main(ttk.Frame):
         num_pixels += ZXScreen.SCREEN_HEIGHT_CHARS+1
         return num_pixels
 
+    def get_canvas_position(self, char_x, char_y) -> tuple[int, int, int]:
+        '''
+        Translate from cursor location to pixel ranges within the displayed canvas,
+        adjusted for whether a 1px wide grid is enabled. If not enabled then we
+        will instead try to center image within canvas.
+        '''
+        cell_size = 8*self.zx_editor.scale
+        x = char_x*cell_size
+        y = char_y*cell_size
+        if self.zx_editor.is_grid_enabled:
+            x += char_x + 1
+            y += char_y + 1
+        else:
+            x += ZXScreen.SCREEN_WIDTH_CHARS // 2
+            y+= self.NOGRID_Y_OFFSET
+        return (x, y, cell_size)
+
     def flip_canvas(self):
         pil_img = Image.fromarray(self.pixel_data)
         tk_img = ImageTk.PhotoImage(pil_img)
@@ -1022,14 +1122,14 @@ class Main(ttk.Frame):
         self.flip_canvas()
 
     def __refresh_cell(self, char_x, char_y, rgb_data):
-        pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
+        pix_x, pix_y, pix_size = self.get_canvas_position(char_x, char_y)
         rgb_x, rgb_y, rgb_size = self.__get_screen_position(char_x, char_y)
         self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = rgb_data[rgb_y:rgb_y+rgb_size, rgb_x:rgb_x+rgb_size]
 
     def __highlight_cell(self, char_x, char_y, colour, highlight_effect=HIGHLIGHT_EFFECT_AVERAGE):
         if char_x == -1 or char_y == -1:
             return
-        pix_x, pix_y, pix_size = self.__get_canvas_position(char_x, char_y)
+        pix_x, pix_y, pix_size = self.get_canvas_position(char_x, char_y)
         self.pixel_data[pix_y-1, pix_x-1:pix_x+pix_size+1] = colour
         self.pixel_data[pix_y+pix_size, pix_x-1:pix_x+pix_size+1] = colour
         self.pixel_data[pix_y-1:pix_y+pix_size, pix_x-1] = colour
@@ -1048,23 +1148,6 @@ class Main(ttk.Frame):
         cell_size = 8*self.zx_editor.scale
         x = char_x*cell_size
         y = char_y*cell_size
-        return (x, y, cell_size)
-
-    def __get_canvas_position(self, char_x, char_y):
-        '''
-        Translate from cursor location to pixel ranges within the displayed canvas,
-        adjusted for whether a 1px wide grid is enabled. If not enabled then we
-        will instead try to center image within canvas.
-        '''
-        cell_size = 8*self.zx_editor.scale
-        x = char_x*cell_size
-        y = char_y*cell_size
-        if self.zx_editor.is_grid_enabled:
-            x += char_x + 1
-            y += char_y + 1
-        else:
-            x += ZXScreen.SCREEN_WIDTH_CHARS // 2
-            y+= self.NOGRID_Y_OFFSET
         return (x, y, cell_size)
 
     def __get_cursor_from(self, pos_x, pos_y):
@@ -1088,30 +1171,79 @@ class Main(ttk.Frame):
 
 
 class ContextMenu(ttk.Menu):
-    OFFSET_X = 10
-    OFFSET_Y = 10
-    ENTRY_COPY = 'Copy'
-    ENTRY_PASTE = 'Paste'
-    ENTRY_CLEAR_SELECTED = 'Clear selection'
+    OFFSET_X = 4
+    OFFSET_Y = 4
 
+    COPY = 'Copy'
+    COPY_CELL = 'Cell'
+    COPY_ATTRIBUTE = 'Cell (Attribute)'
+    COPY_SELECTION = 'Selected Cells'
+
+    PASTE = 'Paste'
+
+    CLEAR_SELECTED = 'Clear selected'
+    CLEAR_SELECTED_CELLS = 'Cells'
+    CLEAR_SELECTED_ATTRIBUTES = 'Attributes'
+    CLEAR_SELECTED_CHARACTERS = 'Characters'
+
+    FILL = 'Fill from'
+    FILL_CELL = 'Cell'
+    FILL_PALETTE = 'Palette'
+    FILL_COPIED_FORMAT = 'Copied format'
+    FILL_COPIED_CHARACTER = 'Copied character'
 
     def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(zx_editor, takefocus=True, title='Context menu', tearoff=False)
         self.zx_editor = zx_editor
 
-        self.add_command(label=self.ENTRY_COPY, command=lambda: self.zx_editor.clicked_copy())
-        self.add_command(label=self.ENTRY_CLEAR_SELECTED, command=lambda: self.zx_editor.clicked_delete_highlight())
+        self.copy_menu = ttk.Menu(self, tearoff=0)
+        self.copy_menu.add_command(label=self.COPY_CELL, command=self.zx_editor.clicked_copy_cell)
+        self.copy_menu.add_command(label=self.COPY_ATTRIBUTE, command=self.zx_editor.clicked_copy_attribute)
+        self.copy_menu.add_command(label=self.COPY_SELECTION, command=self.zx_editor.clicked_copy)
+        self.add_cascade(label=self.COPY, menu=self.copy_menu)
+
+        self.fill_menu = ttk.Menu(self, tearoff=0)
+        self.fill_menu.add_command(label=self.FILL_CELL, command=self.zx_editor.clicked_fill_from_cell)
+        self.fill_menu.add_command(label=self.FILL_PALETTE, command=self.zx_editor.clicked_fill_palette)
+        self.fill_menu.add_command(label=self.FILL_COPIED_FORMAT, command=self.zx_editor.clicked_fill_copied_format)
+        self.fill_menu.add_command(label=self.FILL_COPIED_CHARACTER, command=self.zx_editor.clicked_fill_character)
+        self.add_cascade(label=self.FILL, menu=self.fill_menu)
+
+        self.clear_menu = ttk.Menu(self, tearoff=0)
+        self.clear_menu.add_command(label=self.CLEAR_SELECTED_CELLS, command=self.zx_editor.clicked_clear_cells)
+        self.clear_menu.add_command(label=self.CLEAR_SELECTED_ATTRIBUTES, command=self.zx_editor.clicked_clear_attribute)
+        self.clear_menu.add_command(label=self.CLEAR_SELECTED_CHARACTERS, command=self.zx_editor.clicked_clear_characters)
+        self.add_cascade(label=self.CLEAR_SELECTED, menu=self.clear_menu)
 
     def show_menu(self, event, in_highlight: bool):
         try:
             self.__reconfigure(in_highlight)
-            self.tk_popup(event.x_root + self.OFFSET_X, event.y_root + self.OFFSET_Y, 0)
+
+            char_x, char_y = self.zx_editor.cursor.get()
+            if self.zx_editor.region_highlight:
+                char_x, char_y = self.zx_editor.region_highlight.coord_end.get()
+            pos_x, pos_y, cell_size = self.zx_editor.get_coordinate(char_x, char_y)
+            pos_x += cell_size + self.OFFSET_X
+            pos_y += cell_size + self.OFFSET_Y
+            
+            self.tk_popup(self.zx_editor.main.winfo_rootx() + pos_x, 
+                          self.zx_editor.main.winfo_rooty() + pos_y)
         finally:
             self.grab_release()
 
     def __reconfigure(self, in_highlight):
-        self.entryconfigure(self.ENTRY_CLEAR_SELECTED, 
-                            state='normal' if in_highlight else 'disabled')
+        self.copy_menu.entryconfigure(self.COPY_SELECTION, 
+                                      state='normal' if in_highlight else 'disabled')
+
+        self.entryconfigure(self.FILL, state='normal' if in_highlight else 'disabled')
+        self.fill_menu.entryconfigure(self.FILL_CELL, 
+                                      state='normal' if in_highlight else 'disabled')
+        self.fill_menu.entryconfigure(self.FILL_COPIED_FORMAT, 
+                                      state='normal' if in_highlight and self.zx_editor.copied_format else 'disabled')
+        self.fill_menu.entryconfigure(self.FILL_COPIED_CHARACTER, 
+                                      state='normal' if in_highlight and CopyOperation.is_single_character(self.zx_editor.copied_cells) else 'disabled')
+
+        self.entryconfigure(self.CLEAR_SELECTED, state='normal' if in_highlight else 'disabled')
 
     def hide_menu(self):
         self.unpost()
@@ -1273,7 +1405,8 @@ class Palette(ttk.Frame):
             self.current_ink)
     
     def get_dataset(self):
-        return PaletteData(self.get_attribute(), self.get_inverted())
+        return PaletteData(self.get_attribute(),
+                           self.get_inverted())
 
     def get_inverted(self):
         '''
