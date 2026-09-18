@@ -232,12 +232,19 @@ class ZXEditor(ttk.Frame):
 
     def clicked_fill_from_cell(self, event=None):
         if self.region_highlight:
+            if self.__fill_cell_from(self.region_highlight, self.zx_token.get_cell(self.cursor.char_x, self.cursor.char_y)):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
+    def clicked_fill_from_cell_attribute(self, event=None):
+        if self.region_highlight:
             if self.__fill_attribute(self.region_highlight, self.get_palette_from(self.cursor).attribute):
                 self.refresh_editor()
                 self.set_status(f"Fill {self.region_highlight}")
         return 'break'
 
-    def clicked_fill_palette(self, event=None):
+    def clicked_fill_from_palette(self, event=None):
         if self.region_highlight:
             if self.__fill_attribute(self.region_highlight, self.sidebar.palette.get_dataset().attribute):
                 self.refresh_editor()
@@ -261,7 +268,7 @@ class ZXEditor(ttk.Frame):
     def __fill_attribute(self, region: ScreenRegion, attribute) -> bool:
         if region:
             self.create_undo_region(region)            
-            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+            for coord in region.cells(from_direction=CellDirection.NORTH):
                 cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
                 # Allow setting attribute to undefined
                 if not attribute == ZXToken.UNDEFINED:
@@ -273,10 +280,18 @@ class ZXEditor(ttk.Frame):
             return True
         return False
 
+    def __fill_cell_from(self, region: ScreenRegion, cell_copy):
+        if region and cell_copy:
+            self.create_undo_region(region)            
+            for coord in region.cells(from_direction=CellDirection.NORTH):
+                self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=cell_copy)
+            return True
+        return False
+
     def __fill_character(self, region: ScreenRegion, char_code) -> bool:
         if region:
             self.create_undo_region(region)            
-            for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH):
+            for coord in region.cells(from_direction=CellDirection.NORTH):
                 cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
                 cell_copy.char_code = char_code
                 self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=cell_copy)
@@ -1188,6 +1203,7 @@ class ContextMenu(ttk.Menu):
 
     FILL = 'Fill from'
     FILL_CELL = 'Cell'
+    FILL_CELL_ATTRIBUTE = 'Cell (Attribute)'
     FILL_PALETTE = 'Palette'
     FILL_COPIED_FORMAT = 'Copied format'
     FILL_COPIED_CHARACTER = 'Copied character'
@@ -1204,7 +1220,8 @@ class ContextMenu(ttk.Menu):
 
         self.fill_menu = ttk.Menu(self, tearoff=0)
         self.fill_menu.add_command(label=self.FILL_CELL, command=self.zx_editor.clicked_fill_from_cell)
-        self.fill_menu.add_command(label=self.FILL_PALETTE, command=self.zx_editor.clicked_fill_palette)
+        self.fill_menu.add_command(label=self.FILL_CELL_ATTRIBUTE, command=self.zx_editor.clicked_fill_from_cell_attribute)
+        self.fill_menu.add_command(label=self.FILL_PALETTE, command=self.zx_editor.clicked_fill_from_palette)
         self.fill_menu.add_command(label=self.FILL_COPIED_FORMAT, command=self.zx_editor.clicked_fill_copied_format)
         self.fill_menu.add_command(label=self.FILL_COPIED_CHARACTER, command=self.zx_editor.clicked_fill_character)
         self.add_cascade(label=self.FILL, menu=self.fill_menu)
@@ -1237,6 +1254,8 @@ class ContextMenu(ttk.Menu):
 
         self.entryconfigure(self.FILL, state='normal' if in_highlight else 'disabled')
         self.fill_menu.entryconfigure(self.FILL_CELL, 
+                                      state='normal' if in_highlight else 'disabled')
+        self.fill_menu.entryconfigure(self.FILL_CELL_ATTRIBUTE, 
                                       state='normal' if in_highlight else 'disabled')
         self.fill_menu.entryconfigure(self.FILL_COPIED_FORMAT, 
                                       state='normal' if in_highlight and self.zx_editor.copied_format else 'disabled')
