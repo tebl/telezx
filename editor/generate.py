@@ -1,5 +1,5 @@
 #!python3
-import subprocess
+import subprocess, sys
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities, VERSION
@@ -280,7 +280,7 @@ def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPa
 
 def __open_editor(args, parser: ArgumentParser, page: ZXPage):
     if isinstance(page, ZXPage_Token):
-        subprocess.run(['python3', (utilities.get_project_root() / 'editor.py'), page.zxtoken_path])
+        subprocess.run([sys.executable, (utilities.get_project_root() / 'editor.py'), page.zxtoken_path])
         return
     parser.error(f'No asset editor for {page}')
 
