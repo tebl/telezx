@@ -11,7 +11,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CellCopy, UndoOperation, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -180,24 +180,24 @@ class ZXEditor(ttk.Frame):
 
     def __copy_selection(self):
         if self.region_highlight:
-            return CopiedCells(
+            return CopyOperation(
                 shape=self.region_highlight.size(),
                 cells=[
                     self.__get_cell_copy(coord, self.region_highlight) for coord in self.region_highlight.cells(from_direction=CellDirection.NORTH)
                 ]
             )
         else:
-            return CopiedCells(
+            return CopyOperation(
                 shape=(1, 1), 
                 cells=[ 
-                    CellData(ScreenCoordinate(0, 0), 
+                    CopyData(ScreenCoordinate(0, 0), 
                              self.zx_token.get_cell(self.cursor.char_x,
                                                     self.cursor.char_y))
                 ]
             )
 
     def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CellData:
-        return CellData(
+        return CopyData(
             ScreenCoordinate(coordinate.char_x - region.coord_start.char_x, 
                              coordinate.char_y - region.coord_start.char_y),
             self.zx_token.get_cell(coordinate.char_x, coordinate.char_y)
@@ -892,38 +892,6 @@ class Canvas(ttk.Frame):
     def render_rgb(self, rgb_data):
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.scale_value, axis=0), self.scale_value, axis=1)
         self.pixel_data[:] = rgb_data
-
-
-class CopiedCells:
-    shape: tuple[int, int]
-    cells: list[CellData]
-
-    def __init__(self, shape: tuple[int, int], cells: list[CellData]):
-        self.shape = shape
-        self.cells = cells
-
-    def __str__(self):
-        x, y = self.shape
-        return f'{x}x{y} cells'
-
-    def count(self) -> int:
-        x, y = self.shape
-        return x*y
-
-
-class CellData:
-    coordinate: ScreenCoordinate
-    cell_copy: CellCopy
-
-    def __init__(self, coordinate: ScreenCoordinate, cell_copy: CellCopy):
-        self.coordinate = coordinate
-        self.cell_copy = cell_copy
-
-    def get_relative_to(self, cursor: ScreenCoordinate) -> tuple[int, int]:
-        return (
-            cursor.char_x + self.coordinate.char_x,
-            cursor.char_y + self.coordinate.char_y
-        )
     
 
 class Main(ttk.Frame):
