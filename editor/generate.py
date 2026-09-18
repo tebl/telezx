@@ -2,7 +2,7 @@
 import subprocess
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXLogger, utilities, VERSION
+from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities, VERSION
 from lib.generate import AssetHelper, DocumentHelper, RegistryHelper, TransformationHelper, TransformationFormatError
 
 def cmd_attribute(args, parser: ArgumentParser):
@@ -290,22 +290,125 @@ def cmd_registry(args, parser: ArgumentParser):
     '''
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
-    registry = get_registry(repository)
+    changes = False
     print()
 
+    helper = RegistryHelper(repository)
     if args.set_ignore:
+        helper.set_ignored(args.set_ignore, True)
         print(f'Registry will now ignore {utilities.format_padded_id(args.set_ignore)}')
-        registry.set_ignored(args.set_ignore, True)
+        print('Done.')
+        return
 
     if args.remove_ignore:
+        helper.set_ignored(args.set_ignore, False)
         print(f'Registry will no longer ignore {utilities.format_padded_id(args.remove_ignore)}')
-        registry.set_ignored(args.remove_ignore, False)
+        print('Done.')
+        return
 
-    if args.clear:
-        print('Registry cleared.')
-        registry.clear()
-    registry.save()
-    print('Registry saved.')
+    if args.list_tags:
+        print('Tags registered:')
+        for tag in helper.get_tags():
+            print_indented(str(tag), indent_count=1)
+        print('Done.')
+        return
+
+    if args.delete_tag:
+        try:
+            helper.delete_tag(args.delete_tag)
+            helper.save()
+            print(f'Deleted tag {args.delete_tag}')
+        except FileNotFoundError:
+            return
+        print('Done.')
+        return
+
+    # Start of modification functions
+
+    if args.create_tag:
+        try:
+            tag = helper.create_tag(args.create_tag)
+            print_tag_details(tag, helper, action='created')
+        except FileExistsError:
+            print(f'ERROR: Tag with name {args.create_tag} already exists!')
+            return
+
+    if args.open_tag:
+        try:
+            tag = helper.open_tag(args.open_tag)
+            print_tag_details(tag, helper, action='opened')
+        except FileNotFoundError:
+            print(f'ERROR: Tag with name {args.open_tag} could not be loaded!')
+            return
+
+    # Update tag properties
+    if __update_tag(tag, args):
+        changes = True
+    print()
+
+    # Print tag again if there were changes
+    if changes:
+        print_tag_details(tag, helper, 'changed')
+
+    helper.save()
+    print('Done.')
+
+def __update_tag(tag: ZXRegistryTag, args) -> bool:
+    changes = False
+    if args.set_tag_group is not None:
+        changes = True
+        tag.tag_group = None if args.set_tag_group == '' else args.set_tag_group
+
+    if args.set_document is not None:
+        changes = True
+        if args.set_document == 0:
+            tag.export_id = None
+        else:
+            tag.export_id = args.set_document
+
+    if args.set_description is not None:
+        changes = True
+        tag.export_description = None if args.set_description == '' else args.set_description
+    if args.set_abbreviation is not None:
+        changes = True
+        tag.abbreviation = None if args.set_abbreviation == '' else args.set_abbreviation
+
+    if args.set_link_a is not None:
+        changes = True
+        if args.set_link_a == 0:
+            tag.export_link_a = None
+            tag.export_link_a_txt = None
+        else:
+            tag.export_link_a = args.set_link_a
+            tag.export_link_a_txt = args.set_link_a_txt if args.set_link_a_txt else None
+    elif args.set_link_a_txt:
+        changes = True
+        tag.export_link_a_txt = args.set_link_a_txt
+
+    if args.set_link_b is not None:
+        changes = True
+        if args.set_link_b == 0:
+            tag.export_link_b = None
+            tag.export_link_b_txt = None
+        else:
+            tag.export_link_b = args.set_link_b
+            tag.export_link_b_txt = args.set_link_b_txt if args.set_link_b_txt else None
+    elif args.set_link_b_txt:
+        changes = True
+        tag.export_link_b_txt = args.set_link_b_txt
+
+    if args.set_link_c is not None:
+        changes = True
+        if args.set_link_c == 0:
+            tag.export_link_c = None
+            tag.export_link_b_txt = None
+        else:
+            tag.export_link_c = args.set_link_c
+            tag.export_link_c_txt = args.set_link_c_txt if args.set_link_c_txt else None
+    elif args.set_link_c_txt:
+        changes = True
+        tag.export_link_c_txt = args.set_link_c_txt
+    return changes
 
 def cmd_toc(args, parser: ArgumentParser):
     '''
@@ -410,7 +513,7 @@ def print_document_details(document: ZXDocument, registry: ZXRegistry, action=No
     '''
     col_width = 13
     print(f'Document {action}:' if action else f'Document:')
-    print_indented('Document ID:'.ljust(col_width), '0x' + utilities.format_padded_id(document.document_id))
+    print_indented('Document ID:'.ljust(col_width), __format_document_id(document.document_id))
     print_indented('Description:'.ljust(col_width), f'{document.description}')
     print_indented('Abbreviation:'.ljust(col_width), f'{document.abbreviation}')
     print_indented('Link A:'.ljust(col_width), __format_link(document.link_a, document.link_a_txt, registry))
@@ -425,6 +528,11 @@ def print_document_details(document: ZXDocument, registry: ZXRegistry, action=No
                 print_indented(''.ljust(col_width), utilities.format_padded_int(page_id, width=2), page)
     else:
         print_indented('Pages:'.ljust(col_width), 'No pages.')
+
+def __format_document_id(document_id: int|None) -> str:
+    if document_id is None or document_id == ZXDocument.DOCUMENT_ID_NONE:
+        return 'Not set.'
+    return f'0x{utilities.format_padded_id(document_id)}'
 
 def __format_link(link: int, link_txt: str, registry: ZXRegistry):
     if not link:
@@ -446,6 +554,22 @@ def print_repository_details(repository: Path):
     see here until I can think of something more suitable.
     '''
     print(f'Repository: {repository.resolve()}')
+
+def print_tag_details(tag: ZXRegistryTag, helper: RegistryHelper, action=None):
+    '''
+    Print details for the specified tag
+    '''
+    col_width = 14
+    print(f'Tag {action}:' if action else f'Document:')
+    print_indented('Name:'.ljust(col_width + ZXLogger.INDENT_WIDTH), tag.name)
+    print_indented('Parent tag:'.ljust(col_width + ZXLogger.INDENT_WIDTH), tag.tag_group)
+    print_indented('Export details:')
+    print_indented('Document ID:'.ljust(col_width), __format_document_id(tag.export_id), indent_count=2)
+    print_indented('Description:'.ljust(col_width), f'{tag.export_description}', indent_count=2)
+    print_indented('Abbreviation:'.ljust(col_width), f'{tag.export_abbreviation}', indent_count=2)
+    print_indented('Link A:'.ljust(col_width), __format_link(tag.export_link_a, tag.export_link_a_txt, helper.registry), indent_count=2)
+    print_indented('Link B:'.ljust(col_width), __format_link(tag.export_link_b, tag.export_link_b_txt, helper.registry), indent_count=2)
+    print_indented('Link C:'.ljust(col_width), __format_link(tag.export_link_c, tag.export_link_c_txt, helper.registry), indent_count=2)
 
 def print_indented(*segments, indent_count=1):
     print(' '*ZXLogger.INDENT_WIDTH*indent_count, end='')
@@ -528,9 +652,24 @@ def main():
 
     parser_registry = subparsers.add_parser('registry', help='Manage registry')
     parser_registry.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
-    parser_registry.add_argument('--set-ignore', type=utilities.argument_is_document_id, help="Add document ID to ignored list")
-    parser_registry.add_argument('--remove-ignore', type=utilities.argument_is_document_id, help="Remove document ID from ignored list")
-    parser_registry.add_argument('-x', '--clear', action='store_true', help="Clear contents")
+    group = parser_registry.add_mutually_exclusive_group(required=True)
+    group.add_argument('--set-ignore', type=utilities.argument_is_document_id, help="Add document ID to ignored list")
+    group.add_argument('--remove-ignore', type=utilities.argument_is_document_id, help="Remove document ID from ignored list")
+    group.add_argument('-c', '--create-tag', type=str, help="Create registry TAG")
+    group.add_argument('-f', '--open-tag', type=str, help="Open registry TAG")
+    group.add_argument('-l', '--list-tags', action='store_true', help="List tags")
+    group.add_argument('-x', '--delete-tag', type=str, help="Delete registry TAG")
+    group = parser_registry.add_argument_group('Set tag export details')
+    group.add_argument('--set-tag-group', type=str, help="Set tag group (parent)")
+    group.add_argument('--set-abbreviation', type=str, help="Set abbreviation")
+    group.add_argument('--set-description', type=str, help="Set description")
+    group.add_argument('--set-document', type=utilities.argument_is_document_id, help="Set document ID")
+    group.add_argument('--set-link-a', type=utilities.argument_is_document_id, help="Set link A")
+    group.add_argument('--set-link-a-txt', type=str, help="Set link A description")
+    group.add_argument('--set-link-b', type=utilities.argument_is_document_id, help="Set link B")
+    group.add_argument('--set-link-b-txt', type=str, help="Set link B description")
+    group.add_argument('--set-link-c', type=utilities.argument_is_document_id, help="Set link C")
+    group.add_argument('--set-link-c-txt', type=str, help="Set link C description")
     parser_registry.set_defaults(function=cmd_registry)
 
     parser_toc = subparsers.add_parser('toc', help='Table of contents')

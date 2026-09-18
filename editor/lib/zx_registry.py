@@ -23,6 +23,9 @@ class ZXRegistry:
     def clear(self):
         self.entries.clear()
 
+    def delete_tag(self, tag_name: str) -> bool:
+        return self.__delete_tag(self.__clean_tag_name(tag_name))
+
     def generate_TOC_AZ(self):
         results = {}
         for char in self.LETTERS_AZ:
@@ -34,7 +37,7 @@ class ZXRegistry:
             results[letter].append([data.description, document_id])
         return results
 
-    def generate_tag_AZ(self, tag_name):
+    def generate_tag_AZ(self, tag_name: str):
         results = {}
         for char in self.LETTERS_AZ:
             results[char] = []
@@ -171,9 +174,13 @@ class ZXRegistry:
             del self.entries[document_id]
         return True
 
+    def __delete_tag(self, tag_name: str) -> True:
+        if tag_name in self.tags:
+            del self.tags[tag_name]
+        return True
+
     def sync_tag(self, name: str, tag_group: str|None=None, export_id: int|None=None, export_description: str|None=None, export_abbreviation: str|None=None, export_link_a: int|None=None, export_link_a_txt: str|None=None, export_link_b: int|None=None, export_link_b_txt: str|None=None, export_link_c: int|None=None, export_link_c_txt: str|None=None) -> ZXRegistryTag:
         name = self.__clean_tag_name(name)
-
         tag = self.tags[name] if name in self.tags else ZXRegistryTag(name)
         self.tags[name] = tag
 
@@ -365,6 +372,16 @@ class ZXRegistryTag:
         self.export_link_b_txt = export_link_b_txt
         self.export_link_c = export_link_c
         self.export_link_c_txt = export_link_c_txt
+
+    def __str__(self):
+        details = []
+        # if self.tag_group is not None:
+        #     details.append(f'parent={self.tag_group}')
+        # if self.entries:
+        #     details.append(f'entries={len(self.entries)}')
+        if not details:
+            return f'{self.name}'
+        return f'{self.name} ({', '.join(details)})'
 
     def get_export_tags(self) -> list[str]:
         if not self.tag_group:
