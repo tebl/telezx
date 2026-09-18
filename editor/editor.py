@@ -196,7 +196,7 @@ class ZXEditor(ttk.Frame):
                 ]
             )
 
-    def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CellData:
+    def __get_cell_copy(self, coordinate: ScreenCoordinate, region: ScreenRegion) -> CopyData:
         return CopyData(
             ScreenCoordinate(coordinate.char_x - region.coord_start.char_x, 
                              coordinate.char_y - region.coord_start.char_y),
