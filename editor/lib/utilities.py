@@ -11,7 +11,7 @@ def argument_is_attribute(value):
     8 bits.
     '''
     try:
-        return ensure_int(value, 0, 255)
+        return ensure_int(value, 0, 255, base=0)
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
