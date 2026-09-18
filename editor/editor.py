@@ -1531,14 +1531,12 @@ class Status(ttk.Frame):
                 str(self.zx_editor.cursor.char_x).rjust(2, '0'), 
                 str(self.zx_editor.cursor.char_y).rjust(2, '0')
             )
-        start, end = self.zx_editor.region_highlight.coordinates()
-        return 'Cursor: ({},{}), selected ({},{}) to ({},{})'.format(
+        size_x, size_y = self.zx_editor.region_highlight.size()
+        return 'Cursor: ({},{}), {} selected ({})'.format(
             str(self.zx_editor.cursor.char_x).rjust(2, '0'), 
             str(self.zx_editor.cursor.char_y).rjust(2, '0'),
-            str(start.char_x).rjust(2, '0'),
-            str(start.char_y).rjust(2, '0'),
-            str(end.char_x).rjust(2, '0'),
-            str(end.char_y).rjust(2, '0')
+            f'{size_x}x{size_y}',
+            f'{size_x*size_y} cells'
         )
 
 
