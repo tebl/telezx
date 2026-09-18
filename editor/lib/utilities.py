@@ -3,7 +3,7 @@ import yaml
 import unicodedata
 import collections.abc
 from pathlib import Path
-from argparse import ArgumentParser, ArgumentError, ArgumentTypeError
+from argparse import ArgumentError
 
 def argument_is_attribute(value):
     '''

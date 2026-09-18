@@ -27,13 +27,13 @@ def cmd_attribute(args, parser: ArgumentParser):
         __print_attribute(attribute)
     print('Done.')
 
-def __print_attribute(value, col_width=8):
+def __print_attribute(value, col_width=8, indent_count: int=0):
     parsed = ZXScreen.to_parsed_attribute(value)
-    print(f'Attribute  0x{value:02x}')
-    print_indented('Flash:'.ljust(col_width), 'yes' if parsed['flash'] else 'no')
-    print_indented('Bright:'.ljust(col_width), 'yes' if parsed['bright'] else 'no')
-    print_indented('Ink:'.ljust(col_width), __get_colour(parsed['ink']))
-    print_indented('Paper:'.ljust(col_width), __get_colour(parsed['paper']))
+    print_indented(f'Attribute  0x{value:02x}', indent_count=indent_count)
+    print_indented('Flash:'.ljust(col_width), 'yes' if parsed['flash'] else 'no', indent_count=(indent_count+1))
+    print_indented('Bright:'.ljust(col_width), 'yes' if parsed['bright'] else 'no', indent_count=(indent_count+1))
+    print_indented('Ink:'.ljust(col_width), __get_colour(parsed['ink']), indent_count=(indent_count+1))
+    print_indented('Paper:'.ljust(col_width), __get_colour(parsed['paper']), indent_count=(indent_count+1))
 
 def __get_colour(parsed_value):
     for colour, value in ZXScreen.COLOURS.items():
@@ -473,13 +473,17 @@ def cmd_transform(args, parser: ArgumentParser):
     if args.clear_xy or args.clear_line or args.scroll:
         print('Applying transformations:')
         if args.clear_xy:
+            if args.with_attribute is not None:
+                __print_attribute(args.with_attribute, indent_count=1)
             for char_x, char_y in args.clear_xy:
-                if helper.transform_clear_coordinate(char_x, char_y):
+                if helper.transform_clear_coordinate(char_x, char_y, attribute=args.with_attribute):
                     changes = True
 
         if args.clear_line:
+            if args.with_attribute is not None:
+                __print_attribute(args.with_attribute, indent_count=1)
             for char_y in args.clear_line:
-                if helper.transform_clear_line(char_y):
+                if helper.transform_clear_line(char_y, attribute=args.with_attribute):
                     changes = True
 
         if args.scroll:
@@ -689,6 +693,8 @@ def main():
     parser_transform.add_argument('--clear-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
     parser_transform.add_argument('--clear-xy', nargs='*', action=ValidatedCoordinateAction, help="Clear character X1 Y1 ... Xn Yn")
     parser_transform.add_argument('--scroll', nargs='*', action=ValidatedScrollAction, help="Scroll the screen, '0 -1' to scroll up")
+    group = parser_transform.add_argument_group('Set transformation parameters')
+    group.add_argument('--with-attribute', type=utilities.argument_is_attribute, default=None, help="Attribute value used")
     parser_transform.set_defaults(function=cmd_transform)
 
     args = parser.parse_args()

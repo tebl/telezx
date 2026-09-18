@@ -7,7 +7,7 @@ from pathlib import Path
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
-from .utilities import update_tree, get_project_root
+from .utilities import update_tree, get_project_root, HexYAML
 
 class ZXToken:
     UNDEFINED = -1
@@ -257,7 +257,7 @@ class ZXToken:
     def to_dict(self):
         result = self.__yaml_defaults()
         root = result[self.DOCUMENT_TYPE]
-        root['attribute'] = self.current_attribute
+        root['attribute'] = HexYAML(self.current_attribute)
         root['background'] = self.__get_relative_path(self.background)
         root['font'] = self.font_name
         root['glyph'] = self.glyph_name
@@ -554,7 +554,6 @@ class SpecsciiFormat:
                         self.__set_attribute(file, cell.char_attribute)
                     else:
                         self.__set_attribute(file, self.current_attribute)
-
 
                     self.__write_inverted(file, self.__get_inverted(cell.char_inverted))
 
