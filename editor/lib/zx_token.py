@@ -4,6 +4,7 @@ import os.path
 from PIL import Image
 from typing import Optional
 from pathlib import Path
+from .coordinate import Coordinate
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
@@ -54,6 +55,17 @@ class ZXToken:
     def __clear_fonts(self):
         self.set_selected_font(self.DEFAULT_FONT)
         self.set_selected_glyph(self.DEFAULT_GLYPH)
+
+    def create_box(self, coord_a: Coordinate, coord_b: Coordinate):
+        coord_start, coord_end = Coordinate.get_box(coord_a, coord_b)
+        cell_copy = self.get_cell(coord_start.char_x, coord_start.char_y)
+        for char_x in range(coord_start.char_x, coord_end.char_x + 1):
+            self.set_cell(char_x, coord_start.char_y, char_code=140, char_attribute=cell_copy.char_attribute)
+            self.set_cell(char_x, coord_end.char_y, char_code=131, char_attribute=cell_copy.char_attribute)
+        for char_y in range(coord_start.char_y + 1, coord_end.char_y):
+            self.set_cell(coord_start.char_x, char_y, char_code=138, char_attribute=cell_copy.char_attribute)
+            self.set_cell(coord_end.char_x, char_y, char_code=133, char_attribute=cell_copy.char_attribute)
+
 
     def debug_cell(self, char_x, char_y):
         self.__lookup_cell(char_x, char_y).debug(self)

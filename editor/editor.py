@@ -11,7 +11,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
+from lib import ZXScreen, ZXFont, ZXGlyph, ZXToken, Coordinate, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenRegion, ScreenCoordinate, ScreenNavigator, KeyboardDialog, LicenseDialog, AboutDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -229,6 +229,16 @@ class ZXEditor(ttk.Frame):
             if self.__fill_character(self.region_highlight, ZXToken.UNDEFINED):
                 self.refresh_editor()
                 self.set_status(f"Clear {self.region_highlight}")
+
+    def clicked_create_box(self, event=None):
+        if self.region_highlight:
+            if min(self.region_highlight.size()) >= 3:
+                self.create_undo_region(self.region_highlight)
+                start, end = self.region_highlight.coordinates()
+                self.zx_token.create_box(start, end)
+                self.set_status(f"Created box {self.region_highlight}")
+            else:
+                self.set_status(f"Selected region too small")
 
     def clicked_fill_character(self, event=None):
         if self.region_highlight and CopyOperation.is_single_character(self.copied_cells):
@@ -1242,6 +1252,9 @@ class ContextMenu(ttk.Menu):
     FILL_COPIED_FORMAT = 'Copied format'
     FILL_COPIED_CHARACTER = 'Copied character'
 
+    CREATE = 'Create'
+    CREATE_BOX = 'Box'
+
     SET_INK = 'Set ink'
     SET_PAPER = 'Set paper'
 
@@ -1293,6 +1306,10 @@ class ContextMenu(ttk.Menu):
         self.paper_menu.add_command(label='White', command=lambda: self.set_paper('WHITE'))
         self.add_cascade(label=self.SET_PAPER, menu=self.paper_menu)
 
+        self.create_menu = ttk.Menu(self, tearoff=0)
+        self.create_menu.add_command(label=self.CREATE_BOX, command=self.zx_editor.clicked_create_box)
+        self.add_cascade(label=self.CREATE, menu=self.create_menu)
+
     def set_ink(self, colour_name: str):
         self.zx_editor.clicked_fill_ink(self.__get_colour(colour_name))    
 
@@ -1333,6 +1350,7 @@ class ContextMenu(ttk.Menu):
         self.fill_menu.entryconfigure(self.FILL_COPIED_CHARACTER, 
                                       state='normal' if in_highlight and CopyOperation.is_single_character(self.zx_editor.copied_cells) else 'disabled')
         self.entryconfigure(self.CLEAR_SELECTED, state='normal' if in_highlight else 'disabled')
+        self.create_menu.entryconfigure(self.CREATE_BOX, state='normal' if in_highlight else 'disabled')
 
     def hide_menu(self):
         self.unpost()

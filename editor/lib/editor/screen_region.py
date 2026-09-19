@@ -1,6 +1,6 @@
 import enum
 from typing import Generator
-from .. import ZXScreen, utilities
+from .. import ZXScreen, utilities, Coordinate
 
 
 class CellDirection(enum.Enum):
@@ -24,28 +24,9 @@ class CellDirection(enum.Enum):
                 raise ValueError(f'Unknown direction {self}')
 
 
-class ScreenCoordinate:
-    char_x: int
-    char_y: int
-
+class ScreenCoordinate(Coordinate):
     def __init__(self, char_x: int, char_y: int):
-        self.char_x = self.__filter_x(char_x)
-        self.char_y = self.__filter_y(char_y)
-
-    def __str__(self):
-        return f'(X={self.char_x}, Y={self.char_y})'
-
-    def __eq__(self, value):
-        return (self.char_x == value.x and self.char_y == value.y)
-
-    def get(self):
-        return (self.char_x, self.char_y)
-
-    def set(self, char_x, char_y) -> bool:
-        prev_x, prev_y = self.get()
-        self.char_x = self.__filter_x(char_x)
-        self.char_y = self.__filter_y(char_y)
-        return not (self.char_x == prev_x and self.char_y == prev_y)
+        super().__init__(char_x, char_y)
 
     def move(self, direction: CellDirection):
         match direction:
@@ -105,15 +86,6 @@ class ScreenCoordinate:
         char_x = min(coordinate.char_x + shape[0], ZXScreen.SCREEN_WIDTH_CHARS - 1)
         char_y = min(coordinate.char_y + shape[1], ZXScreen.SCREEN_HEIGHT_CHARS - 1)
         return ScreenCoordinate(char_x, char_y)
-
-    @classmethod
-    def __filter_x(cls, char_x):
-        return (char_x % ZXScreen.SCREEN_WIDTH_CHARS)
-
-    @classmethod
-    def __filter_y(cls, char_y):
-        return (char_y % ZXScreen.SCREEN_HEIGHT_CHARS)
-
 
 class ScreenNavigator:
     '''
