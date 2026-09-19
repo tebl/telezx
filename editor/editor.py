@@ -230,6 +230,20 @@ class ZXEditor(ttk.Frame):
                 self.refresh_editor()
                 self.set_status(f"Clear {self.region_highlight}")
 
+    def clicked_fill_character(self, event=None):
+        if self.region_highlight and CopyOperation.is_single_character(self.copied_cells):
+            if self.__fill_character(self.region_highlight, CopyOperation.get_single_character(self.copied_cells)):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
+    def clicked_fill_copied_format(self, event=None):
+        if self.region_highlight and self.copied_format:
+            if self.__fill_attribute(self.region_highlight, self.copied_format.attribute):
+                self.refresh_editor()
+                self.set_status(f"Fill {self.region_highlight}")
+        return 'break'
+
     def clicked_fill_from_cell(self, event=None):
         if self.region_highlight:
             if self.__fill_cell_from(self.region_highlight, self.zx_token.get_cell(self.cursor.char_x, self.cursor.char_y)):
@@ -251,18 +265,38 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f"Fill {self.region_highlight}")
         return 'break'
 
-    def clicked_fill_character(self, event=None):
-        if self.region_highlight and CopyOperation.is_single_character(self.copied_cells):
-            if self.__fill_character(self.region_highlight, CopyOperation.get_single_character(self.copied_cells)):
-                self.refresh_editor()
-                self.set_status(f"Fill {self.region_highlight}")
+    def clicked_fill_ink(self, colour: int, event=None):
+        region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
+        if self.__fill_calculated_attribute(region, 'ink', colour):
+            self.refresh_editor()
+            self.set_status(f"Fill {region}")
         return 'break'
 
-    def clicked_fill_copied_format(self, event=None):
-        if self.region_highlight and self.copied_format:
-            if self.__fill_attribute(self.region_highlight, self.copied_format.attribute):
-                self.refresh_editor()
-                self.set_status(f"Fill {self.region_highlight}")
+    def clicked_fill_paper(self, colour: int, event=None):
+        region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
+        if self.__fill_calculated_attribute(region, 'paper', colour):
+            self.refresh_editor()
+            self.set_status(f"Fill {region}")
+        return 'break'
+
+    def __fill_calculated_attribute(self, region: ScreenRegion, key: str, value: int):
+        if region:
+            self.create_undo_region(region)
+            for coord in region.cells(from_direction=CellDirection.NORTH):
+                attribute = self.zx_token.get_attribute(coord.char_x, coord.char_y)
+                parsed = ZXScreen.to_parsed_attribute(attribute)
+                parsed[key] = value
+                attribute = ZXScreen.to_attribute(**parsed)
+                if self.zx_token.is_defined(coord.char_x, coord.char_y):
+                    self.zx_token.set_attribute(coord.char_x, 
+                                                coord.char_y, 
+                                                char_attribute=attribute)
+                else:
+                    self.zx_token.set_cell(coord.char_x, 
+                                           coord.char_y, 
+                                           char_code=ZXFont.ASCII_SPACE, 
+                                           char_attribute=attribute)
+            self.set_status(f"Fill {region}")
         return 'break'
 
     def __fill_attribute(self, region: ScreenRegion, attribute) -> bool:
@@ -460,7 +494,7 @@ class ZXEditor(ttk.Frame):
         notice here in case I break things in the future.
 
         '''
-        self.create_undo_region(ScreenRegion.from_point(coordinate, shape))
+        self.create_undo_region(ScreenRegion.from_coordinate_shape(coordinate, shape))
 
     def create_undo_region(self, region: ScreenRegion):
         undo_operation = UndoOperation()
@@ -579,7 +613,7 @@ class ZXEditor(ttk.Frame):
         self.status.notify_cursor_changed()
 
     def set_highlight(self, char_x, char_y):
-        self.region_highlight = ScreenRegion.from_cursor(self.cursor, char_x, char_y)
+        self.region_highlight = ScreenRegion.from_coordinate_to(self.cursor, char_x, char_y)
         self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
 
@@ -1088,7 +1122,7 @@ class Main(ttk.Frame):
             char_x, char_y = self.__get_cursor_from(event.x, event.y)
             in_highlight = (self.zx_editor.region_highlight and self.zx_editor.region_highlight.is_inside(char_x, char_y))
 
-            self.context_menu.show_menu(event, in_highlight)
+            self.context_menu.show_menu(in_highlight, event)
 
     def mouse_select_region(self, event):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
@@ -1208,6 +1242,9 @@ class ContextMenu(ttk.Menu):
     FILL_COPIED_FORMAT = 'Copied format'
     FILL_COPIED_CHARACTER = 'Copied character'
 
+    SET_INK = 'Set ink'
+    SET_PAPER = 'Set paper'
+
     def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(zx_editor, takefocus=True, title='Context menu', tearoff=False)
         self.zx_editor = zx_editor
@@ -1232,7 +1269,42 @@ class ContextMenu(ttk.Menu):
         self.clear_menu.add_command(label=self.CLEAR_SELECTED_CHARACTERS, command=self.zx_editor.clicked_clear_characters)
         self.add_cascade(label=self.CLEAR_SELECTED, menu=self.clear_menu)
 
-    def show_menu(self, event, in_highlight: bool):
+        self.add_separator()
+
+        self.ink_menu = ttk.Menu(self, tearoff=0)
+        self.ink_menu.add_command(label='Black', command=lambda: self.set_ink('BLACK'))
+        self.ink_menu.add_command(label='Blue', command=lambda: self.set_ink('BLUE'))
+        self.ink_menu.add_command(label='Red', command=lambda: self.set_ink('RED'))
+        self.ink_menu.add_command(label='Magenta', command=lambda: self.set_ink('MAGENTA'))
+        self.ink_menu.add_command(label='Green', command=lambda: self.set_ink('GREEN'))
+        self.ink_menu.add_command(label='Cyan', command=lambda: self.set_ink('CYAN'))
+        self.ink_menu.add_command(label='Yellow', command=lambda: self.set_ink('YELLOW'))
+        self.ink_menu.add_command(label='White', command=lambda: self.set_ink('WHITE'))
+        self.add_cascade(label=self.SET_INK, menu=self.ink_menu)
+
+        self.paper_menu = ttk.Menu(self, tearoff=0)
+        self.paper_menu.add_command(label='Black', command=lambda: self.set_paper('BLACK'))
+        self.paper_menu.add_command(label='Blue', command=lambda: self.set_paper('BLUE'))
+        self.paper_menu.add_command(label='Red', command=lambda: self.set_paper('RED'))
+        self.paper_menu.add_command(label='Magenta', command=lambda: self.set_paper('MAGENTA'))
+        self.paper_menu.add_command(label='Green', command=lambda: self.set_paper('GREEN'))
+        self.paper_menu.add_command(label='Cyan', command=lambda: self.set_paper('CYAN'))
+        self.paper_menu.add_command(label='Yellow', command=lambda: self.set_paper('YELLOW'))
+        self.paper_menu.add_command(label='White', command=lambda: self.set_paper('WHITE'))
+        self.add_cascade(label=self.SET_PAPER, menu=self.paper_menu)
+
+    def set_ink(self, colour_name: str):
+        self.zx_editor.clicked_fill_ink(self.__get_colour(colour_name))    
+
+    def set_paper(self, colour_name: str):
+        self.zx_editor.clicked_fill_paper(self.__get_colour(colour_name))    
+
+    def __get_colour(self, colour_name: str):
+        if colour_name in ZXScreen.COLOURS:
+            return ZXScreen.COLOURS[colour_name]
+        return ZXScreen.COLOURS['BLACK']
+
+    def show_menu(self, in_highlight: bool, event=None):
         try:
             self.__reconfigure(in_highlight)
 
@@ -1251,7 +1323,6 @@ class ContextMenu(ttk.Menu):
     def __reconfigure(self, in_highlight):
         self.copy_menu.entryconfigure(self.COPY_SELECTION, 
                                       state='normal' if in_highlight else 'disabled')
-
         self.entryconfigure(self.FILL, state='normal' if in_highlight else 'disabled')
         self.fill_menu.entryconfigure(self.FILL_CELL, 
                                       state='normal' if in_highlight else 'disabled')
@@ -1261,7 +1332,6 @@ class ContextMenu(ttk.Menu):
                                       state='normal' if in_highlight and self.zx_editor.copied_format else 'disabled')
         self.fill_menu.entryconfigure(self.FILL_COPIED_CHARACTER, 
                                       state='normal' if in_highlight and CopyOperation.is_single_character(self.zx_editor.copied_cells) else 'disabled')
-
         self.entryconfigure(self.CLEAR_SELECTED, state='normal' if in_highlight else 'disabled')
 
     def hide_menu(self):

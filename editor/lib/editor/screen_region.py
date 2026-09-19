@@ -359,7 +359,21 @@ class ScreenRegion:
         )
 
     @classmethod
-    def from_cursor(cls, cursor: ScreenCoordinate, char_x: int, char_y: int):
+    def from_coordinate(cls, coordinate: ScreenCoordinate) -> ScreenRegion:
+        return ScreenRegion(coordinate, coordinate)
+
+    @classmethod
+    def from_coordinate_shape(cls, coordinate: ScreenCoordinate, shape: tuple[int, int]) -> ScreenRegion:
+        '''
+        Create a region from a given coordinate specified by a shape (width, height).
+        '''
+        return ScreenRegion(
+            coordinate, 
+            ScreenCoordinate.combine_with_shape(coordinate, shape)
+        )
+
+    @classmethod
+    def from_coordinate_to(cls, coordinate: ScreenCoordinate, char_x: int, char_y: int):
         '''
         Creates a region between the cursor and the specified (char_x, char_y)
         coordinate. Note that when these two points are the same we end up with
@@ -367,18 +381,8 @@ class ScreenRegion:
         on the screen.
         '''
         return cls.from_tuples(
-            (cursor.char_x, cursor.char_y),
+            (coordinate.char_x, coordinate.char_y),
             (char_x, char_y)
-        )
-
-    @classmethod
-    def from_point(cls, coordinate: ScreenCoordinate, shape: tuple[int, int]) -> ScreenRegion:
-        '''
-        Create a region from a given coordinate specified by a shape (width, height).
-        '''
-        return ScreenRegion(
-            coordinate, 
-            ScreenCoordinate.combine_with_shape(coordinate, shape)
         )
 
     @classmethod
