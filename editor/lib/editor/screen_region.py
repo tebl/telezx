@@ -213,6 +213,9 @@ class ScreenRegion:
     coordinates themselves may be swapped around to ensure that we always have
     offsets that are positive relative to start coordinate.
     '''
+    LAST_X = ZXScreen.SCREEN_WIDTH_CHARS - 1
+    LAST_Y = ZXScreen.SCREEN_HEIGHT_CHARS - 1
+
     coord_start: ScreenCoordinate
     coord_end: ScreenCoordinate
 

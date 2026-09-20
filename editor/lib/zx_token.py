@@ -12,7 +12,10 @@ from .utilities import update_tree, get_project_root, HexYAML
 
 class ZXToken:
     UNDEFINED = -1
+    'Used when a value should revert to default'
     UNSPECIFIED = -2
+    'Used as method parameter, indicates that a parameter is unused'
+
     DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
@@ -116,7 +119,7 @@ class ZXToken:
 
     def get_title(self):
         parts = ['*'] if self.has_changes() else []
-        if self.is_blank():
+        if self.is_unnamed_document():
             parts.append('Untitled')
         else:
             parts.append(self.document_path)
@@ -130,12 +133,12 @@ class ZXToken:
     def has_changes(self):
         return self.changes
 
-    def is_blank(self):
+    def is_unnamed_document(self):
         if self.document_path == None:
             return True
         return False
     
-    def is_defined(self, char_x, char_y):
+    def is_cell_defined(self, char_x, char_y):
         cell = self.__lookup_cell(char_x, char_y)
         return not cell.char_code == ZXToken.UNDEFINED
 

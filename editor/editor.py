@@ -58,7 +58,7 @@ class ZXEditor(ttk.Frame):
         self.__create_boot_screen()
         self.copied_cells = None
         self.copied_format = None
-        self.undo_list: list[UndoOperation] = []
+        self.undo_memory: list[UndoOperation] = []
 
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
@@ -69,7 +69,7 @@ class ZXEditor(ttk.Frame):
         self.sidebar = Sidebar(self)
         self.sidebar.grid(row=1, column=1, sticky=NE)
 
-        self.main = Main(self, zx_editor=self)
+        self.main = DisplayArea(self, zx_editor=self)
         self.main.grid(row=1, column=0, sticky=NW)
 
         self.status = Status(self, zx_editor=self)
@@ -129,7 +129,7 @@ class ZXEditor(ttk.Frame):
         way of moving content between documents. 
         '''
         self.region_highlight = None
-        self.undo_list: list[UndoOperation] = []
+        self.undo_memory: list[UndoOperation] = []
 
     def clicked_about(self, event=None):
         AboutDialog(self, self).show()
@@ -178,7 +178,7 @@ class ZXEditor(ttk.Frame):
                                        self.cursor.char_y))
             self.zx_token.set_cell(self.cursor.char_x, 
                                    self.cursor.char_y)            
-        self.undo_list.append(undo_operation)
+        self.undo_memory.append(undo_operation)
 
         self.refresh_editor()
         self.set_status(f"Cut {self.copied_cells}")
@@ -231,6 +231,10 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f"Clear {self.region_highlight}")
 
     def clicked_create_box(self, event=None):
+        '''
+        Create a box around the highlighted region, allowing us to easily
+        section off the screen.
+        '''
         if self.region_highlight:
             if min(self.region_highlight.size()) >= 3:
                 self.create_undo_region(self.region_highlight)
@@ -239,6 +243,42 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f"Created box {self.region_highlight}")
             else:
                 self.set_status(f"Selected region too small")
+
+    def clicked_create_skirt(self, event=None):
+        '''
+        Creates a skirt on line 22 that acts as a spacer between page contents
+        and the underlying header (rendered by TeleZX). The position of the
+        cursor is used as a way to define attribute details.
+        '''
+        region = ScreenRegion.from_tuples((0, 22), (31, 22))
+        self.create_undo_region(region)
+
+        cursor_attribute = self.zx_token.get_attribute(self.cursor.char_x, self.cursor.char_y)
+        parsed_attribute = ZXScreen.to_parsed_attribute(cursor_attribute)
+        parsed_attribute['ink'] = ZXScreen.BLACK
+        cursor_attribute = ZXScreen.to_attribute(**parsed_attribute)
+
+        for char_x in range(0, ZXScreen.SCREEN_WIDTH_CHARS):
+            self.zx_token.set_cell(char_x, 22, char_code=140, char_attribute=cursor_attribute)
+        return 'break'
+
+    def clicked_create_tractor(self, event=None):
+        '''
+        Creates a tractor-feed pattern on the edges. Cells with a character
+        set will not be updated (as we don't want to destroy data we have no
+        idea about the importance of).
+        '''
+        undo_operation = UndoOperation()
+        self.undo_memory.append(undo_operation)
+
+        for char_y in range(1, ZXScreen.SCREEN_HEIGHT_CHARS - 2):
+            if not self.zx_token.is_cell_defined(0, char_y):
+                undo_operation.add_cell(0, char_y, self.zx_token.get_cell(0, char_y))
+                self.zx_token.set_cell(0, char_y, char_code=136)
+            if not self.zx_token.is_cell_defined(31, char_y):
+                undo_operation.add_cell(31, char_y, self.zx_token.get_cell(31, char_y))
+                self.zx_token.set_cell(31, char_y, char_code=132)
+        return 'break'
 
     def clicked_fill_character(self, event=None):
         if self.region_highlight and CopyOperation.is_single_character(self.copied_cells):
@@ -297,7 +337,7 @@ class ZXEditor(ttk.Frame):
                 parsed = ZXScreen.to_parsed_attribute(attribute)
                 parsed[key] = value
                 attribute = ZXScreen.to_attribute(**parsed)
-                if self.zx_token.is_defined(coord.char_x, coord.char_y):
+                if self.zx_token.is_cell_defined(coord.char_x, coord.char_y):
                     self.zx_token.set_attribute(coord.char_x, 
                                                 coord.char_y, 
                                                 char_attribute=attribute)
@@ -442,13 +482,13 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def __load_font(self):
-        self.sidebar.symbols.notify_font_changed(self.zx_token.font_path)
+        self.sidebar.characters.notify_font_changed(self.zx_token.font_path)
 
     def __load_glyph(self):
-        self.sidebar.symbols.notify_glyph_changed(self.zx_token.glyph_path)
+        self.sidebar.characters.notify_glyph_changed(self.zx_token.glyph_path)
 
     def clicked_save(self, event=None):
-        if self.zx_token.is_blank():
+        if self.zx_token.is_unnamed_document():
             try:
                 filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], defaultextension='.zxtoken', confirmoverwrite=True)
                 if not filename:
@@ -464,7 +504,7 @@ class ZXEditor(ttk.Frame):
         changes = False
         cells_ignored = 0
         if self.copied_cells:
-            self.create_undo(coordinate=self.cursor, shape=self.copied_cells.shape)
+            self.create_undo_shape(coordinate=self.cursor, shape=self.copied_cells.shape)
 
             region: ScreenRegion = self.region_highlight if self.region_highlight else self.region_screen
             for cell_data in self.copied_cells.cells:
@@ -485,8 +525,8 @@ class ZXEditor(ttk.Frame):
 
     def clicked_undo(self, event=None):
         changes = False
-        if self.undo_list:
-            undo_operation: UndoOperation = self.undo_list.pop()
+        if self.undo_memory:
+            undo_operation: UndoOperation = self.undo_memory.pop()
             for (char_x, char_y), cell_copy in undo_operation.items():
                 if self.zx_token.set_cell(char_x, char_y, cell_copy=cell_copy):
                     changes = True
@@ -496,7 +536,7 @@ class ZXEditor(ttk.Frame):
         else:
             self.set_status(f"Undo memory empty!")
         
-    def create_undo(self, coordinate: ScreenCoordinate, shape: tuple[int, int]):
+    def create_undo_shape(self, coordinate: ScreenCoordinate, shape: tuple[int, int]):
         '''
         NB! The implementation of ScreenRegion will recreate the coordinate
         from values provided, this ensures that we're tracking the values
@@ -511,9 +551,9 @@ class ZXEditor(ttk.Frame):
         for c in region.cells(from_direction=CellDirection.NORTH):
             undo_operation.add_cell(c.char_x, c.char_y, self.zx_token.get_cell(c.char_x, c.char_y))
         if undo_operation.size():
-            self.undo_list.append(undo_operation)
-        if (len(self.undo_list) > self.MAX_UNDO):
-            self.undo_list.pop(0)
+            self.undo_memory.append(undo_operation)
+        if (len(self.undo_memory) > self.MAX_UNDO):
+            self.undo_memory.pop(0)
 
     def clicked_copy_attribute(self, event=None):
         self.copied_format = self.get_palette_from(self.cursor) 
@@ -522,13 +562,13 @@ class ZXEditor(ttk.Frame):
 
     def clicked_paste_attribute(self, event=None):
         # Check if cell is defined
-        if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
+        if not self.zx_token.is_cell_defined(self.cursor.char_x, self.cursor.char_y):
             return 'break'
         # Check if we have an attribute
         if not self.copied_format:
             return 'break'
 
-        self.create_undo(self.cursor, (1, 1))
+        self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
         changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.copied_format.attribute)
         changed = True if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.copied_format.is_inverted) else False
         if changed:
@@ -566,12 +606,12 @@ class ZXEditor(ttk.Frame):
         '''
         return self.main.get_canvas_position(char_x, char_y)
 
-    def get_palette_from(self, coord: ScreenCoordinate) -> PaletteData:
+    def get_palette_from(self, coord: ScreenCoordinate) -> ColourData:
         '''
         Get palette data from a location on the screen in a format suitable
         for copy/paste. 
         '''
-        return PaletteData(self.zx_token.get_attribute(coord.char_x, coord.char_y), 
+        return ColourData(self.zx_token.get_attribute(coord.char_x, coord.char_y), 
                            self.zx_token.get_inverted(coord.char_x, coord.char_y))
 
     def keyboard_event(self, event):
@@ -654,7 +694,7 @@ class ZXEditor(ttk.Frame):
 
     def __clear_cursor_position(self):
         char_x, char_y = self.cursor.get()
-        self.undo_list.append(UndoOperation().add_cell(char_x, 
+        self.undo_memory.append(UndoOperation().add_cell(char_x, 
                                                        char_y, 
                                                        self.zx_token.get_cell(char_x, 
                                                                               char_y)))
@@ -738,7 +778,7 @@ class ZXEditor(ttk.Frame):
                     undo_operation,
                     nudge)
             if undo_operation.size():
-                self.undo_list.append(undo_operation)
+                self.undo_memory.append(undo_operation)
             self.region_highlight.transpose(direction)
             self.move_cursor(self.cursor.char_x + delta_x, self.cursor.char_y + delta_y)
 
@@ -793,7 +833,7 @@ class ZXEditor(ttk.Frame):
         self.status.notify_cursor_changed()
 
     def set_cursor_character(self, char_code):
-        self.create_undo(self.cursor, (1, 1))
+        self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
         changed = False
         if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code, sync_screen=False):
             changed = True
@@ -810,18 +850,18 @@ class ZXEditor(ttk.Frame):
 
     def set_cursor_attribute(self, attribute):
         self.set_sticky(True)
-        if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
+        if not self.zx_token.is_cell_defined(self.cursor.char_x, self.cursor.char_y):
             return
-        self.create_undo(self.cursor, (1, 1))
+        self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
         changed = self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, attribute)
         if changed:
             self.refresh_canvas()
 
     def set_cursor_inverted(self, is_inverted):
         self.set_sticky(True)
-        if not self.zx_token.is_defined(self.cursor.char_x, self.cursor.char_y):
+        if not self.zx_token.is_cell_defined(self.cursor.char_x, self.cursor.char_y):
             return
-        self.create_undo(self.cursor, (1, 1))
+        self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
         changed = self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, is_inverted)
         if changed:
             self.refresh_canvas()
@@ -994,6 +1034,11 @@ class Menu(ttk.Frame):
         self.button_grid.config(image=img_name)
 
 class Canvas(ttk.Frame):
+    '''
+    A small canvas for rendering palette options such as individual characters
+    for printing to main display area, alternatively for details such as ink
+    and paper.
+    '''
     SCALE_MASTER = 0
 
     def __init__(self, master, zx_editor, view_width, view_height, default_fill=0, style='bg.TFrame', scale_mode=0, label_padx=5, label_pady=5):
@@ -1036,7 +1081,7 @@ class Canvas(ttk.Frame):
         self.pixel_data[:] = rgb_data
     
 
-class Main(ttk.Frame):
+class DisplayArea(ttk.Frame):
     NOGRID_Y_OFFSET = 2
     HIGHLIGHT_EFFECT_AVERAGE = 0
     HIGHLIGHT_EFFECT_DARKEN = 1
@@ -1254,6 +1299,8 @@ class ContextMenu(ttk.Menu):
 
     CREATE = 'Create'
     CREATE_BOX = 'Box'
+    CREATE_SKIRT = 'Page skirt (from cursor)'
+    CREATE_TRACTOR = 'Tractor feed'
 
     SET_INK = 'Set ink'
     SET_PAPER = 'Set paper'
@@ -1308,6 +1355,8 @@ class ContextMenu(ttk.Menu):
 
         self.create_menu = ttk.Menu(self, tearoff=0)
         self.create_menu.add_command(label=self.CREATE_BOX, command=self.zx_editor.clicked_create_box)
+        self.create_menu.add_command(label=self.CREATE_SKIRT, command=self.zx_editor.clicked_create_skirt)
+        self.create_menu.add_command(label=self.CREATE_TRACTOR, command=self.zx_editor.clicked_create_tractor)
         self.add_cascade(label=self.CREATE, menu=self.create_menu)
 
     def set_ink(self, colour_name: str):
@@ -1360,14 +1409,14 @@ class Sidebar(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
 
-        self.palette = Palette(master=self, zx_editor=master)
+        self.palette = ColourPalette(master=self, zx_editor=master)
         self.palette.pack(fill=X, pady=0)
 
-        self.symbols = Symbols(self, zx_editor=master)
-        self.symbols.pack(fill=X, pady=0)
+        self.characters = CharacterPalette(self, zx_editor=master)
+        self.characters.pack(fill=X, pady=0)
 
 
-class Palette(ttk.Frame):
+class ColourPalette(ttk.Frame):
     def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(master, style='bg.TFrame')
         self.zx_editor = zx_editor
@@ -1389,7 +1438,7 @@ class Palette(ttk.Frame):
         frame = ttk.Frame(self)
         frame.grid(row=1, column=0)
         for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
-            widget = PaletteColour(frame, self.zx_editor, self, type=PaletteColour.TYPE_INK, colour=ink_value)
+            widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_INK, colour=ink_value)
             widget.grid(row=ink_value, column=0, padx=0, pady=0)
             widget.refresh()
             self.ink_widgets.append(widget)
@@ -1402,7 +1451,7 @@ class Palette(ttk.Frame):
         frame = ttk.Frame(self, style="danger.TFrame")
         frame.grid(row=1, column=1)
         for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
-            widget = PaletteColour(frame, self.zx_editor, self, type=PaletteColour.TYPE_PAPER, colour=ink_value)
+            widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_PAPER, colour=ink_value)
             widget.grid(row=ink_value, column=0, padx=0, pady=0)
             widget.refresh()
             self.ink_widgets.append(widget)
@@ -1512,7 +1561,7 @@ class Palette(ttk.Frame):
             self.current_ink)
     
     def get_dataset(self):
-        return PaletteData(self.get_attribute(),
+        return ColourData(self.get_attribute(),
                            self.get_inverted())
 
     def get_inverted(self):
@@ -1549,7 +1598,7 @@ class Palette(ttk.Frame):
         self.refresh()
 
 
-class PaletteData():
+class ColourData():
     def __init__(self, attribute, is_inverted):
         self.attribute = attribute
         self.is_inverted = is_inverted
@@ -1567,7 +1616,7 @@ class PaletteData():
         return ZXScreen.to_tokens(self.attribute)
     
 
-class PaletteColour(Canvas):
+class ColourOption(Canvas):
     TYPE_INK = 0
     TYPE_PAPER = 1
 
@@ -1604,7 +1653,7 @@ class PaletteColour(Canvas):
         return False
 
     
-class Symbols(ttk.Frame):
+class CharacterPalette(ttk.Frame):
     NUM_COLUMNS = 8
 
     def __init__(self, master, zx_editor):
@@ -1631,7 +1680,7 @@ class Symbols(ttk.Frame):
         grid_row = 0
         grid_column = 0
         for char_index in range(font_data.get_glyph_count()):
-            widget = Glyph(frame, self.zx_editor, char_index, value_offset, scale_mode=3)
+            widget = CharacterOption(frame, self.zx_editor, char_index, value_offset, scale_mode=3)
             widget.render_rgb(font_data.get_offset_rgb(char_index))
             widget.flip_canvas()
             widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
@@ -1655,7 +1704,7 @@ class Symbols(ttk.Frame):
         for widget in self.font_widgets:
             widget.notify_scale_changed(value)
 
-class Glyph(Canvas):
+class CharacterOption(Canvas):
     def __init__(self, master, zx_editor, glyph_idx, value_offset, scale_mode=0):
         super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=scale_mode, label_padx=0, label_pady=0)
         self.glyph_idx = glyph_idx
