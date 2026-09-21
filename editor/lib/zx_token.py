@@ -16,7 +16,9 @@ class ZXToken:
     UNSPECIFIED = -2
     'Used as method parameter, indicates that a parameter is unused'
 
-    DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE)
+    DEFAULT_INK = ZXScreen.BLACK
+    DEFAULT_PAPER = ZXScreen.WHITE
+    DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=DEFAULT_INK, paper=DEFAULT_PAPER)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
     FILE_EXTENSION = '.zxtoken'

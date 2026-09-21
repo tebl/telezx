@@ -93,11 +93,12 @@ class TestZXDocument(unittest.TestCase):
         self.assertTrue(self.registry.save())
 
     def test_record_persistence(self):
-        self.registry.sync_record(0x1000, 'This is a test', 'Test', ['test_tag', 'test_tag2'])
+        self.registry.sync_record(0x1000, 'This is a test', 'Test', ['test_tag', 'test_tag2'], include_toc=False)
         record: ZXRegistryEntry = self.registry.lookup(0x1000)
         self.assertIsNotNone(record)
         self.assertIsNotNone(self.registry.lookup_tag('test_tag'))
         self.assertIsNotNone(self.registry.lookup_tag('test_tag2'))
+        self.assertFalse(record.include_toc)
         self.assertTrue(self.registry.save())
 
         self.registry = ZXRegistry.from_file(document_path=self.registry_path, allow_create=False)
@@ -105,6 +106,7 @@ class TestZXDocument(unittest.TestCase):
         self.assertIsNotNone(record)
         self.assertIsNotNone(self.registry.lookup_tag('test_tag'))
         self.assertIsNotNone(self.registry.lookup_tag('test_tag2'))
+        self.assertFalse(record.include_toc)
 
         tag = self.registry.lookup_tag('test_tag')
         self.assertIsNotNone(tag)
@@ -122,7 +124,20 @@ class TestZXDocument(unittest.TestCase):
                                export_link_b=0x1002,
                                export_link_b_txt='LNK_B',
                                export_link_c=0x1003,
-                               export_link_c_txt='LNK_C')
+                               export_link_c_txt='LNK_C',
+                               export_include_toc=True)
+        self.registry.sync_tag('exclude_toc', 
+                               tag_group='parent_tag', 
+                               export_id=0x1000,
+                               export_description='description',
+                               export_abbreviation='abbreviation',
+                               export_link_a=0x1001,
+                               export_link_a_txt='LNK_A',
+                               export_link_b=0x1002,
+                               export_link_b_txt='LNK_B',
+                               export_link_c=0x1003,
+                               export_link_c_txt='LNK_C',
+                               export_include_toc=False)
         self.assertTrue(self.registry.save())
 
         # Reload from file
@@ -138,6 +153,10 @@ class TestZXDocument(unittest.TestCase):
         self.assertEqual(tag.export_link_b_txt, 'LNK_B')
         self.assertEqual(tag.export_link_c, 0x1003)
         self.assertEqual(tag.export_link_c_txt, 'LNK_C')
+        self.assertTrue(tag.export_include_toc)
+
+        tag = self.registry.lookup_tag('exclude_toc')
+        self.assertFalse(tag.export_include_toc)
 
     def test_random_toc(self):
         allowed_letters = string.ascii_uppercase + '#'
@@ -162,7 +181,7 @@ class TestZXDocument(unittest.TestCase):
         self.assertEqual(len(toc['C']), 0)
 
     def test_tag_alphabetical(self):
-        self.registry.sync_record(0x0004, 'Page 4', 'p4', tags=['the_sun'])
+        self.registry.sync_record(0x0004, 'Page 3', 'p3', tags=['the_sun'])
         self.registry.sync_record(0x1000, 'An article', 'aaaa', tags=['test_tag'])
         self.registry.sync_record(0x0002, 'Bzzzz', 'Bzzz', tags=['test_tag'])
         self.registry.sync_record(0x1001, 'Believe', 'truth', tags=['test_tag'])
@@ -194,3 +213,12 @@ class TestZXDocument(unittest.TestCase):
         self.assertEqual(self.registry.get_tag_dependency_tree(only_exportable=True), 
                          ['genre_platformer', 'genre_adventure', 'genre_shooter', 'genre_scrolling', 'genre_action']
         )
+
+    def test_include_toc(self):
+        self.registry.sync_record(0x0004, 'Page 3', 'p3', tags=['the_sun'], include_toc=True)
+        toc: dict = self.registry.generate_TOC_AZ()
+        self.assertEqual(len(toc['P']), 1)
+
+        self.registry.sync_record(0x0004, 'Page 3', 'p3', tags=['the_sun'], include_toc=False)
+        toc: dict = self.registry.generate_TOC_AZ()
+        self.assertEqual(len(toc['P']), 0)

@@ -13,9 +13,9 @@ class RepositoryHelper:
         self.logger = ZXLogger.get_instance()
         self.repository = Path(repository)
         self.src_path = self.repository / ZXDocument.PATH_SRC
-        self.asset_path = self.src_path / ZXDocument.PATH_ASSETS
+        self.asset_path = self.repository / ZXDocument.PATH_ASSETS
         self.out_path = self.repository / ZXDocument.PATH_OUT
-        self.registry_path = self.repository / 'src' / f'{self.DEFAULT_REPOSITORY}{ZXRegistry.FILE_EXTENSION}'
+        self.registry_path = self.repository / f'{self.DEFAULT_REPOSITORY}{ZXRegistry.FILE_EXTENSION}'
 
     def create_path_structure(self, exist_ok=True) -> bool:
         self.src_path.mkdir(exist_ok=exist_ok)
@@ -33,6 +33,9 @@ class RepositoryHelper:
         zx_token = ZXToken.from_file(frame_path)
         zx_token.set_document(page_path)
         return zx_token
+
+    def relative_path(self, path: Path) -> Path:
+        return path.relative_to(utilities.get_project_root())
 
     def resolve_frame_path(self, frame_name: str) -> Path:
         path = self.asset_path / f'{frame_name}{ZXToken.FILE_EXTENSION}'

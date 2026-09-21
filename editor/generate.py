@@ -50,7 +50,13 @@ def cmd_assets(args, parser: ArgumentParser):
 
     helper = AssetHelper(repository)
     if args.create_frames:
+        print(f'Creating frames in {helper.relative_path(helper.asset_path)}:')
         helper.create_frames()
+
+    if args.default_frame:
+        print(f'Copying {args.default_frame} frames to default:')
+        helper.copy_default_frame(args.default_frame, args.copy_global)
+
     print('Done.')
 
 def cmd_documents(args, parser: ArgumentParser):
@@ -146,7 +152,6 @@ def cmd_export(args, parser: ArgumentParser):
     '''
     repository: Path = get_repository(args.repository, parser)
     print_repository_details(repository)
-    registry = get_registry(repository)
 
     documents_path: Path = repository / 'src'
     documents_path.mkdir(exist_ok=True)
@@ -419,14 +424,14 @@ def cmd_toc(args, parser: ArgumentParser):
     print()
 
     helper = RegistryHelper(args.repository)
-    if args.update or args.update_toc:
-        print('Updating TOC:')
-        helper.create_toc_page()
-
     if args.update or args.update_tags:
         print('Updating tags:')
         for tag_name in helper.get_exportable_tags():
             helper.create_tag_page(tag_name)
+
+    if args.update or args.update_toc:
+        print('Updating TOC:')
+        helper.create_toc_page()
     print('Done.')
 
 def cmd_transform(args, parser: ArgumentParser):
@@ -508,7 +513,7 @@ def get_repository(path: Path, parser: ArgumentParser) -> Path:
     return path
 
 def get_registry(repository: Path, allow_create=True) -> ZXRegistry:
-    registry_path = repository / 'src' / f'telezx{ZXRegistry.FILE_EXTENSION}'
+    registry_path = repository / f'telezx{ZXRegistry.FILE_EXTENSION}'
     return ZXRegistry.from_file(registry_path, allow_create)
 
 def print_document_details(document: ZXDocument, registry: ZXRegistry, action=None):
@@ -594,7 +599,10 @@ def main():
     parser_assets = subparsers.add_parser('assets', help='Manage assets')
     parser_assets.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     group = parser_assets.add_mutually_exclusive_group(required=True)
-    group.add_argument('--create-frames', action='store_true', help="Create frames of different colours")
+    group.add_argument('-f', '--create-frames', action='store_true', help="Create frames of different colours")
+    group.add_argument('--default-frame', choices=[c.lower() for c in ZXScreen.COLOURS.keys()], help="Copy specified coloured frames to default set")
+    group = parser_assets.add_argument_group('Modifiers')
+    group.add_argument('--copy-global', action='store_true', help="Default frame copied to software assets instead of repository")
     parser_assets.set_defaults(function=cmd_assets)
 
     parser_attribute = subparsers.add_parser('attribute', help='Colour attributes')

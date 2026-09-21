@@ -134,14 +134,14 @@ class RegistryHelper(RepositoryHelper):
 
     def __get_page(self, document: ZXDocument) -> ZXToken:
         return self.from_frame(
-            self.resolve_frame_path('frame_default'),
+            self.resolve_frame_path('default_frame'),
             self.__page_path(document)
         )
 
     def __get_titlepage(self, document: ZXDocument, page_title) -> ZXToken:
         page_title = page_title[0:(ZXScreen.SCREEN_WIDTH_CHARS-2)]
         zx_token = self.from_frame(
-            self.resolve_frame_path('frame_default_title'),
+            self.resolve_frame_path('default_frame_title'),
             self.__page_path(document)
         )
         zx_token.set_string(self.__centered_position(page_title), 2, page_title)
@@ -178,7 +178,7 @@ class RegistryHelper(RepositoryHelper):
         self.logger.info('Creating', tag.export_description, 'on', utilities.format_padded_id(tag.export_id))
         entries = self.registry.generate_tag_AZ(tag_name)
 
-        target_directory = self.__create_path(tag.export_id, path_hint=tag_name, log_indent=(log_indent+1))
+        target_directory = self.__create_path(tag.export_id, path_hint=f'TAG {tag_name}', log_indent=(log_indent+1))
         with self.__get_document(tag.export_id, tag.export_description, tag.export_abbreviation, target_directory) as document:
             document.tags = tag.get_export_tags()
             if tag.export_link_a is not None:
@@ -190,6 +190,7 @@ class RegistryHelper(RepositoryHelper):
             if tag.export_link_c is not None:
                 document.link_c = tag.export_link_c
                 document.link_c_txt = tag.export_link_c_txt
+            document.include_toc = tag.export_include_toc
 
             current_y = 3
             page_id = 0
@@ -223,8 +224,8 @@ class RegistryHelper(RepositoryHelper):
                     current_page.set_string(5, current_y, self.__pad_entry(description, max_length=21))
                     current_page.set_string(27, current_y, utilities.format_padded_id(link_id), char_attribute=self.COLOUR_REFERENCE)
 
-                current_page.save()
-                ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
+            current_page.save()
+            ZXPage_Token(parent=document, zxtoken_path=current_page.document_path, export_format='TKN')
 
             document.save(log_indent=(log_indent+1))
             document.export(self.out_path, self.registry, sync_registry=True, log_indent=(log_indent+1))

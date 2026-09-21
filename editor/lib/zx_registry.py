@@ -30,7 +30,11 @@ class ZXRegistry:
         results = {}
         for char in self.LETTERS_AZ:
             results[char] = []
+
+        data: ZXRegistryEntry
         for (document_id, data) in self.__sorted_description(self.entries):
+            if not data.include_toc:
+                continue
             if not data.description:
                 continue
             letter = data.description[0].upper() if data.description[0].isalpha() else '#'
@@ -120,24 +124,25 @@ class ZXRegistry:
                 self.ignored.remove(document_id)
 
 
-    def sync_record(self, document_id: int, description: str|None=None, abbreviation: str|None=None, tags:list[str]|None=None) -> bool:
+    def sync_record(self, document_id: int, description: str|None=None, abbreviation: str|None=None, tags: list[str]|None=None, include_toc: bool=True) -> bool:
         if document_id in self.ignored:
             return False
         
-        record = self.__get_updated_record(document_id, description, abbreviation, tags)
+        record = self.__get_updated_record(document_id, description=description, abbreviation=abbreviation, tags=tags, include_toc=include_toc)
         if record.is_valid():
             self.entries[document_id] = record
             return True
         self.__delete_record(document_id)
         return False
 
-    def __get_updated_record(self, document_id: int, description: str|None=None, abbreviation: str|None=None, tags:list[str]|None=None) -> ZXRegistryEntry:
+    def __get_updated_record(self, document_id: int, description: str|None=None, abbreviation: str|None=None, tags:list[str]|None=None, include_toc: bool=True) -> ZXRegistryEntry:
         if document_id in self.entries:
             record = self.entries[document_id]
             record.description = description
             record.abbreviation = abbreviation
+            record.include_toc = include_toc
         else:
-            record = ZXRegistryEntry(document_id, description, abbreviation)
+            record = ZXRegistryEntry(document_id, description=description, abbreviation=abbreviation, include_toc=include_toc)
 
         # Sync tags
         tags_removed = [ tag_name for tag_name in record.tags ]
@@ -179,7 +184,7 @@ class ZXRegistry:
             del self.tags[tag_name]
         return True
 
-    def sync_tag(self, name: str, tag_group: str|None=None, export_id: int|None=None, export_description: str|None=None, export_abbreviation: str|None=None, export_link_a: int|None=None, export_link_a_txt: str|None=None, export_link_b: int|None=None, export_link_b_txt: str|None=None, export_link_c: int|None=None, export_link_c_txt: str|None=None) -> ZXRegistryTag:
+    def sync_tag(self, name: str, tag_group: str|None=None, export_id: int|None=None, export_description: str|None=None, export_abbreviation: str|None=None, export_link_a: int|None=None, export_link_a_txt: str|None=None, export_link_b: int|None=None, export_link_b_txt: str|None=None, export_link_c: int|None=None, export_link_c_txt: str|None=None, export_include_toc: bool=True) -> ZXRegistryTag:
         name = self.__clean_tag_name(name)
         tag = self.tags[name] if name in self.tags else ZXRegistryTag(name)
         self.tags[name] = tag
@@ -194,6 +199,7 @@ class ZXRegistry:
         tag.export_link_a_txt = export_link_a_txt
         tag.export_link_b_txt = export_link_b_txt
         tag.export_link_c_txt = export_link_c_txt
+        tag.export_include_toc = export_include_toc
         return self.tags[name]
 
     def __clean_tag_name(self, name: str) -> str:
@@ -252,7 +258,8 @@ class ZXRegistry:
                 export_link_c=data['export_link_c'] if 'export_link_c' in data else None,
                 export_link_a_txt=data['export_link_a_txt'] if 'export_link_a_txt' in data else None,
                 export_link_b_txt=data['export_link_b_txt'] if 'export_link_b_txt' in data else None,
-                export_link_c_txt=data['export_link_c_txt'] if 'export_link_c_txt' in data else None
+                export_link_c_txt=data['export_link_c_txt'] if 'export_link_c_txt' in data else None,
+                export_include_toc=data['export_include_toc'] if 'export_include_toc' in data else True
             )
 
         for i, (document_id, data) in enumerate(root['entries'].items()):
@@ -260,7 +267,8 @@ class ZXRegistry:
                 document_id, 
                 description=data['description'], 
                 abbreviation=data['abbreviation'],
-                tags=data['tags'] if 'tags' in data else []
+                tags=data['tags'] if 'tags' in data else [],
+                include_toc=data['include_toc'] if 'include_toc' in data else True
             )
         return zx_registry
 
@@ -300,10 +308,21 @@ class ZXRegistry:
 
 
 class ZXRegistryEntry:
-    def __init__(self, document_id: int, description: str|None=None, abbreviation: str|None=None):
+    document_id: int
+    description: str|None
+    'Description used when listing document in TOC'
+    abbreviation: str|None
+    'Abbreviation used in links (up to 8 characters)'
+    include_toc: bool
+    'Specifies whether a registry should be included in TOC'
+    tags: list[str]
+    'List of string tags used to group documents'
+
+    def __init__(self, document_id: int, description: str|None=None, abbreviation: str|None=None, include_toc: bool=True):
         self.document_id = document_id
         self.description = description
         self.abbreviation = abbreviation
+        self.include_toc = include_toc
         self.tags = []
 
     def __str__(self):
@@ -326,16 +345,18 @@ class ZXRegistryEntry:
         return False
 
     def to_dict(self):
-        return {
-            'description': self.description,
-            'abbreviation': self.abbreviation,
-            'tags': self.tags
-        }
+        result = {'description': self.description,
+                  'abbreviation': self.abbreviation,
+                  'tags': self.tags}
+        if not self.include_toc:
+            result['include_toc'] = False
+        return result
 
 
 class ZXRegistryTag:
     name: str
     tag_group: str|None
+    'Tag grouping used categorize categories of tags together'
     entries: list[ZXRegistryEntry]
 
     export_id: int|None
@@ -347,6 +368,7 @@ class ZXRegistryTag:
     export_link_b_txt: str|None
     export_link_c: int|None
     export_link_c_txt: str|None
+    export_include_toc: bool=True
 
     def __init__(self,
                  name: str, tag_group: str|None=None, 
@@ -358,7 +380,8 @@ class ZXRegistryTag:
                  export_link_b: int|None=None,
                  export_link_b_txt: str|None=None,
                  export_link_c: int|None=None,
-                 export_link_c_txt: str|None=None):
+                 export_link_c_txt: str|None=None,
+                 export_include_toc: bool=True):
         self.name = name
         self.tag_group = tag_group
         self.entries = []
@@ -372,6 +395,7 @@ class ZXRegistryTag:
         self.export_link_b_txt = export_link_b_txt
         self.export_link_c = export_link_c
         self.export_link_c_txt = export_link_c_txt
+        self.export_include_toc = export_include_toc
 
     def __str__(self):
         details = []
@@ -417,7 +441,8 @@ class ZXRegistryTag:
             'export_link_b': HexYAML(self.export_link_b) if self.export_link_b is not None else None,
             'export_link_b_txt': QuotedYAML(self.export_link_b_txt) if self.export_link_b_txt else None,
             'export_link_c': HexYAML(self.export_link_c) if self.export_link_c is not None else None,
-            'export_link_c_txt': QuotedYAML(self.export_link_c_txt) if self.export_link_c_txt else None
+            'export_link_c_txt': QuotedYAML(self.export_link_c_txt) if self.export_link_c_txt else None,
+            'export_include_toc': self.export_include_toc
         }
 
     @classmethod

@@ -36,7 +36,7 @@ class ZXDocument:
 
     enable_preview = True
 
-    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str|None=None, abbreviation: str|None=None, link_a: int|None=None, link_a_txt: str|None=None, link_b: int|None=None, link_b_txt: str|None=None, link_c: int|None=None, link_c_txt: str|None=None, tags: list[str]|None=None):
+    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str|None=None, abbreviation: str|None=None, link_a: int|None=None, link_a_txt: str|None=None, link_b: int|None=None, link_b_txt: str|None=None, link_c: int|None=None, link_c_txt: str|None=None, tags: list[str]|None=None, include_toc: bool=True):
         self.logger = ZXLogger.get_instance()
         self.repository = Path(repository)
         self.document_path = Path(document_path)
@@ -51,6 +51,7 @@ class ZXDocument:
         self.link_b_txt = link_b_txt
         self.link_c = link_c
         self.link_c_txt = link_c_txt
+        self.include_toc = include_toc
         self.pages = []
 
     def __iter__(self):
@@ -140,7 +141,11 @@ class ZXDocument:
                 self.__export_hex(file, parameter)
 
         if registry and sync_registry:
-            registry.sync_record(self.document_id, self.description, self.abbreviation, self.tags)
+            registry.sync_record(document_id=self.document_id, 
+                                 description=self.description, 
+                                 abbreviation=self.abbreviation, 
+                                 tags=self.tags,
+                                 include_toc=self.include_toc)
 
         return True
 
@@ -290,6 +295,7 @@ class ZXDocument:
         for page_idx, page in enumerate(self.pages):
             root['pages'].append(page.to_dict(page_idx))
         root['tags'] = self.tags
+        root['include_toc'] = self.include_toc
         return result
 
     @classmethod
@@ -312,7 +318,8 @@ class ZXDocument:
             link_b_txt=root['link_b_txt'],
             link_c=root['link_c'],
             link_c_txt=root['link_c_txt'],
-            tags=root['tags'] if 'tags' in root else []
+            tags=root['tags'] if 'tags' in root else [],
+            include_toc=root['include_toc'] if 'include_toc' in root else True
         )
         for page_data in root['pages']:
             ZXPage.from_dict(zx_document, page_data)
