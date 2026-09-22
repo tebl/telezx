@@ -24,29 +24,39 @@ class TestZXDocument(unittest.TestCase):
         document_id = 0x1000
         doc_path = self.get_document_path(document_id, 'Test page')
         doc = ZXDocument(self.repository_path, doc_path, document_id)
-        doc.save()
+        self.assertTrue(doc.save())
 
-    def test_create_contents(self):
+    def test_field_persistence(self):
         document_id = 0x1000
-        doc_path = self.get_document_path(document_id, path_hint='Test page')
+        document_path = self.get_document_path(document_id, 'Test page')
         doc = ZXDocument(self.repository_path, 
-                         doc_path, 
-                         document_id, 
-                         description='Test page', 
-                         abbreviation='Test', 
-                         link_a=0x1001, link_a_txt='Page1',
-                         link_b=0x1002, link_b_txt='Page2',
-                         link_c=0x1003, link_c_txt='Page3',
-                         tags=['test_tag'])
-        doc.save()
+                         document_path, 
+                         document_id,
+                         description='test description',
+                         abbreviation='Short',
+                         link_a=0x2000, link_a_txt='LNK_A',
+                         link_b=0x3000, link_b_txt='LNK_B',
+                         link_c=0x4000, link_c_txt='LNK_C',
+                         tags=['test_tag', 'test_tag2'],
+                         include_toc=True)
+        self.assertTrue(doc.save())
 
-        doc = ZXDocument.from_document_id(self.repository_path, document_id)
-        self.assertEqual(doc.document_id, document_id)
-        self.assertEqual(doc.description, 'Test page')
-        self.assertEqual(doc.abbreviation, 'Test')
-        self.assertEqual(doc.tags, ['test_tag'])
+        res = ZXDocument.from_document_id(self.repository_path, document_id)
+        self.assertEqual(res.document_id, document_id)
+        self.assertEqual(res.description, 'test description')
+        self.assertEqual(res.abbreviation, 'Short')
+        self.assertEqual(res.link_a, 0x2000)
+        self.assertEqual(res.link_b, 0x3000)
+        self.assertEqual(res.link_c, 0x4000)
+        self.assertEqual(res.link_a_txt, 'LNK_A')
+        self.assertEqual(res.link_b_txt, 'LNK_B')
+        self.assertEqual(res.link_c_txt, 'LNK_C')
+        self.assertEqual(res.include_toc, True)
+        self.assertEqual(res.tags, ['test_tag', 'test_tag2'])
 
     def test_export(self):
+        self.registry.sync_record(0x1001, description="Page1", abbreviation='p1')
+
         document_id = 0xffff
         doc_path = self.get_document_path(document_id, path_hint='Test page')
         doc = ZXDocument(self.repository_path, 
@@ -54,15 +64,45 @@ class TestZXDocument(unittest.TestCase):
                          document_id, 
                          description='Test page', 
                          abbreviation='Test', 
-                         link_a=0x1001, link_a_txt='Page1',
+                         link_a=0x1001,
                          link_b=0x1002, link_b_txt='Page2',
-                         link_c=0x1003, link_c_txt='Page3',
+                         link_c=0x1003,
                          tags=['test_tag'])
         ZXPage_ClearText(doc)
+        self.assertTrue(doc.save())
+
+        # Reload document
+        doc = ZXDocument.from_document_id(self.repository_path, document_id)
 
         doc.export(output_directory=self.repository_out_path, registry=self.registry, sync_registry=True)
         index_path = self.repository_out_path / 'FFFF' / 'FFFF.idx'
         self.assertTrue(index_path.is_file())
+        with open(index_path, 'rb') as file:
+            content = file.read()
+            content = content.decode("utf-8").replace('\0', ' ')
+            # Index structure:
+            # ADDR Field              Bytes
+            # 0x00 IDX                3
+            # 0x03 Page count (hex)   2
+            # 0x05 Link A             4
+            # 0x09 Link A TXT (8+\0)  9
+            # 0x12 Link B             4
+            # 0x16 Link B TXT (8+\0)  9
+            # 0x1f Link C             4
+            # 0x23 Link C TXT (8+\0)  9
+            # 0x2c <unused>           20
+            # 0x40 Page 0 type (hex)  2
+            # 0x42 Page 0 parameter   2
+            self.assertEqual(content[0:3], 'IDX')
+            self.assertEqual(content[3:5], '01')                # Page count
+            self.assertEqual(content[5:9], '1001')
+            self.assertEqual(content[9:18].strip(), 'p1')       # From registry
+            self.assertEqual(content[18:22], '1002')
+            self.assertEqual(content[22:31].strip(), 'Page2')   # Specified directly
+            self.assertEqual(content[31:35], '1003')
+            self.assertEqual(content[35:44].strip(), '0x1003')  # Missing both, generated
+            # print(content)
+
         text_path = self.repository_out_path / 'FFFF' / 'FFFF.00.tkn'
         self.assertTrue(text_path.is_file())
 

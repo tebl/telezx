@@ -23,7 +23,7 @@ class DocumentHelper(RepositoryHelper):
         '''
         return self.create_token(document, token_path, export_format, self.__extract_path_hint(token_path))
 
-    def create_text(self, document: ZXDocument, frame_path: Path=None, text_lines: list[str]=None, text_attribute=ZXToken.UNSPECIFIED) -> ZXPage:
+    def create_text(self, document: ZXDocument, frame_path: Path=None, text_lines: list[str]=None, text_attribute=ZXPage.OVERLAY_TEXT, text_link_attribute=ZXPage.OVERLAY_TEXT_LINK) -> ZXPage:
         '''
         Creates a text page, either empty or a list of lines can be specified
         (24 rows of 32 characters). While a ZXToken allows us more granular
@@ -34,7 +34,11 @@ class DocumentHelper(RepositoryHelper):
             text_lines = ZXPage_ClearText.blank_text()
         if frame_path:
             frame_path = self.get_path_relative_to(document, frame_path)
-        zx_page = ZXPage_ClearText(document, frame_path, text_lines, text_attribute)
+        zx_page = ZXPage_ClearText(parent=document, 
+                                   frame_path=frame_path, 
+                                   text_lines=text_lines, 
+                                   text_attribute=text_attribute, 
+                                   text_link_attribute=text_link_attribute)
         document.save()
         return zx_page
 

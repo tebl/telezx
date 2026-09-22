@@ -693,7 +693,7 @@ class ZXPage_ClearText(ZXPage):
     text_attribute: int
     text_link_attribute: int
 
-    def __init__(self, parent: ZXDocument, frame_path: Path|None=None, text_lines: list[str]|None=None, text_attribute=ZXToken.UNSPECIFIED, text_link_attribute=ZXToken.UNSPECIFIED, register_parent=True):
+    def __init__(self, parent: ZXDocument, frame_path: Path|None=None, text_lines: list[str]|None=None, text_attribute=ZXPage.OVERLAY_TEXT, text_link_attribute=ZXPage.OVERLAY_TEXT_LINK, register_parent=True):
         super().__init__(parent, register_parent)
         self.frame_path = frame_path
         if self.frame_path is not None:
