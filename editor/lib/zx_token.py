@@ -19,6 +19,7 @@ class ZXToken:
     DEFAULT_INK = ZXScreen.BLACK
     DEFAULT_PAPER = ZXScreen.WHITE
     DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=DEFAULT_INK, paper=DEFAULT_PAPER)
+    HEADER_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.BLACK)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
     FILE_EXTENSION = '.zxtoken'

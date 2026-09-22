@@ -280,6 +280,25 @@ class ZXEditor(ttk.Frame):
                 self.zx_token.set_cell(31, char_y, char_code=132)
         return 'break'
 
+    def clicked_clear_headers(self, event=None):
+        '''
+        TeleZX adds content over the top and bottom lines, this function
+        deletes any content found within these areas.
+        '''
+        undo_operation = UndoOperation()
+        self.undo_memory.append(undo_operation)
+        for char_x in range(0, ZXScreen.SCREEN_WIDTH_CHARS):
+            undo_operation.add_cell(char_x, 0, self.zx_token.get_cell(char_x, 0))
+            undo_operation.add_cell(char_x, 23, self.zx_token.get_cell(char_x, 23))
+            self.zx_token.set_cell(char_x, 0, 
+                                   char_code=ZXFont.ASCII_SPACE, 
+                                   char_attribute=ZXToken.HEADER_ATTRIBUTE, 
+                                   char_inverted=ZXToken.UNDEFINED)
+            self.zx_token.set_cell(char_x, 23, 
+                                   char_code=ZXFont.ASCII_SPACE, 
+                                   char_attribute=ZXToken.HEADER_ATTRIBUTE, 
+                                   char_inverted=ZXToken.UNDEFINED)
+
     def clicked_fill_character(self, event=None):
         if self.region_highlight and CopyOperation.is_single_character(self.copied_cells):
             if self.__fill_character(self.region_highlight, CopyOperation.get_single_character(self.copied_cells)):
@@ -1297,10 +1316,11 @@ class ContextMenu(ttk.Menu):
     FILL_COPIED_FORMAT = 'Copied format'
     FILL_COPIED_CHARACTER = 'Copied character'
 
-    CREATE = 'Create'
-    CREATE_BOX = 'Box'
-    CREATE_SKIRT = 'Page skirt (from cursor)'
-    CREATE_TRACTOR = 'Tractor feed'
+    MACROS = 'Functions'
+    MACRO_CREATE_BOX = 'Create box'
+    MACRO_CREATE_SKIRT = 'Create page skirt from cursor'
+    MACRO_CREATE_TRACTOR = 'Create tractor feed pattern'
+    MACRO_CLEAR_HEADER_AREAS = 'Clear header areas'
 
     SET_INK = 'Set ink'
     SET_PAPER = 'Set paper'
@@ -1353,11 +1373,12 @@ class ContextMenu(ttk.Menu):
         self.paper_menu.add_command(label='White', command=lambda: self.set_paper('WHITE'))
         self.add_cascade(label=self.SET_PAPER, menu=self.paper_menu)
 
-        self.create_menu = ttk.Menu(self, tearoff=0)
-        self.create_menu.add_command(label=self.CREATE_BOX, command=self.zx_editor.clicked_create_box)
-        self.create_menu.add_command(label=self.CREATE_SKIRT, command=self.zx_editor.clicked_create_skirt)
-        self.create_menu.add_command(label=self.CREATE_TRACTOR, command=self.zx_editor.clicked_create_tractor)
-        self.add_cascade(label=self.CREATE, menu=self.create_menu)
+        self.macro_menu = ttk.Menu(self, tearoff=0)
+        self.macro_menu.add_command(label=self.MACRO_CREATE_BOX, command=self.zx_editor.clicked_create_box)
+        self.macro_menu.add_command(label=self.MACRO_CREATE_SKIRT, command=self.zx_editor.clicked_create_skirt)
+        self.macro_menu.add_command(label=self.MACRO_CREATE_TRACTOR, command=self.zx_editor.clicked_create_tractor)
+        self.macro_menu.add_command(label=self.MACRO_CLEAR_HEADER_AREAS, command=self.zx_editor.clicked_clear_headers)
+        self.add_cascade(label=self.MACROS, menu=self.macro_menu)
 
     def set_ink(self, colour_name: str):
         self.zx_editor.clicked_fill_ink(self.__get_colour(colour_name))    
@@ -1399,7 +1420,7 @@ class ContextMenu(ttk.Menu):
         self.fill_menu.entryconfigure(self.FILL_COPIED_CHARACTER, 
                                       state='normal' if in_highlight and CopyOperation.is_single_character(self.zx_editor.copied_cells) else 'disabled')
         self.entryconfigure(self.CLEAR_SELECTED, state='normal' if in_highlight else 'disabled')
-        self.create_menu.entryconfigure(self.CREATE_BOX, state='normal' if in_highlight else 'disabled')
+        self.macro_menu.entryconfigure(self.MACRO_CREATE_BOX, state='normal' if in_highlight else 'disabled')
 
     def hide_menu(self):
         self.unpost()
