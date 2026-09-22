@@ -210,12 +210,18 @@ def cmd_pages(args, parser: ArgumentParser):
 
     page = None
     if args.create_text:
-        page = helper.create_text(document, args.with_frame)
+        frame = args.with_frame
+        if frame is None:
+            frame = helper.resolve_frame_path('default')
+        page = helper.create_text(document, frame)
         print_page_details(page, 'created')
         changes = True
 
     if args.create_token:
-        page = helper.create_token(document, args.with_frame, args.with_format, args.path_hint)
+        frame = args.with_frame
+        if frame is None:
+            frame = helper.resolve_frame_path('default')
+        page = helper.create_token(document, frame, args.with_format, args.path_hint)
         print_page_details(page, 'created')
         changes = True
 
