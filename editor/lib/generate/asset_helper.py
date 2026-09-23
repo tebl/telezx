@@ -70,12 +70,15 @@ class AssetHelper(RepositoryHelper):
 
     def __create_index_page(self, document: ZXDocument):
         with self._get_titlepage(document, self.TEST_TITLE, add_frame=False) as page:
-            items = [('00', self.TEST_COLOUR_BARS),
-                     ('01', self.TEST_FONT),
-                     ('02', self.TEST_GLYPHS)]
-            x_offset = 1
-            y_offset = 4
+            items = [('01', self.TEST_COLOUR_BARS),
+                     ('02', self.TEST_FONT),
+                     ('03', self.TEST_GLYPHS)]
+            x_offset = 8
+            y_offset = 10
 
+            page.set_string(x_offset, y_offset, 'Page overview:')
+            x_offset += 1
+            y_offset += 1
             for i, (number, description) in enumerate(items):
                 page.set_string(x_offset, y_offset + i, number, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.MAGENTA, paper=ZXScreen.WHITE))
                 page.set_string(x_offset + 3, y_offset + i, description, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.BLUE, paper=ZXScreen.WHITE))
