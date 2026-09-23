@@ -57,6 +57,10 @@ def cmd_assets(args, parser: ArgumentParser):
         print(f'Copying {args.default_frame} frames to default:')
         helper.copy_default_frame(args.default_frame, args.copy_global)
 
+    if args.create_test_pages:
+        print(f'Creating test pages:')
+        helper.create_test_pages()
+
     print('Done.')
 
 def cmd_documents(args, parser: ArgumentParser):
@@ -607,6 +611,7 @@ def main():
     group = parser_assets.add_mutually_exclusive_group(required=True)
     group.add_argument('-f', '--create-frames', action='store_true', help="Create frames of different colours")
     group.add_argument('--default-frame', choices=[c.lower() for c in ZXScreen.COLOURS.keys()], help="Copy specified coloured frames to default set")
+    group.add_argument('-t', '--create-test-pages', action='store_true', help="Create test pages")
     group = parser_assets.add_argument_group('Modifiers')
     group.add_argument('--copy-global', action='store_true', help="Default frame copied to software assets instead of repository")
     parser_assets.set_defaults(function=cmd_assets)

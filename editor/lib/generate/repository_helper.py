@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
-from .. import ZXDocument, ZXToken, ZXRegistry, ZXLogger, utilities
+from .. import ZXDocument, ZXLogger, ZXRegistry, ZXScreen, ZXToken, utilities
 
 class RepositoryHelper:
     repository: Path
@@ -73,3 +73,63 @@ class RepositoryHelper:
     def open_registry(self) -> ZXRegistry:
         self.registry = ZXRegistry.from_file(self.registry_path, allow_create=True)
         return self.registry
+
+    def _create_document_path(self, document_id: int, path_hint: str, log_indent: int=0) -> Path:
+        '''
+        Create path for automatically created documents, wiping out any
+        existing data if found.
+        '''
+        directory = self.src_path / utilities.suggest_document_directory(document_id, path_hint)
+        if not directory.is_dir():
+            directory.mkdir()
+        else:
+            self._clear_directory_assets(directory, log_indent)
+        return directory
+
+    def _clear_directory_assets(self, directory: Path, log_indent: int=0):
+        '''
+        Clears out assets found within the specified path, as a security
+        precaution we'll only delete files starting with a two digit hex
+        number - any other file will either be overwritten later, or they're
+        assumed to have been left there interntionally.
+        '''
+        self.logger.debug('Clearing existing assets', indent=log_indent)
+        for page_id in range(ZXDocument.ASSET_ID_MIN, ZXDocument.ASSET_ID_MAX + 1):
+            asset_path = Path(directory) / utilities.suggest_asset_path(page_id, ZXToken.FILE_EXTENSION)
+            if asset_path.is_file():
+                self.logger.debug('Removing', asset_path, indent=(log_indent+1))
+                asset_path.unlink()
+            else:
+                return
+
+    def _get_document(self, document_id: int, description: str|None, abbreviation: str|None, target_directory: Path):
+        return ZXDocument(
+            self.repository,
+            document_path=target_directory / ZXDocument.FILENAME_DEFAULT,
+            document_id=document_id,
+            description=description,
+            abbreviation=abbreviation
+        )
+
+    def _get_page(self, document: ZXDocument, add_frame: bool=True) -> ZXToken:
+        frame_name = 'default_frame' if add_frame else 'default'
+        return self.from_frame(
+            self.resolve_frame_path(frame_name),
+            self._page_path(document)
+        )
+
+    def _get_titlepage(self, document: ZXDocument, page_title: str, add_frame: bool=True) -> ZXToken:
+        page_title = page_title[0:(ZXScreen.SCREEN_WIDTH_CHARS-2)]
+        zx_token = self.from_frame(
+            self.resolve_frame_path('default_frame_title' if add_frame else 'default_title'),
+            self._page_path(document)
+        )
+        zx_token.set_string(self.centered_position(page_title), 2, page_title)
+        return zx_token
+
+    def _page_path(self, document: ZXDocument, path_hint: str=None) -> Path:
+        return self.generate_asset_path(document, document.get_next_asset_id(), ZXToken.FILE_EXTENSION, path_hint)
+
+    @classmethod
+    def centered_position(cls, text):
+        return (ZXScreen.SCREEN_WIDTH_CHARS - len(text)) // 2

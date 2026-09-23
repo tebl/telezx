@@ -28,6 +28,7 @@ class ZXDocument:
 
     DOCUMENT_ID_HOME = 0x1000
     DOCUMENT_ID_TOC = 0xff00
+    DOCUMENT_ID_TEST = 0xfff0
 
     PAGE_ID_MIN = 0
     PAGE_ID_MAX = 99
