@@ -8,7 +8,7 @@ from .coordinate import Coordinate
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
-from .utilities import update_tree, get_project_root, HexYAML
+from .utilities import update_tree, get_project_root, HexYAML, format_padded_id
 
 class ZXToken:
     UNDEFINED = -1
@@ -353,9 +353,9 @@ class ZXTokenCell:
 
         if not self.char_code == ZXToken.UNDEFINED:
             if chr(self.char_code) in string.printable:
-                print(f'  char_code      = {self.char_code} ({chr(self.char_code)})')
+                print(f'  char_code      = {self.char_code} (0x{format_padded_id(self.char_code, width=2)} {chr(self.char_code)})')
             else:
-                print(f'  char_code      = {self.char_code}')
+                print(f'  char_code      = {self.char_code} (0x{format_padded_id(self.char_code, width=2)})')
         else:
             print(f'  char_code      = UNDEFINED')
 

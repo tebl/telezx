@@ -3,12 +3,19 @@ import subprocess, sys
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
 from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities, VERSION
-from lib.convert import ATRConverter, TKNConverter, ZXTokenConverter
+from lib.convert import ATRConverter, S81Converter, TKNConverter, ZXTokenConverter
 
 def cmd_53c(args, parser: ArgumentParser):
     path_out = __get_path_out(args, parser, ZXTokenConverter.get_export_suffixes(include_period=True, include_text=False))
     print(f'Convert {args.input_file} -> {path_out}:')
     converter: ZXTokenConverter = ATRConverter.import_from(args.input_file)
+    converter.export_to(path_out)
+    print('Done.')
+
+def cmd_s81(args, parser: ArgumentParser):
+    path_out = __get_path_out(args, parser, ZXTokenConverter.get_export_suffixes(include_period=True, include_text=False))
+    print(f'Convert {args.input_file} -> {path_out}:')
+    converter: ZXTokenConverter = S81Converter.import_from(args.input_file)
     converter.export_to(path_out)
     print('Done.')
 
@@ -44,6 +51,12 @@ def main():
     parser_atr.add_argument('-o', '--output-file', type=str, help='Specify output path (extension dictates format)')
     parser_atr.add_argument('-f', '--output-format', choices=ZXTokenConverter.get_export_suffixes(include_period=False, include_text=False), default='zxtoken', help='Specify output format when output-file not used')
     parser_atr.set_defaults(function=cmd_53c)
+
+    parser_s81 = subparsers.add_parser('s81', help='S81 (ZX81)')
+    parser_s81.add_argument('-i', '--input-file', type=utilities.argument_is_file, required=True)
+    parser_s81.add_argument('-o', '--output-file', type=str, help='Specify output path (extension dictates format)')
+    parser_s81.add_argument('-f', '--output-format', choices=ZXTokenConverter.get_export_suffixes(include_period=False, include_text=False), default='zxtoken', help='Specify output format when output-file not used')
+    parser_s81.set_defaults(function=cmd_s81)
 
     parser_zx_token = subparsers.add_parser('zx_token', help='TeleZX (ZXToken)')
     parser_zx_token.add_argument('-i', '--input-file', type=utilities.argument_is_file, required=True)
