@@ -11,5 +11,5 @@ from .zx_logger import ZXLogger
 from .utilities import update_tree
 from .generate import RepositoryHelper, RegistryHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
 from .editor import CopyOperation, CopyData, UndoOperation, CellDirection, ScreenCoordinate, ScreenNavigator, ScreenRegion, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
-from .convert import ATRFormat, TKNFormat
+from .convert import ATRConverter, TKNConverter, ZXTokenConverter
 VERSION = "TeleZX v0.1"
