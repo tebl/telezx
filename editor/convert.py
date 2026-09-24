@@ -6,17 +6,15 @@ from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_To
 from lib.convert import ATRConverter, TKNConverter, ZXTokenConverter
 
 def cmd_53c(args, parser: ArgumentParser):
-    print('Loading file:', args.input_file)
-    token: ZXToken = ATRConverter.import_from(args.input_file)
     path_out: Path = Path(args.output_file) if args.output_file else None
-
     if path_out:
         if path_out.suffix not in ZXTokenConverter.get_export_suffixes():
             parser.error(f'Unknown file extension: {path_out.suffix}')
     else:
         path_out = Path(args.input_file).with_suffix(f'.{args.output_format}')
 
-    print('Convert', args.input_file, '->', path_out)
+    print(f'Convert {args.input_file} -> {path_out}:')
+    token: ZXToken = ATRConverter.import_from(args.input_file)
     ZXTokenConverter.export_to(token, path_out)
 
     print('Done.')
