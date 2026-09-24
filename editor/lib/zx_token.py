@@ -1,4 +1,4 @@
-import yaml
+import yaml, string
 import numpy
 import os.path
 from PIL import Image
@@ -352,7 +352,10 @@ class ZXTokenCell:
         print(f'Cell X={self.char_x},Y={self.char_y}:')
 
         if not self.char_code == ZXToken.UNDEFINED:
-            print(f'  char_code      = {self.char_code} ({chr(self.char_code)})')
+            if chr(self.char_code) in string.printable:
+                print(f'  char_code      = {self.char_code} ({chr(self.char_code)})')
+            else:
+                print(f'  char_code      = {self.char_code}')
         else:
             print(f'  char_code      = UNDEFINED')
 

@@ -5,7 +5,7 @@ import collections.abc
 from pathlib import Path
 from argparse import ArgumentError
 
-def argument_is_attribute(value):
+def argument_is_attribute(value) -> int:
     '''
     Attributes are processed as an int, but we require a value that fits into
     8 bits.
@@ -15,7 +15,7 @@ def argument_is_attribute(value):
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
-def argument_is_dir(path):
+def argument_is_dir(path) -> Path:
     '''
     Check the supplied path value to ensure that it is is actually a directory
     '''
@@ -24,7 +24,7 @@ def argument_is_dir(path):
         raise ArgumentError(f'is not a valid directory')
     return path
 
-def argument_is_file(path):
+def argument_is_file(path) -> Path:
     '''
     Check the supplied path value to ensure that it is is actually a file
     '''
