@@ -811,7 +811,7 @@ function ui_get_font_data(character) {
 
 function ui_get_glyph_data(character) {
     var offset = character*8;
-    if (character < 0 || character >= 16) offset = 0;
+    if (character < 0 || character >= (FONT_GLYPHS.length / 8)) offset = 0;
     return FONT_GLYPHS.slice(offset, offset + 8);
 }
 
