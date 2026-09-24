@@ -1715,10 +1715,10 @@ class CharacterPalette(ttk.Frame):
     def __get_colour(self, color_label):
         return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
 
-    def notify_font_changed(self, font_path):
+    def notify_font_changed(self, font_path: Path):
         self.load_font(font_path, self.font_frame, self.font_widgets, ZXFont.FONT_OFFSET)
 
-    def notify_glyph_changed(self, glyph_path):
+    def notify_glyph_changed(self, glyph_path: Path):
         self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets, ZXGlyph.GLYPH_OFFSET)
 
     def notify_scale_changed(self, value):

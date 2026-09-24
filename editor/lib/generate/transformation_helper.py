@@ -48,7 +48,7 @@ class TransformationHelper(DocumentHelper):
     def transform_clear_coordinate(self, char_x, char_y, attribute: int=None) -> bool:
         self.__ensure_loaded()
         self.logger.info('Clearing coordinate', f'(X={char_x}, Y={char_y})')
-        self.zx_screen.write_cell(char_x, char_y, ZXGlyph.blank_glyph(), self.__get_attribute(attribute))
+        self.zx_screen.write_cell(char_x, char_y, ZXGlyph.generate_blank_glyph(), self.__get_attribute(attribute))
         return True
 
     def transform_clear_line(self, char_y: int, attribute: int|None=None) -> bool:
@@ -56,7 +56,7 @@ class TransformationHelper(DocumentHelper):
         attribute = self.__get_attribute(attribute)
         self.logger.info('Clearing line', char_y)
         for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-            self.zx_screen.write_cell(char_x, char_y, ZXGlyph.blank_glyph(), attribute)
+            self.zx_screen.write_cell(char_x, char_y, ZXGlyph.generate_blank_glyph(), attribute)
         return True
 
     def transform_scroll(self, delta_x, delta_y) -> bool:

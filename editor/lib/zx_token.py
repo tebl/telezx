@@ -245,15 +245,15 @@ class ZXToken:
 
     def set_selected_font(self, font_name):
         self.font_name = font_name
-        self.font_path = self.get_font_path(font_name)
+        self.font_path: Path = self.get_font_path(font_name)
         self.font = ZXFont.from_file(self.font_path)
 
     def set_selected_glyph(self, glyph_name):
         self.glyph_name = glyph_name
-        self.glyph_path = self.get_font_path(glyph_name)
+        self.glyph_path: Path = self.get_font_path(glyph_name)
         self.glyph = ZXGlyph.from_file(self.glyph_path)
 
-    def get_font_path(self, font_name):
+    def get_font_path(self, font_name) -> Path:
         return get_project_root() / 'fonts' / f'{font_name}.bin'
 
     def save(self):

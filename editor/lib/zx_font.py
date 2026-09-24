@@ -13,6 +13,14 @@ class ZXFont(ZXGlyph):
         data = self.get_offset(ord(character) - self.ASCII_SPACE)
         return data
 
+    def get_charcode_offset(self, value: int=0):
+        return self.FONT_OFFSET + value
+
+    def _get_js_name(self, name):
+        if not name:
+            return 'FONT_DEFAULT'
+        return super()._get_js_name(name)
+
     @classmethod
     def validate_ascii(cls, char_code):
         return char_code >= cls.ASCII_SPACE and char_code <= cls.ASCII_COPYRIGHT
