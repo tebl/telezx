@@ -421,21 +421,21 @@ class ZXPage:
     def __str__(self):
         return self.__class__.__name__
 
-    def export(self, output_base, page_idx, log_indent=0):
+    def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
         raise NotImplementedError()
 
-    def _export_about(self, file_path: Path, log_indent=0):
+    def _export_about(self, about: dict, file_path: Path, log_indent=0):
         self.logger.debug('create', file_path, indent=log_indent)
         with open(file_path, 'w') as file:
-            self.__export_about_field(file, 'title')
-            self.__export_about_field(file, 'author')
-            self.__export_about_field(file, 'source')
-            self.__export_about_field(file, 'license')
+            self.__export_about_field(file, about, 'title')
+            self.__export_about_field(file, about, 'author')
+            self.__export_about_field(file, about, 'source')
+            self.__export_about_field(file, about, 'license')
 
-    def __export_about_field(self, file, key: str):
+    def __export_about_field(self, file, about: dict, key: str):
         title = f'{key.capitalize()}:'
         file.write(title.ljust(10))
-        file.write(self.scr_about[key])
+        file.write(about[key])
         file.write('\n')
 
     def get_export_path(self, output_base: Path, page_idx: int, file_extension):
@@ -571,7 +571,7 @@ class ZXPage_Overlay(ZXPage):
         zx_token.export_to_scr(target_path)
         if self.parent.enable_preview:
             zx_token.export_screenshot(f'{target_path}{ZXDocument.EXTENSION_SCREENSHOT}')
-        self._export_about(self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
+        self._export_about(self.scr_about, self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
         return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
 
     def to_dict(self, page_idx):
@@ -623,19 +623,21 @@ class ZXPage_Token(ZXPage):
     parent: ZXDocument
     zxtoken_path: Path
     export_format: str
+    src_about: dict
 
-    def __init__(self, parent: ZXDocument, zxtoken_path: Path, export_format, register_parent=True):
+    def __init__(self, parent: ZXDocument, zxtoken_path: Path, export_format, src_about: dict|None=None, register_parent=True):
         super().__init__(parent, register_parent)
         self.zxtoken_path = Path(zxtoken_path)
         self.parent.check_file_exists(self.zxtoken_path)
         self.export_format = export_format
         if self.export_format not in [ 'SCR', 'TKN' ]:
             raise ValueError(f"{self.export_format} not recognized")
+        self.src_about = src_about
 
     def __str__(self):
         return f'{self.__class__.__name__} (input={self.zxtoken_path.name}, export_as={self.export_format})'
 
-    def export(self, output_base, page_idx, log_indent=0):
+    def export(self, output_base, page_idx, log_indent=0) -> tuple[int, int]:
         self.logger.info(format_padded_int(page_idx, width=2), str(self), indent=log_indent)
         zx_token = ZXToken.from_file(self.parent.get_asset_path(self.zxtoken_path))
         match self.export_format:
@@ -645,6 +647,8 @@ class ZXPage_Token(ZXPage):
                 zx_token.export_to_specscii(target_path)
                 if self.parent.enable_preview:
                     zx_token.export_screenshot(f'{target_path}{ZXDocument.EXTENSION_SCREENSHOT}')
+                if self.src_about:
+                    self._export_about(self.src_about, self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
                 return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
             case _:
                 target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR)
@@ -652,6 +656,8 @@ class ZXPage_Token(ZXPage):
                 zx_token.export_to_scr(target_path)
                 if self.parent.enable_preview:
                     zx_token.export_screenshot(f'{target_path}{ZXDocument.EXTENSION_SCREENSHOT}')
+                if self.src_about:
+                    self._export_about(self.src_about, self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_SCR + ZXDocument.EXTENSION_ABOUT), log_indent=log_indent+1)
                 return (self.INDEX_TYPE_SCR, self.BLANK_PARAMETER)
 
     def to_dict(self, page_idx):
@@ -659,6 +665,8 @@ class ZXPage_Token(ZXPage):
         root = result[self.__class__.__name__]
         root['zxtoken_path'] = str(self.parent.get_relative_path(self.zxtoken_path))
         root['export_as'] = self.export_format
+        if self.src_about:
+            root['src_about'] = self.src_about
         return result
 
     @classmethod
@@ -675,7 +683,8 @@ class ZXPage_Token(ZXPage):
         return ZXPage_Token(
             parent, 
             parent.get_asset_path(root['zxtoken_path']),
-            root['export_as'])
+            export_format=root['export_as'],
+            src_about=root['src_about'] if 'src_about' in root else None)
 
     @classmethod
     def __yaml_defaults(cls) -> dict:
