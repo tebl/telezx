@@ -334,21 +334,31 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f"Fill {self.region_highlight}")
         return 'break'
 
-    def clicked_fill_ink(self, colour: int, event=None):
+    def clicked_fill_bright(self, value: bool):
+        region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
+        if self.__fill_calculated_attribute(region, 'is_bright', value):
+            self.refresh_editor()
+            self.set_status(f"Fill {region}")
+
+    def clicked_fill_flash(self, value: bool):
+        region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
+        if self.__fill_calculated_attribute(region, 'is_flashing', value):
+            self.refresh_editor()
+            self.set_status(f"Fill {region}")
+
+    def clicked_fill_ink(self, colour: int):
         region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
         if self.__fill_calculated_attribute(region, 'ink', colour):
             self.refresh_editor()
             self.set_status(f"Fill {region}")
-        return 'break'
 
-    def clicked_fill_paper(self, colour: int, event=None):
+    def clicked_fill_paper(self, colour: int):
         region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
         if self.__fill_calculated_attribute(region, 'paper', colour):
             self.refresh_editor()
             self.set_status(f"Fill {region}")
-        return 'break'
 
-    def __fill_calculated_attribute(self, region: ScreenRegion, key: str, value: int):
+    def __fill_calculated_attribute(self, region: ScreenRegion, key: str, value: int) -> True:
         if region:
             self.create_undo_region(region)
             for coord in region.cells(from_direction=CellDirection.NORTH):
@@ -366,7 +376,7 @@ class ZXEditor(ttk.Frame):
                                            char_code=ZXFont.ASCII_SPACE, 
                                            char_attribute=attribute)
             self.set_status(f"Fill {region}")
-        return 'break'
+        return True
 
     def __fill_attribute(self, region: ScreenRegion, attribute) -> bool:
         if region:
@@ -1324,6 +1334,10 @@ class ContextMenu(ttk.Menu):
 
     SET_INK = 'Set ink'
     SET_PAPER = 'Set paper'
+    SET_BRIGHTNESS = 'Set brightness'
+    SET_FLASHING = 'Set flashing'
+    SET_ON = 'On'
+    SET_OFF = 'Off'
 
     def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(zx_editor, takefocus=True, title='Context menu', tearoff=False)
@@ -1373,6 +1387,18 @@ class ContextMenu(ttk.Menu):
         self.paper_menu.add_command(label='White', command=lambda: self.set_paper('WHITE'))
         self.add_cascade(label=self.SET_PAPER, menu=self.paper_menu)
 
+        self.bright_menu = ttk.Menu(self, tearoff=0)
+        self.bright_menu.add_command(label=self.SET_ON, command=lambda: self.set_bright(True))
+        self.bright_menu.add_command(label=self.SET_OFF, command=lambda: self.set_bright(False))
+        self.add_cascade(label=self.SET_BRIGHTNESS, menu=self.bright_menu)
+
+        self.flash_menu = ttk.Menu(self, tearoff=0)
+        self.flash_menu.add_command(label=self.SET_ON, command=lambda: self.set_flash(True))
+        self.flash_menu.add_command(label=self.SET_OFF, command=lambda: self.set_flash(False))
+        self.add_cascade(label=self.SET_FLASHING, menu=self.flash_menu)
+
+        self.add_separator()
+
         self.macro_menu = ttk.Menu(self, tearoff=0)
         self.macro_menu.add_command(label=self.MACRO_CREATE_BOX, command=self.zx_editor.clicked_create_box)
         self.macro_menu.add_command(label=self.MACRO_CREATE_SKIRT, command=self.zx_editor.clicked_create_skirt)
@@ -1385,6 +1411,12 @@ class ContextMenu(ttk.Menu):
 
     def set_paper(self, colour_name: str):
         self.zx_editor.clicked_fill_paper(self.__get_colour(colour_name))    
+
+    def set_bright(self, value: bool):
+        self.zx_editor.clicked_fill_bright(value)
+
+    def set_flash(self, value: bool):
+        self.zx_editor.clicked_fill_flash(value)
 
     def __get_colour(self, colour_name: str):
         if colour_name in ZXScreen.COLOURS:
