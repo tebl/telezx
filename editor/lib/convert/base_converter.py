@@ -1,6 +1,13 @@
+from pathlib import Path
 from .. import ZXToken, ZXDocument, ZXLogger
 
 class BaseConverter:
+    def __init__(self):
+        pass
+
+    def _log_export(self, suffix: str, output_path: Path):
+        self.info('Exporting', suffix[1:], 'to', output_path.name)
+
     @classmethod
     def debug(cls, *segments, indent=0):
         ZXLogger.get_instance().debug(*segments, indent=indent)
@@ -20,7 +27,3 @@ class BaseConverter:
     @classmethod
     def get_format_suffix(cls) -> str:
         raise NotImplementedError()
-
-    @classmethod
-    def _log_export(cls, suffix: str, output_path: Path):
-        cls.info('Exporting', suffix[1:], 'to', output_path.name)

@@ -14,8 +14,8 @@ def cmd_53c(args, parser: ArgumentParser):
         path_out = Path(args.input_file).with_suffix(f'.{args.output_format}')
 
     print(f'Convert {args.input_file} -> {path_out}:')
-    token: ZXToken = ATRConverter.import_from(args.input_file)
-    ZXTokenConverter.export_to(token, path_out)
+    converter: ZXTokenConverter = ATRConverter.import_from(args.input_file)
+    converter.export_to(path_out)
 
     print('Done.')
 

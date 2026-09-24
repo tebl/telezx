@@ -3,31 +3,35 @@ from .base_converter import BaseConverter
 from .. import ZXToken, ZXDocument
 
 class ZXTokenConverter(BaseConverter):
-    @classmethod
-    def save_as(cls, zx_token: ZXToken, output_path: Path) -> bool:
-        previous_path = zx_token.document_path
-        zx_token.set_document(output_path)
-        zx_token.save()
-        zx_token.set_document(previous_path)
+    zx_token: ZXToken
+
+    def __init__(self, zx_token: ZXToken):
+        super().__init__()
+        self.zx_token = zx_token
+
+    def save_as(self, output_path: Path) -> bool:
+        previous_path = self.zx_token.document_path
+        self.zx_token.set_document(output_path)
+        self.zx_token.save()
+        self.zx_token.set_document(previous_path)
         return True
 
-    @classmethod
-    def export_to(cls, zx_token: ZXToken, output_path: Path) -> bool:
-        if not output_path.suffix in cls.get_export_suffixes():
+    def export_to(self, output_path: Path) -> bool:
+        if not output_path.suffix in self.get_export_suffixes():
             raise RuntimeError(f'Unknown suffix - {output_path.suffix}')
         match output_path.suffix:
             case ZXDocument.EXTENSION_SCR:
-                cls._log_export(output_path.suffix, output_path)
-                zx_token.export_to_scr(output_path)
+                self._log_export(output_path.suffix, output_path)
+                self.zx_token.export_to_scr(output_path)
             case ZXToken.FILE_EXTENSION:
-                cls._log_export(output_path.suffix, output_path)
-                cls.save_as(zx_token, output_path)
+                self._log_export(output_path.suffix, output_path)
+                self.save_as(output_path)
             case ZXDocument.EXTENSION_TOKEN:
-                cls._log_export(output_path.suffix, output_path)
-                zx_token.export_to_specscii(output_path)
+                self._log_export(output_path.suffix, output_path)
+                self.zx_token.export_to_specscii(output_path)
             case _:
-                cls._log_export(output_path.suffix, output_path)
-                zx_token.export_screenshot(output_path)
+                self._log_export(output_path.suffix, output_path)
+                self.zx_token.export_screenshot(output_path)
         return True
 
     @classmethod

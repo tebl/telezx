@@ -1,6 +1,7 @@
 import typing
 from pathlib import Path
 from .base_converter import BaseConverter
+from .zx_token_converter import ZXTokenConverter
 from .. import ZXScreen, ZXScreenIterator, ZXFont, ZXToken
 
 class ATRConverter(BaseConverter):
@@ -10,7 +11,7 @@ class ATRConverter(BaseConverter):
     'Custom alternating bit pattern in font_glyphs (added for TeleZX)'
 
     @classmethod
-    def import_from(cls, input_file: Path) -> ZXToken:
+    def import_from(cls, input_file: Path) -> ZXTokenConverter:
         cls.info(f'Import 53c data from {input_file.name}', indent=0)
         token = ZXToken(init_attribute=ZXToken.DEFAULT_ATTRIBUTE)
         with open(input_file, 'rb') as file:
@@ -25,7 +26,7 @@ class ATRConverter(BaseConverter):
             if remaining:
                 cls.error(f'{remaining} bytes left in file (probably not 53c formatted file)!')
                 raise RuntimeError('Does not appear to be 53c formatted file')
-        return token
+        return ZXTokenConverter(token)
 
     @classmethod
     def to_parsed_attribute(cls, attribute) -> dict[str, typing.Any]:
