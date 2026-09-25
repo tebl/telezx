@@ -111,7 +111,7 @@ span.icon {
     box-shadow: 2px 2px #858585;
 } 
 
-#keyboard_shortcuts, #image_details {
+#keyboard_shortcuts, #document_details {
     width: 768px;
     padding: 5px;
     overflow: hidden;
@@ -119,11 +119,15 @@ span.icon {
     font-size: medium;
 }
 
-.collapsible, #keyboard_shortcuts, #image_details {
+.collapsible, #keyboard_shortcuts, #document_details {
     position: relative;
     left: 50%; 
     transform: translateX(-50%);
     align-items: center;
+}
+
+#btn_document_details img, #btn_keyboard img {
+    vertical-align: top;
 }
 
 #keyboard_shortcuts th {

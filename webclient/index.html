@@ -35,7 +35,7 @@
                         element.classList.add('key_input_active');
 
                         var ui_scale = (scale_value > 1 ? scale_value : 2);
-                        const elements = [ 'header', 'footer', 'navbar', 'btn_keyboard', 'keyboard_shortcuts', 'btn_image_details', 'image_details'];
+                        const elements = [ 'header', 'footer', 'navbar', 'btn_keyboard', 'keyboard_shortcuts', 'btn_document_details', 'document_details'];
                         elements.forEach(function (item, index) {
                             var e = document.getElementById(item);
                             e.style.width = String(256 * ui_scale) + 'px';;
@@ -142,13 +142,13 @@
                 </div>
 
                 <div id="sections">
-                    <button class="collapsible" onclick="web_toggle_section(this, 'image_details');" id="btn_image_details"><span class="icon">🗎</span>Image details:</button>
-                    <div id="image_details" style="display: none;">
+                    <button class="collapsible" onclick="web_toggle_section(this, 'document_details');" id="btn_document_details"><img src="assets/web-content.svg"> Document details:</button>
+                    <div id="document_details" style="display: none;">
                         <pre id="tasl"></pre>
                     </div>
                     <br>
 
-                    <button class="collapsible" onclick="web_toggle_section(this, 'keyboard_shortcuts');" id="btn_keyboard"><span class="icon">⌨</span>Keyboard shortcuts:</button>
+                    <button class="collapsible" onclick="web_toggle_section(this, 'keyboard_shortcuts');" id="btn_keyboard"><img src="assets/web-keyboard.svg"> Keyboard shortcuts:</button>
                     <div id="keyboard_shortcuts" style="display: none;">
                         <table style="width: 100%;">
                             <tr>
