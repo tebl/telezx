@@ -375,51 +375,6 @@ function fetch_page() {
     return generate_blank_page(ERROR_ATTRIBUTE);
 }
 
-// function generatePage(page, subpage) {
-//     zx_clear_memory(0x00, zx_toAttribute(false, false, ATTRIBUTES.BLACK, ATTRIBUTES.WHITE))
-
-//     switch (subpage) {
-//         case 0:
-//             ui_setCursor(0, 2);
-//             ui_setFont(FONT_DEFAULT);
-//             ui_printString("Default:", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.YELLOW));
-//             ui_setCursor(0, 3);
-//             ui_setFont(FONT_DEFAULT);
-//             for (let i = 0; i < (FONT_DEFAULT.length / 8); i++) {
-//                 ui_printBytes(ui_getFontData(i));
-//             }
-
-//             ui_setCursor(0, 7);
-//             ui_setFont(FONT_DEFAULT);
-//             ui_printString("Computer:", zx_toAttribute(false, true, ATTRIBUTES.BLACK, ATTRIBUTES.YELLOW));
-//             ui_setCursor(0, 8);
-//             ui_setFont(FONT_CP850);
-//             for (let i = 0; i < (FONT_DEFAULT.length / 8); i++) {
-//                 ui_printBytes(ui_getFontData(i));
-//             }
-//             break;
-//         case 1:
-//         case 2:
-//             let x = 1;
-//             let y = 2;
-//             let start = (subpage == 1 ? 0 : 0xc8);
-//             let end = (subpage == 1 ? 0xc7 : 0xff);
-//             for (let i = start; i <= end; i++) {
-//                 ui_setCursor(x, y);
-//                 ui_printString(i.toString(16).padStart(2, '0'), i);
-//                 y++;
-//                 if (y >= (SCREEN_HEIGHT_CHARS - 2)) {
-//                     y = 2;
-//                     x += 3;
-//                 }
-//             }
-//             break;
-//     }
-
-//     setResponse(String(page), STATUS_TYPES.OK);
-//     requestRenderScreen();
-// }
-
 function fetch_page_next() {
     if (have_page_id(current_page + 1)) {
         current_page += 1;
@@ -435,17 +390,19 @@ function fetch_page_previous() {
 }
 
 async function fetch_scr_asset(document_id, page_id) {
-    try {
-        // Fetch the JSON file  
-        const fetch_url = get_scr_url(document_id, page_id);
-        const response = await fetch(fetch_url);
+    const fetch_url = get_scr_url(document_id, page_id);
+    fetch(fetch_url).then(fetched_scr_asset);
+    fetch(fetch_url + '.about').then(fetched_about);
+}
 
-        // Check for HTTP errors  
+async function fetched_scr_asset(response) {
+    try {
+        // Check for HTTP errors
         if (!response.ok) {
             throw new Error(`${response.status} ${response.statusText}`);
         }
 
-        // Parse JSON data  
+        // Parse JSON data
         const data = await response.bytes();
         if (data.length == memory.length) {
             for (var i = 0; i < memory.length; i++) {
@@ -463,31 +420,29 @@ async function fetch_scr_asset(document_id, page_id) {
     }
 
     request_render_screen();
-    fetch_scr_about(document_id, page_id)
 }
 
-async function fetch_scr_about(page, subpage) {
+async function fetched_about(response) {
     try {
-        const fetch_url = get_scr_about_url(page, subpage);
-        const response = await fetch(fetch_url);
-
         if (response.ok) {
             const data = await response.text();
             return web_set_tasl(data);
         }
     } catch (error) {
-        console.debug('Error during fetch_scr_about:', String(error))
+        console.debug('Error when fetching about:', String(error))
     }
 
     return web_set_tasl('');
 }
 
-async function fetch_token_asset(page, subpage, default_attribute) {
-    try {
-        // Fetch the JSON file  
-        const fetch_url = get_tkn_url(page, subpage);
-        const response = await fetch(fetch_url);
+async function fetch_token_asset(document_id, page_id, default_attribute) {
+    const fetch_url = get_tkn_url(document_id, page_id);
+    fetch(fetch_url).then(response => {fetched_token_asset(response, default_attribute)});
+    fetch(fetch_url + '.about').then(fetched_about);
+}
 
+async function fetched_token_asset(response, default_attribute) {
+    try {
         // Check for HTTP errors  
         if (!response.ok) {
             throw new Error(`${response.status} ${response.statusText}`);
