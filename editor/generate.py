@@ -489,7 +489,7 @@ def cmd_transform(args, parser: ArgumentParser):
         helper.restore()
         print()
 
-    if args.clear_xy or args.clear_line or args.scroll:
+    if args.clear_xy or args.clear_line or args.scroll or args.delete_line:
         print('Applying transformations:')
         if args.clear_xy:
             if args.with_attribute is not None:
@@ -504,6 +504,14 @@ def cmd_transform(args, parser: ArgumentParser):
             for char_y in args.clear_line:
                 if helper.transform_clear_line(char_y, attribute=args.with_attribute):
                     changes = True
+
+        if args.delete_line:
+            if args.with_attribute is not None:
+                __print_attribute(args.with_attribute, indent_count=1)
+            for char_y in args.delete_line:
+                if helper.transform_delete_line(char_y, attribute=args.with_attribute):
+                    changes = True
+
 
         if args.scroll:
             delta_x, delta_y = args.scroll
@@ -715,6 +723,7 @@ def main():
     parser_transform.add_argument('--preview', action='store_true', help="Create preview image")
     parser_transform.add_argument('--restore', action='store_true', help="Restore original file")
     parser_transform.add_argument('--clear-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
+    parser_transform.add_argument('--delete-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
     parser_transform.add_argument('--clear-xy', nargs='*', action=ValidatedCoordinateAction, help="Clear character X1 Y1 ... Xn Yn")
     parser_transform.add_argument('--scroll', nargs='*', action=ValidatedScrollAction, help="Scroll the screen, '0 -1' to scroll up")
     group = parser_transform.add_argument_group('Set transformation parameters')

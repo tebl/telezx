@@ -59,15 +59,23 @@ class TransformationHelper(DocumentHelper):
             self.zx_screen.write_cell(char_x, char_y, ZXGlyph.generate_blank_glyph(), attribute)
         return True
 
-    def transform_scroll(self, delta_x, delta_y) -> bool:
-        if not delta_x == 0:
+    def transform_delete_line(self, char_y: int, attribute: int|None=None) -> bool:
+        self.__ensure_loaded()
+        self.logger.info('Deleting line', char_y)
+        self.transform_scroll(delta_x=0, delta_y=-1, start_y=char_y)
+        for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
+            self.zx_screen.write_cell(char_x, ZXScreen.SCREEN_HEIGHT_CHARS - 1, ZXGlyph.generate_blank_glyph(), attribute)
+        return True
+
+    def transform_scroll(self, delta_x: int=0, delta_y: int=0, start_x: int=0, start_y: int=0) -> bool:
+        if not delta_x == 0 and start_x == 0:
             self.logger.info('Scrolling', 'left' if delta_x < 0 else 'right', delta_x, 'characters')
-        if not delta_y == 0:
+        if not delta_y == 0 and start_y == 0:
             self.logger.info('Scrolling', 'up' if delta_y < 0 else 'down', delta_y, 'character lines')
 
         self.original = ZXScreen()
         self.original.flip_memory(self.zx_screen.memory)
-        for char_x, char_y in ZXScreenIterator(0, 0):
+        for char_x, char_y in ZXScreenIterator(start_x, start_y):
             from_x = ((char_x - delta_x) % ZXScreen.SCREEN_WIDTH_CHARS)
             from_y = ((char_y - delta_y) % ZXScreen.SCREEN_HEIGHT_CHARS)
 
