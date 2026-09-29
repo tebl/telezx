@@ -72,6 +72,13 @@ def get_project_root() -> Path:
     '''
     return Path(__file__).parent.parent
 
+def get_webclient_root() -> Path:
+    '''
+    Same as above, except we're returning the path of where the webclient
+    files can be found. Used when syncing information between the two.
+    '''
+    return get_project_root().parent / 'webclient'
+
 def parse_asset_id(value):
     return ensure_int(value, 0, 255, 16)
 

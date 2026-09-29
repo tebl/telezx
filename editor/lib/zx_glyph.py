@@ -80,22 +80,25 @@ class ZXGlyph:
             file.write(glyph_data)
 
     def export_js(self, path: Path, name: str|None=None) -> bool:
-        indent = ' '*4
         with open(path, 'w') as file:
-            file.write(f'const {self._get_js_name(name)} = [\n')
-            for glyph_idx in range(0, self.get_glyph_count()):
-                file.write(f'{indent} ')
-                for value in self.get_offset(glyph_idx):
-                    file.write(f'0x{format_padded_id(value, width=2).lower()}, ')
-
-                char_code = self.get_charcode_offset(glyph_idx)
-                if chr(char_code) in string.printable:
-                    file.write(f' /* {str(char_code).rjust(3) } = "{chr(char_code)}" */')
-                else:
-                    file.write(f' /* {str(char_code).rjust(3) } */')
-                file.write('\n')
-            file.write('];\n')
+            self.export_js_file(file, name)
         return True
+
+    def export_js_file(self, file, name: str|None=None):
+        indent = ' '*4
+        file.write(f'const {self._get_js_name(name)} = [\n')
+        for glyph_idx in range(0, self.get_glyph_count()):
+            file.write(f'{indent} ')
+            for value in self.get_offset(glyph_idx):
+                file.write(f'0x{format_padded_id(value, width=2).lower()}, ')
+
+            char_code = self.get_charcode_offset(glyph_idx)
+            if chr(char_code) in string.printable:
+                file.write(f' /* {str(char_code).rjust(3) } = "{chr(char_code)}" */')
+            else:
+                file.write(f' /* {str(char_code).rjust(3) } */')
+            file.write('\n')
+        file.write('];\n')
 
     def _get_js_name(self, name: str) -> str:
         if not name:

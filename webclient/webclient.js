@@ -793,7 +793,7 @@ function ui_primary_header() {
     ui_print_ascii(ASCII_SPACE);
     ui_print_ascii(ASCII_SPACE);
     ui_print_ascii(ASCII_SPACE);
-    ui_set_font(FONT_CP850);
+    ui_set_font(FONT_ALTERNATE);
     ui_print_string("T", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.RED));
     ui_print_string("e", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.YELLOW));
     ui_print_string("l", zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.GREEN));

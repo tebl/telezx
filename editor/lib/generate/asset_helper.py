@@ -18,7 +18,7 @@ class AssetHelper(RepositoryHelper):
         self.open_registry()
 
     def create_frames(self, indent: int=0):
-        frame_path = self.asset_path / self.get_filename()
+        frame_path = self.asset_path / self.__get_frame_filename()
         frame = ZXFrame.create_frame(frame_path)
         frame.overlay_skirt(ZXToken.DEFAULT_PAPER)
         frame.save()
@@ -27,7 +27,7 @@ class AssetHelper(RepositoryHelper):
         self.logger.info(f'{frame_path.name} created.', indent=indent)
 
         for description, using_ink, using_paper, text_attribute in ZXFrame.frame_colours():
-            frame_path = self.asset_path / self.get_filename(description, has_frame=True)
+            frame_path = self.asset_path / self.__get_frame_filename(description, has_frame=True)
             frame = ZXFrame.create_frame(frame_path)
             frame.overlay_box(using_ink, using_paper, text_attribute)
             frame.save()
@@ -35,7 +35,7 @@ class AssetHelper(RepositoryHelper):
             frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
             self.logger.info(f'{frame_path.name} created.', indent=indent)
 
-            frame_path = self.asset_path / self.get_filename(description, has_frame=True, has_title=True)
+            frame_path = self.asset_path / self.__get_frame_filename(description, has_frame=True, has_title=True)
             frame = ZXFrame.create_frame(frame_path)
             frame.overlay_title_box(using_ink, using_paper, text_attribute)
             frame.save()
@@ -44,7 +44,7 @@ class AssetHelper(RepositoryHelper):
             frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
             self.logger.info(f'{frame_path.name} created.', indent=indent)
 
-            frame_path = self.asset_path / self.get_filename(description, has_title=True)
+            frame_path = self.asset_path / self.__get_frame_filename(description, has_title=True)
             frame = ZXFrame.create_frame(frame_path)
             frame.overlay_title(using_ink, using_paper, text_attribute)
             frame.overlay_skirt(using_paper)
@@ -53,6 +53,18 @@ class AssetHelper(RepositoryHelper):
             frame.set_string(0, 4, 'Example text')
             frame.export_screenshot(f'{frame_path}{ZXDocument.EXTENSION_SCREENSHOT}')
             self.logger.info(f'{frame_path.name} created.', indent=indent)
+
+    def __get_frame_filename(self, has_description: str|None=None, has_frame: bool=False, has_title: bool=False):
+        parts = []
+        if has_description:
+            parts.append(utilities.sanitize_filename(has_description))
+        if has_frame:
+            parts.append('frame')
+        if has_title:
+            parts.append('title')
+        if not len(parts):
+            parts.append('page')
+        return '_'.join(parts) + ZXToken.FILE_EXTENSION
 
     def create_test_pages(self, document_id: int=ZXDocument.DOCUMENT_ID_TEST):
         target_directory = self._create_document_path(document_id, 'Test page')
@@ -156,8 +168,8 @@ class AssetHelper(RepositoryHelper):
         self.__copy_default(base_path, colour_name, has_title=True)
 
     def __copy_default(self, base_path: Path, has_description: str|None=None, has_frame: bool=False, has_title: bool=False):
-        path_src = self.asset_path / self.get_filename(has_description, has_frame, has_title)
-        path_out = base_path / self.get_filename(self.DEFAULT_DESCRIPTION, has_frame, has_title)
+        path_src = self.asset_path / self.__get_frame_filename(has_description, has_frame, has_title)
+        path_out = base_path / self.__get_frame_filename(self.DEFAULT_DESCRIPTION, has_frame, has_title)
         self.__copy_file(path_src, path_out)
 
         path_src = path_src.with_suffix(path_src.suffix + ZXDocument.EXTENSION_SCREENSHOT)
@@ -174,14 +186,16 @@ class AssetHelper(RepositoryHelper):
                           '->', path_out.relative_to(root))
         path_src.copy(path_out)
 
-    def get_filename(self, has_description: str|None=None, has_frame: bool=False, has_title: bool=False):
-        parts = []
-        if has_description:
-            parts.append(utilities.sanitize_filename(has_description))
-        if has_frame:
-            parts.append('frame')
-        if has_title:
-            parts.append('title')
-        if not len(parts):
-            parts.append('page')
-        return '_'.join(parts) + ZXToken.FILE_EXTENSION
+    def export_fonts(self):
+        root = utilities.get_project_root()
+        webclient = utilities.get_webclient_root()
+        fonts = [('font_default', 'DEFAULT'),
+                 ('font_cp850', 'ALTERNATE')]
+        with open(webclient / 'fonts.js', 'w') as file:
+            for name, var in fonts:
+                self.logger.info('Exporting', f'{name}.bin')
+                font = ZXFont.from_file(root / 'fonts' / f'{name}.bin')
+                font.export_js_file(file, var)
+            glyphs = ZXGlyph.from_file(root / 'fonts' / f'font_glyphs.bin')
+            self.logger.info('Exporting', f'font_glyphs.bin')
+            glyphs.export_js_file(file, 'GLYPHS')
