@@ -707,7 +707,7 @@ def main():
     parser_transform.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     parser_transform.add_argument('-f', '--document-id', type=utilities.argument_is_document_id, required=True, help="Specify document ID")
     parser_transform.add_argument('-p', '--page-id', type=utilities.argument_is_page_id, required=True, help="Open page ID")
-    parser_transform.add_argument('-o', '--preview', action='store_true', help="Create preview image")
+    parser_transform.add_argument('--preview', action='store_true', help="Create preview image")
     parser_transform.add_argument('--restore', action='store_true', help="Restore original file")
     parser_transform.add_argument('--clear-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
     parser_transform.add_argument('--clear-xy', nargs='*', action=ValidatedCoordinateAction, help="Clear character X1 Y1 ... Xn Yn")

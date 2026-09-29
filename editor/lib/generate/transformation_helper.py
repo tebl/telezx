@@ -14,7 +14,7 @@ class TransformationHelper(DocumentHelper):
         self.zx_screen = None
 
     def create_preview(self):
-        self.__ensure_loaded()
+        self.__ensure_loaded(create_backup=False)
         preview = self.__get_preview_path()
 
         image = Image.fromarray(self.zx_screen.to_rgb())
@@ -84,10 +84,11 @@ class TransformationHelper(DocumentHelper):
             self.logger.debug('Backup', self.scr_path.name, '->', backup.name)
             self.scr_path.copy(backup)
 
-    def __ensure_loaded(self):
+    def __ensure_loaded(self, create_backup: bool=True):
         if not self.zx_screen:
             raise TransformationError("ZXScreen not loaded!")
-        self.__create_backup()
+        if create_backup:
+            self.__create_backup()
 
     def __extract_path(self, page: ZXPage) -> Path:
         if isinstance(page, ZXPage_Overlay):
