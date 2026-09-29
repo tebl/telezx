@@ -1,6 +1,8 @@
 import numpy, string, typing
 from pathlib import Path
+from PIL import Image
 from .utilities import format_padded_id, format_padded_int
+from .zx_screen import ZXScreen, ZXScreenIterator
 
 class ZXGlyph:
     GLYPH_OFFSET = 0x80
@@ -99,6 +101,29 @@ class ZXGlyph:
         if not name:
             return f'FONT_GLYPHS'
         return f'FONT_{name.upper()}'
+
+    def export_png(self, path: Path) -> bool:
+        zx_screen = ZXScreen()
+        zx_screen.clear_memory(0, ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE))
+        attribute = ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE, is_bright=True)
+
+        char_y = 0
+        char_x = 0
+        for idx in range(0, self.get_glyph_count()):
+            zx_screen.write_cell(
+                char_x, 
+                char_y, 
+                self.get_offset(idx),
+                attribute
+            )
+
+            char_x += 1
+            if char_x > ZXScreen.SCREEN_WIDTH_CHARS - 1:
+                char_x = 0
+                char_y += 1
+
+        image = Image.fromarray(zx_screen.to_rgb())
+        image.save(path)
 
     @classmethod
     def generate_blank_glyph(cls):
