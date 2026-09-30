@@ -5,6 +5,8 @@ from .utilities import format_padded_id, format_padded_int
 from .zx_screen import ZXScreen, ZXScreenIterator
 
 class ZXGlyph:
+    GLYPH_WIDTH = 8
+    GLYPH_HEIGHT = 8
     GLYPH_OFFSET = 0x80
     'Offset added to index to get character code'
 
@@ -31,13 +33,13 @@ class ZXGlyph:
 
     def glyphs(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         for idx in range(0, self.get_glyph_count()):
-            yield (self.get_charcode_offset(idx), self.get_offset(idx))
+            yield (self.get_charcode_from_offset(idx), self.get_offset(idx))
 
     def glyphs_rgb(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         if not self._generate_rgb:
             raise ValueError('RGB not available')
         for idx in range(0, self.get_glyph_count()):
-            yield (self.get_charcode_offset(idx), self.get_offset_rgb(idx))
+            yield (self.get_charcode_from_offset(idx), self.get_offset_rgb(idx))
 
     def generate_glyph_rgb(self, offset, foreground, background):
         data = numpy.full(shape=(8, 8, 3), fill_value=background, dtype=numpy.uint8)
@@ -57,7 +59,7 @@ class ZXGlyph:
     def get_offset_rgb(self, offset):
         return self.rgb_data[offset]
 
-    def get_charcode_offset(self, value: int=0) -> int:
+    def get_charcode_from_offset(self, value: int=0) -> int:
         return self.GLYPH_OFFSET + value
 
     def get_glyph_count(self):
@@ -92,7 +94,7 @@ class ZXGlyph:
             for value in self.get_offset(glyph_idx):
                 file.write(f'0x{format_padded_id(value, width=2).lower()}, ')
 
-            char_code = self.get_charcode_offset(glyph_idx)
+            char_code = self.get_charcode_from_offset(glyph_idx)
             if chr(char_code) in string.printable:
                 file.write(f' /* {str(char_code).rjust(3) } = "{chr(char_code)}" */')
             else:

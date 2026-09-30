@@ -2,7 +2,7 @@ import numpy
 from pathlib import Path
 from PIL import Image
 from .document_helper import DocumentHelper
-from .. import ZXGlyph, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay
+from .. import ZXFont, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, utilities
 
 class TransformationHelper(DocumentHelper):
     src_path: Path
@@ -15,11 +15,49 @@ class TransformationHelper(DocumentHelper):
 
     def create_preview(self):
         self.__ensure_loaded(create_backup=False)
-        preview = self.__get_preview_path()
+        path_out = self.__get_preview_path()
+        legend_offset = ZXFont.GLYPH_WIDTH*2
 
-        image = Image.fromarray(self.zx_screen.to_rgb())
-        image.save(preview)
-        self.logger.info('Created preview', preview)
+        legend = ZXScreen()
+        legend.clear_memory(set_attribute=ZXScreen.to_attribute(is_bright=True, ink=ZXScreen.BLACK, paper=ZXScreen.WHITE))
+        font = ZXFont.get_default(generate_rgb=True)
+        font_alt = ZXFont.get_default(generate_rgb=True, rgb_fg=[160, 160, 160])
+
+        pixels = numpy.zeros(shape=(ZXScreen.SCREEN_HEIGHT_PIXELS + legend_offset, ZXScreen.SCREEN_WIDTH_PIXELS + legend_offset, 3), dtype=numpy.uint8)
+        pixels[legend_offset:, legend_offset:] = self.zx_screen.to_rgb()
+
+        for char_x in range(0, ZXScreen.SCREEN_WIDTH_CHARS):
+            padded = utilities.format_padded_int(char_x)
+
+            start_y = 0
+            end_y = start_y + ZXFont.GLYPH_HEIGHT
+
+            start_x = legend_offset + (char_x * ZXFont.GLYPH_WIDTH)
+            end_x = start_x + ZXFont.GLYPH_WIDTH
+
+            using_font = font if (char_x % 2) else font_alt
+            pixels[start_y:end_y, start_x:end_x] = using_font.get_ascii(padded[0], rgb=True)
+            pixels[start_y+ZXFont.GLYPH_HEIGHT:end_y+ZXFont.GLYPH_HEIGHT, start_x:end_x] = using_font.get_ascii(padded[1], rgb=True)
+
+        for char_y in range(0, ZXScreen.SCREEN_HEIGHT_CHARS):
+            padded = utilities.format_padded_int(char_y)
+
+            start_y = legend_offset + (char_y * ZXFont.GLYPH_HEIGHT)
+            end_y = start_y + ZXFont.GLYPH_HEIGHT
+
+            start_x = 0
+            end_x = start_x + ZXFont.GLYPH_WIDTH
+
+            using_font = font if (char_y % 2) else font_alt
+            pixels[start_y:end_y, start_x:end_x] = using_font.get_ascii(padded[0], rgb=True)
+            pixels[start_y:end_y, start_x+ZXFont.GLYPH_WIDTH:end_x+ZXFont.GLYPH_WIDTH] = using_font.get_ascii(padded[1], rgb=True)
+
+        image = Image.fromarray(pixels)
+        image.save(path_out)
+        self.logger.info('Created preview', path_out)
+
+    def __plot_character(self, pixels: numpy.ndarray):
+        pass
 
     def open_page(self, page: ZXPage) -> True:
         scr_path = self.__extract_path(page)
