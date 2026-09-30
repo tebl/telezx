@@ -58,6 +58,7 @@ canvas {
 
 #controls {
     margin-top: 5px;
+    touch-action: manipulation;
 }
 #controls table {
     position: relative;
