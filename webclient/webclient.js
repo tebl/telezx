@@ -64,7 +64,7 @@ const screen_map = zx_calculate_lookup_table();
 var cursor_x = 0;
 var cursor_y = 0;
 
-var current_border = ATTRIBUTE.RED;
+var current_border = ATTRIBUTE.WHITE;
 var current_document = DOCUMENT_DEFAULT;
 var current_font = FONT_DEFAULT;
 var current_input = ""
@@ -189,11 +189,10 @@ function render_memory() {
         }
     }
 
-    // set_border(current_border);
-    set_border(ATTRIBUTE.WHITE, alpha=255);
+    set_border(current_border);
 }
 
-function set_border(border_colour, is_bright=false, alpha=64) {
+function set_border(border_colour, is_bright=false, alpha=192) {
     fill_area(0, 0, SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, border_colour, is_bright, alpha);
     fill_area(0, (SCREEN_HEIGHT_PIXELS + BORDER_HEIGHT), SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, border_colour, is_bright, alpha);
     fill_area(0, BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, border_colour, is_bright, alpha);
