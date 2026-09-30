@@ -1463,7 +1463,7 @@ class Sidebar(ttk.Frame):
         super().__init__(master)
 
         self.palette = ColourPalette(master=self, zx_editor=master)
-        self.palette.pack(fill=X, pady=0)
+        self.palette.pack(fill=X, pady=(4, 0))
 
         self.characters = CharacterPalette(self, zx_editor=master)
         self.characters.pack(fill=X, pady=0)
@@ -1484,34 +1484,33 @@ class ColourPalette(ttk.Frame):
         self.current_ink = ZXScreen.WHITE
         self.current_paper = ZXScreen.BLACK
 
-        lbl = ttk.Label(self, text="INK")
-        lbl.grid(row=0, column=0)
+        lbl = ttk.Label(self, text="Ink:")
+        lbl.grid(row=0, column=0, sticky=W, padx=(0, 4))
         self.ink_widgets = []
 
         frame = ttk.Frame(self)
-        frame.grid(row=1, column=0)
+        frame.grid(row=0, column=1)
         for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
             widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_INK, colour=ink_value)
-            widget.grid(row=ink_value, column=0, padx=0, pady=0)
+            widget.grid(row=0, column=ink_value, padx=0, pady=0)
             widget.refresh()
             self.ink_widgets.append(widget)
 
 
-        lbl = ttk.Label(self, text="PAPER")
-        lbl.grid(row=0, column=1)
+        lbl = ttk.Label(self, text="Paper:")
+        lbl.grid(row=1, column=0, sticky=W, padx=(0, 4))
         self.paper_widgets = []
 
-        frame = ttk.Frame(self, style="danger.TFrame")
+        frame = ttk.Frame(self)
         frame.grid(row=1, column=1)
         for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
             widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_PAPER, colour=ink_value)
-            widget.grid(row=ink_value, column=0, padx=0, pady=0)
+            widget.grid(row=0, column=ink_value, padx=0, pady=0)
             widget.refresh()
             self.ink_widgets.append(widget)
 
-
         frame = ttk.Frame(self)
-        frame.grid(row=1, column=2, sticky=NSEW, padx=10)
+        frame.grid(row=2, column=1, sticky=NSEW)
 
         btn = ttk.Checkbutton(
             frame, 
@@ -1521,7 +1520,7 @@ class ColourPalette(ttk.Frame):
             offvalue=False,
             variable=self.is_bright_var,
             command=lambda: self.changed_bright(self.is_bright_var.get()))
-        btn.grid(row=0, column=0, sticky=NW)
+        btn.pack(anchor=W, padx=(4, 0))
 
         btn = ttk.Checkbutton(
             frame, 
@@ -1531,7 +1530,7 @@ class ColourPalette(ttk.Frame):
             offvalue=False,
             variable=self.is_flash_var,
             command=lambda: self.changed_flash(self.is_flash_var.get()))
-        btn.grid(row=1, column=0, sticky=NW)
+        btn.pack(anchor=W, padx=(4, 0))
 
         self.btn_inverted = ttk.Checkbutton(
             frame, 
@@ -1541,7 +1540,7 @@ class ColourPalette(ttk.Frame):
             offvalue=False,
             variable=self.is_inverted_var,
             command=lambda: self.changed_inverted(self.is_inverted_var.get()))
-        self.btn_inverted.grid(row=2, column=0, sticky=NW)
+        self.btn_inverted.pack(anchor=W, padx=(4, 0))
         ToolTip(self.btn_inverted, text="Enable to invert palette for the selected cell, swapping ink/paper when screen is rendered.\n\nKeyboard: Ctrl+i", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
 
         # When enabled we ignore updates to the palette when inserting data,
@@ -1554,7 +1553,7 @@ class ColourPalette(ttk.Frame):
             offvalue=False,
             variable=self.is_sticky_enabled_var,
             command=lambda: self.zx_editor.set_sticky(self.is_sticky_enabled_var.get()))
-        btn.grid(row=3, column=0, sticky=NW, pady=(10, 0))
+        btn.pack(anchor=W, padx=(4, 0))
         ToolTip(btn, text="Palette will automatically update to reflect newly selected cell contents, set to enabled to keep current attribute active.\n\nKeyboard: Ctrl+f", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
 
         # Determines if we're overwriting the current highlighted cell or
@@ -1567,7 +1566,7 @@ class ColourPalette(ttk.Frame):
             offvalue=False,
             variable=self.is_overwrite_enabled_var,
             command=lambda: self.zx_editor.set_overwrite(self.is_overwrite_enabled_var.get()))
-        btn.grid(row=4, column=0, sticky=NW)
+        btn.pack(anchor=W, padx=(4, 0))
         ToolTip(btn, text="Enable to overwrite current selected cell, when not enabled it will automatically move onto next available cell.\n\nKeyboard: Insert", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
 
     def changed_bright(self, value):
@@ -1707,18 +1706,18 @@ class ColourOption(Canvas):
 
     
 class CharacterPalette(ttk.Frame):
-    NUM_COLUMNS = 8
+    NUM_COLUMNS = 6
 
     def __init__(self, master, zx_editor):
         super().__init__(master, style='bg.TFrame')
         self.zx_editor = zx_editor
 
         self.font_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
-        self.font_frame.pack()
+        self.font_frame.pack(side=LEFT)
         self.font_widgets = []
 
         self.glyph_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
-        self.glyph_frame.pack()
+        self.glyph_frame.pack(side=RIGHT)
         self.glyph_widgets = []
 
     def load_font(self, path, frame, widgets, value_offset):
