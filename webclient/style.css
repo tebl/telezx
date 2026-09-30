@@ -1,5 +1,6 @@
 * {
     box-sizing: border-box;
+    touch-action: manipulation;
 }
 
 body {
@@ -179,7 +180,6 @@ span.key:hover, span.key_mod:hover, .key_input:hover {
     margin: 0 4px 4px 0;
     border-radius: 16px;
     font-size: x-large;
-    touch-action: manipulation;
 }
 
 .key_input img {
