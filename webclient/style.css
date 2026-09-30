@@ -19,7 +19,7 @@ canvas {
     background-color: #375a7f;
     border-width: 2px 0 2px 0;
     border-style: solid;
-    width: 960px;
+    width: 864px;
     margin: 0 auto;
 }
 
@@ -71,7 +71,7 @@ canvas {
     color: white;
     cursor: pointer;
     padding: 5px;
-    width: 960px;
+    width: 864px;
     border: none;
     text-align: left;
     outline: none;
@@ -112,7 +112,7 @@ span.icon {
 } 
 
 #keyboard_shortcuts, #document_details {
-    width: 960px;
+    width: 864px;
     padding: 5px;
     overflow: hidden;
     background-color: #f0f0f0;
@@ -221,7 +221,7 @@ header {
     text-align: center;
     color: white;
     background: #202326;
-    width: 960px;
+    width: 864px;
     margin: 0 auto;
 }
 
@@ -233,7 +233,7 @@ header {
     margin: 0;
     padding: 10px;
     text-align: center;
-    width: 960px;
+    width: 864px;
     margin: 0 auto;
 }
 #footer a {

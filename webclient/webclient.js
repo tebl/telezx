@@ -40,8 +40,8 @@ const SIZE_DATA = 6144;
 const SIZE_ATTR = 768;
 const SIZE_MEMORY = SIZE_DATA + SIZE_ATTR;
 
-const BORDER_WIDTH = 32;
-const BORDER_HEIGHT = 24;
+const BORDER_WIDTH = 16;
+const BORDER_HEIGHT = 12;
 
 const STATUS_TYPES = { NONE: -1, OK: 0, ERROR: 1 };
 const INDEX_TYPES = { NONE: 'NONE', INDEX: 'IDX' };
