@@ -38,7 +38,7 @@
                         const elements = [ 'header', 'footer', 'navbar', 'btn_keyboard', 'keyboard_shortcuts', 'btn_document_details', 'document_details'];
                         elements.forEach(function (item, index) {
                             var e = document.getElementById(item);
-                            e.style.width = String(256 * ui_scale) + 'px';;
+                            e.style.width = String((256 + BORDER_WIDTH*2) * ui_scale) + 'px';
                         });
                     } else {
                         element.classList.remove('key_input_active');
@@ -64,7 +64,7 @@
         <div class="container">
             <div class="main">
                 <div class="display_area">
-                    <canvas id="viewport" width="256" height="192" style="width: 768px; height: 576px;"></canvas>
+                    <canvas id="viewport" width="320" height="240" style="width: 960px; height: 720px;"></canvas>
                 </div>
                 <div id="controls">
                     <table id="controls_table">

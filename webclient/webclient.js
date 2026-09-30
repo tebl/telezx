@@ -34,9 +34,14 @@ const PAGE_MAXIMUM = 0xffff;
 const SCREEN_REFRESH = 1000/50;
 const SCREEN_WIDTH_CHARS = 32;
 const SCREEN_HEIGHT_CHARS = 24;
+const SCREEN_WIDTH_PIXELS = SCREEN_WIDTH_CHARS*8;
+const SCREEN_HEIGHT_PIXELS = SCREEN_HEIGHT_CHARS*8;
 const SIZE_DATA = 6144;
 const SIZE_ATTR = 768;
 const SIZE_MEMORY = SIZE_DATA + SIZE_ATTR;
+
+const BORDER_WIDTH = 32;
+const BORDER_HEIGHT = 24;
 
 const STATUS_TYPES = { NONE: -1, OK: 0, ERROR: 1 };
 const INDEX_TYPES = { NONE: 'NONE', INDEX: 'IDX' };
@@ -55,13 +60,15 @@ const buffer = new ArrayBuffer(SIZE_MEMORY);
 const memory = new Uint8Array(buffer);
 const screen_map = zx_calculate_lookup_table();
 
+
 var cursor_x = 0;
 var cursor_y = 0;
 
-var current_font = FONT_DEFAULT;
+var current_border = ATTRIBUTE.RED;
 var current_document = DOCUMENT_DEFAULT;
-var current_page = -1;
+var current_font = FONT_DEFAULT;
 var current_input = ""
+var current_page = -1;
 
 var current_index = null;
 var current_status = "";
@@ -142,7 +149,11 @@ function get_canvas_colour(is_on, attr_value) {
     if (attr_value.flash && canvas_flash_value) {
         colour = (is_on ? attr_value.paper : attr_value.ink);
     }
-    var base_value = (attr_value.bright ? RGB_FULL : RGB_BASE);
+    return get_colour_rgb(colour, attr_value.bright);
+}
+
+function get_colour_rgb(colour, is_bright=false) {
+    var base_value = (is_bright ? RGB_FULL : RGB_BASE);
     return [
         ((colour >> 1) & 1)*base_value,  // red
         ((colour >> 2) & 1)*base_value,  // green
@@ -175,6 +186,26 @@ function render_memory() {
                     }
                 }
             }
+        }
+    }
+
+    // set_border(current_border);
+    set_border(ATTRIBUTE.WHITE, alpha=255);
+}
+
+function set_border(border_colour, is_bright=false, alpha=64) {
+    fill_area(0, 0, SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, border_colour, is_bright, alpha);
+    fill_area(0, (SCREEN_HEIGHT_PIXELS + BORDER_HEIGHT), SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, border_colour, is_bright, alpha);
+    fill_area(0, BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, border_colour, is_bright, alpha);
+    fill_area((BORDER_WIDTH + SCREEN_WIDTH_PIXELS), BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, border_colour, is_bright, alpha);
+
+}
+
+function fill_area(start_x, start_y, width, height, attribute_colour, is_bright=false, alpha=255) {
+    [red, green, blue] = get_colour_rgb(attribute_colour, is_bright);
+    for (var x = start_x; x < (start_x + width); x++) {
+        for (var y = start_y; y < (start_y + height); y++) {
+            ui_set_canvas_pixel(x, y, red, green, blue, alpha, true);
         }
     }
 }
@@ -896,8 +927,12 @@ function ui_set_canvas_index(index, red, green, blue, alpha) {
     canvas_image.data[index + 3] = alpha;
 }
 
-function ui_set_canvas_pixel(x, y, red, green, blue, alpha) {
-    ui_set_canvas_index((y * canvas_width + x) * 4, red, green, blue, alpha);
+function ui_set_canvas_pixel(x, y, red, green, blue, alpha, absolute_coord=false) {
+    if (absolute_coord) {
+        ui_set_canvas_index((y * canvas_width + x) * 4, red, green, blue, alpha);
+    } else {
+        ui_set_canvas_index(((BORDER_HEIGHT + y) * canvas_width + (BORDER_WIDTH + x)) * 4, red, green, blue, alpha);
+    }
 }
 
 /**
@@ -954,8 +989,8 @@ function ui_set_font(font) {
  */
 function ui_set_scale(scale) {
     var canvas = document.getElementById('viewport');
-    canvas.style.width = String(256 * scale) + 'px';
-    canvas.style.height = String(192 * scale) + 'px';
+    canvas.style.width = String((256 + BORDER_WIDTH*2) * scale) + 'px';
+    canvas.style.height = String((192 + BORDER_HEIGHT*2) * scale) + 'px';
 }
 
 // The function gets called when the window is fully loaded
