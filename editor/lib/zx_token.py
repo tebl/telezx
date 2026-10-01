@@ -24,6 +24,10 @@ class ZXToken:
     DEFAULT_GLYPH = 'font_glyphs'
     FILE_EXTENSION = '.zxtoken'
 
+    BOX_STYLE = 0
+    BOX_STYLE_THIN = 1
+    BOX_STYLE_DOUBLE = 2
+
     # Defined so that ZXFrame generates identical files
     DOCUMENT_TYPE = 'ZXToken'
 
@@ -62,16 +66,50 @@ class ZXToken:
         self.set_selected_font(self.DEFAULT_FONT)
         self.set_selected_glyph(self.DEFAULT_GLYPH)
 
-    def create_box(self, coord_a: Coordinate, coord_b: Coordinate):
+    def create_box(self, coord_a: Coordinate, coord_b: Coordinate, style: int=BOX_STYLE):
+        chr_top_left = 140
+        chr_top_right = 140
+        chr_bottom_left = 131
+        chr_bottom_right = 131
+        chr_left = 138
+        chr_right = 133
+        chr_top = 140
+        chr_bottom = 131
+
+        match style:
+            case self.BOX_STYLE_THIN:
+                chr_top_left = 208
+                chr_top_right = 181
+                chr_bottom_left = 182
+                chr_bottom_right = 207
+                chr_left = 169
+                chr_right = 169
+                chr_top = 186
+                chr_bottom = 186
+            case self.BOX_STYLE_DOUBLE:
+                chr_top_left = 191
+                chr_top_right = 177
+                chr_bottom_left = 190
+                chr_bottom_right = 178
+                chr_left = 176
+                chr_right = 176
+                chr_top = 195
+                chr_bottom = 195
+
         coord_start, coord_end = Coordinate.get_box(coord_a, coord_b)
         cell_copy = self.get_cell(coord_start.char_x, coord_start.char_y)
-        for char_x in range(coord_start.char_x, coord_end.char_x + 1):
-            self.set_cell(char_x, coord_start.char_y, char_code=140, char_attribute=cell_copy.char_attribute)
-            self.set_cell(char_x, coord_end.char_y, char_code=131, char_attribute=cell_copy.char_attribute)
-        for char_y in range(coord_start.char_y + 1, coord_end.char_y):
-            self.set_cell(coord_start.char_x, char_y, char_code=138, char_attribute=cell_copy.char_attribute)
-            self.set_cell(coord_end.char_x, char_y, char_code=133, char_attribute=cell_copy.char_attribute)
 
+        self.set_cell(coord_start.char_x, coord_start.char_y, char_code=chr_top_left, char_attribute=cell_copy.char_attribute)
+        self.set_cell(coord_end.char_x, coord_start.char_y, char_code=chr_top_right, char_attribute=cell_copy.char_attribute)
+
+        self.set_cell(coord_start.char_x, coord_end.char_y, char_code=chr_bottom_left, char_attribute=cell_copy.char_attribute)
+        self.set_cell(coord_end.char_x, coord_end.char_y, char_code=chr_bottom_right, char_attribute=cell_copy.char_attribute)
+        for char_x in range(coord_start.char_x + 1, coord_end.char_x):
+            self.set_cell(char_x, coord_start.char_y, char_code=chr_top, char_attribute=cell_copy.char_attribute)
+            self.set_cell(char_x, coord_end.char_y, char_code=chr_bottom, char_attribute=cell_copy.char_attribute)
+        for char_y in range(coord_start.char_y + 1, coord_end.char_y):
+            self.set_cell(coord_start.char_x, char_y, char_code=chr_left, char_attribute=cell_copy.char_attribute)
+            self.set_cell(coord_end.char_x, char_y, char_code=chr_right, char_attribute=cell_copy.char_attribute)
 
     def debug_cell(self, char_x, char_y):
         self.__lookup_cell(char_x, char_y).debug(self)

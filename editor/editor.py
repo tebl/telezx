@@ -231,6 +231,18 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f"Clear {self.region_highlight}")
 
     def clicked_create_box(self, event=None):
+        self.__create_box(ZXToken.BOX_STYLE)
+        return 'break'
+
+    def clicked_create_box_thin(self, event=None):
+        self.__create_box(ZXToken.BOX_STYLE_THIN)
+        return 'break'
+
+    def clicked_create_box_double(self, event=None):
+        self.__create_box(ZXToken.BOX_STYLE_DOUBLE)
+        return 'break'
+
+    def __create_box(self, style: int):
         '''
         Create a box around the highlighted region, allowing us to easily
         section off the screen.
@@ -239,10 +251,11 @@ class ZXEditor(ttk.Frame):
             if min(self.region_highlight.size()) >= 3:
                 self.create_undo_region(self.region_highlight)
                 start, end = self.region_highlight.coordinates()
-                self.zx_token.create_box(start, end)
+                self.zx_token.create_box(start, end, style)
                 self.set_status(f"Created box {self.region_highlight}")
             else:
                 self.set_status(f"Selected region too small")
+            self.refresh_editor()
 
     def clicked_create_skirt(self, event=None):
         '''
@@ -1327,7 +1340,9 @@ class ContextMenu(ttk.Menu):
     FILL_COPIED_CHARACTER = 'Copied character'
 
     MACROS = 'Functions'
-    MACRO_CREATE_BOX = 'Create box'
+    MACRO_CREATE_BOX1 = 'Create box'
+    MACRO_CREATE_BOX2 = 'Create box (thin)'
+    MACRO_CREATE_BOX3 = 'Create box (double)'
     MACRO_CREATE_SKIRT = 'Create page skirt from cursor'
     MACRO_CREATE_TRACTOR = 'Create tractor feed pattern'
     MACRO_CLEAR_HEADER_AREAS = 'Clear header areas'
@@ -1400,7 +1415,9 @@ class ContextMenu(ttk.Menu):
         self.add_separator()
 
         self.macro_menu = ttk.Menu(self, tearoff=0)
-        self.macro_menu.add_command(label=self.MACRO_CREATE_BOX, command=self.zx_editor.clicked_create_box)
+        self.macro_menu.add_command(label=self.MACRO_CREATE_BOX1, command=self.zx_editor.clicked_create_box)
+        self.macro_menu.add_command(label=self.MACRO_CREATE_BOX2, command=self.zx_editor.clicked_create_box_thin)
+        self.macro_menu.add_command(label=self.MACRO_CREATE_BOX3, command=self.zx_editor.clicked_create_box_double)
         self.macro_menu.add_command(label=self.MACRO_CREATE_SKIRT, command=self.zx_editor.clicked_create_skirt)
         self.macro_menu.add_command(label=self.MACRO_CREATE_TRACTOR, command=self.zx_editor.clicked_create_tractor)
         self.macro_menu.add_command(label=self.MACRO_CLEAR_HEADER_AREAS, command=self.zx_editor.clicked_clear_headers)
@@ -1452,7 +1469,9 @@ class ContextMenu(ttk.Menu):
         self.fill_menu.entryconfigure(self.FILL_COPIED_CHARACTER, 
                                       state='normal' if in_highlight and CopyOperation.is_single_character(self.zx_editor.copied_cells) else 'disabled')
         self.entryconfigure(self.CLEAR_SELECTED, state='normal' if in_highlight else 'disabled')
-        self.macro_menu.entryconfigure(self.MACRO_CREATE_BOX, state='normal' if in_highlight else 'disabled')
+        self.macro_menu.entryconfigure(self.MACRO_CREATE_BOX1, state='normal' if in_highlight else 'disabled')
+        self.macro_menu.entryconfigure(self.MACRO_CREATE_BOX2, state='normal' if in_highlight else 'disabled')
+        self.macro_menu.entryconfigure(self.MACRO_CREATE_BOX3, state='normal' if in_highlight else 'disabled')
 
     def hide_menu(self):
         self.unpost()
