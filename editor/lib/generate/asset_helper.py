@@ -131,6 +131,8 @@ class AssetHelper(RepositoryHelper):
                     char_x += 2
                 char_x = 0
                 char_y += 1
+            for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
+                page.set_character(char_x, 22, char_code=140)
             page.save()
 
         # Add reference to created token page
@@ -144,7 +146,7 @@ class AssetHelper(RepositoryHelper):
             offset, char_start, char_end = details_func(page)
             for i, char in enumerate(range(char_start, char_end)):
                 char_code = offset + char
-                page.set_cell(char_x, char_y, char_code=char_code, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK, is_bright=True))
+                page.set_cell(char_x, char_y, char_code=char_code, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE, is_bright=True))
                 char_x += 2
                 if char_x >= ZXScreen.SCREEN_WIDTH_CHARS - 1:
                     char_x = 1
