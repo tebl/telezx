@@ -23,15 +23,16 @@ const STYLE_HEADER_FIELD = zx_to_attribute(false, false, ATTRIBUTE.BLACK, ATTRIB
 const STYLE_LINK_A = zx_to_attribute(false, false, ATTRIBUTE.BLUE, ATTRIBUTE.WHITE);
 const STYLE_LINK_B = zx_to_attribute(false, false, ATTRIBUTE.RED, ATTRIBUTE.WHITE);
 const STYLE_LINK_C = zx_to_attribute(false, false, ATTRIBUTE.MAGENTA, ATTRIBUTE.WHITE);
-const DOCUMENT_ZERO = 0;
 
 const RGB_BASE = 0xe0;
 const RGB_FULL = 0xff;
 
+const DOCUMENT_ZERO = 0;
+const DOCUMENT_MINIMUM = 0x0001;
+const DOCUMENT_MAXIMUM = 0xffff;
 const DOCUMENT_DEFAULT = 0x1000;
 const DOCUMENT_TOC = 0xff00;
-const PAGE_MINIMUM = 0x0001;
-const PAGE_MAXIMUM = 0xffff;
+
 const SCREEN_REFRESH = 1000/50;
 const SCREEN_WIDTH_CHARS = 32;
 const SCREEN_HEIGHT_CHARS = 24;
@@ -559,7 +560,7 @@ function handle_key(key_name) {
 
         case "ArrowLeft":
         case "o":
-            if (current_document > PAGE_MINIMUM) {
+            if (current_document > DOCUMENT_MINIMUM) {
                 ui_set_document(current_document - 1);
                 fetch_index();
             }
@@ -567,7 +568,7 @@ function handle_key(key_name) {
 
         case "ArrowRight":
         case "p":
-            if (current_document < PAGE_MAXIMUM) {
+            if (current_document < DOCUMENT_MAXIMUM) {
                 ui_set_document(current_document + 1);
                 fetch_index();
             }
@@ -994,8 +995,28 @@ function ui_set_scale(scale) {
     canvas.style.height = String((192 + BORDER_HEIGHT*2) * scale) + 'px';
 }
 
+/**
+ * The initial page to be displayed defaults to DOCUMENT_DEFAULT (0x1000),
+ * but in order to create a link to a specific page we can add that as
+ * a parameter to the URL:
+ *      https://tebl.github.io/telezx/?document=ffff
+ */
+function get_initial_document_id() {
+    let params = new URLSearchParams(document.location.search);
+    if (params.has('document')) {
+        let document_id = Number('0x' + params.get('document'), 16);
+        if (isNaN(document_id)) return DOCUMENT_DEFAULT;
+        if (document_id < DOCUMENT_MINIMUM) return DOCUMENT_DEFAULT;
+        if (document_id > DOCUMENT_MAXIMUM) return DOCUMENT_DEFAULT;
+        return document_id;
+    }
+    return DOCUMENT_DEFAULT;
+}
+
 // The function gets called when the window is fully loaded
 window.onload = function () {
+    current_document = get_initial_document_id();
+
     // Get the canvas and context
     canvas = document.getElementById("viewport");
     context = canvas.getContext("2d");
