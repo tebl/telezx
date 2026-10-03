@@ -16,6 +16,7 @@ const ATTRIBUTE = {
 const ERROR_ATTRIBUTE = zx_to_attribute(false, false, ATTRIBUTE.RED, ATTRIBUTE.WHITE);
 const ERROR_DESCRIPTION = zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.RED);
 const STYLE_DEFAULT = zx_to_attribute(false, false, ATTRIBUTE.BLACK, ATTRIBUTE.WHITE);
+const STYLE_DEFAULT_BORDER = ATTRIBUTE.WHITE;
 const STYLE_HEADER = zx_to_attribute(false, true, ATTRIBUTE.BLACK, ATTRIBUTE.WHITE);
 const STYLE_HEADER_INPUT = zx_to_attribute(false, false, ATTRIBUTE.BLACK, ATTRIBUTE.GREEN);
 const STYLE_HEADER_FIELD = zx_to_attribute(false, false, ATTRIBUTE.BLACK, ATTRIBUTE.YELLOW);
@@ -63,8 +64,7 @@ const screen_map = zx_calculate_lookup_table();
 
 var cursor_x = 0;
 var cursor_y = 0;
-
-var current_border = ATTRIBUTE.WHITE;
+var current_border = STYLE_DEFAULT_BORDER;
 var current_document = DOCUMENT_DEFAULT;
 var current_font = FONT_DEFAULT;
 var current_input = ""
@@ -757,15 +757,6 @@ function ui_clear_canvas(red, green, blue, alpha) {
 }
 
 /**
- * Called when we encounter a successfully processed a page. Discards any
- * errors so that they don't hang around long enough to confuse anyone.
- */
-function ui_clear_status() {
-    current_status = "";
-    current_status_type = STATUS_TYPES.NONE;
-}
-
-/**
  * Page numbers are entered in hex, normally up to four hex digits with
  * the first chopped off to get rid of overflow.
  */
@@ -971,6 +962,17 @@ function ui_set_error(description, clear_index=true) {
     if (clear_index) {
         current_index = null;
     }
+    current_border = ATTRIBUTE.RED;
+}
+
+/**
+ * Called when we encounter a successfully processed a page. Discards any
+ * errors so that they don't hang around long enough to confuse anyone.
+ */
+function ui_clear_status() {
+    current_status = "";
+    current_status_type = STATUS_TYPES.NONE;
+    current_border = STYLE_DEFAULT_BORDER;
 }
 
 /**

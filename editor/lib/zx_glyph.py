@@ -1,8 +1,8 @@
 import numpy, string, typing
 from pathlib import Path
 from PIL import Image
-from .utilities import format_padded_id, format_padded_int
-from .zx_screen import ZXScreen, ZXScreenIterator
+from .utilities import format_padded_id
+from .zx_screen import ZXScreen
 
 class ZXGlyph:
     GLYPH_WIDTH = 8
@@ -68,7 +68,7 @@ class ZXGlyph:
                 data[row_idx, bit_idx] = value
         return data
 
-    def __check_bits(self, value, bit_idx):
+    def __check_bits(self, value, bit_idx) -> int:
         mask = (1 << (7 - bit_idx))
         return (value & mask) != 0
 
@@ -76,11 +76,36 @@ class ZXGlyph:
         if offset < 0 or offset >= self.get_glyph_count():
             raise ValueError('Invalid offset')
         return self._glyph_data[offset]
-    
+
+    def get_offset_transform(self, offset: int, mirror: bool=False, flip: bool=False):
+        data = self.get_offset(offset)
+        if flip:
+            data = numpy.flip(data)
+        if mirror:
+            return numpy.array([ numpy.packbits(numpy.unpackbits(data[idx])[::-1])[0] for idx in range(self.GLYPH_HEIGHT) ], dtype=numpy.uint8)
+        return data
+
     def get_offset_rgb(self, offset: int):
         if offset < 0 or offset >= self.get_glyph_count():
             raise ValueError('Invalid offset')
         return self.rgb_data[offset]
+
+    def get_offset_preview(self, offset: int, char_fill: str|None=None, char_empty: str|None=None):
+        data = self.get_offset(offset)
+        return [ self.__preview_byte(value, char_fill, char_empty) for value in data ]
+
+    def __preview_byte(self, value: int, char_fill: str|None=None, char_empty: str|None=None):
+        if not char_fill:
+            char_fill = '█'
+        if not char_empty:
+            char_empty = '░'
+        return [ char_fill if self.__check_bits(value, bit_idx) else char_empty for bit_idx in range(8)]
+
+    def print_offset_preview(self, offset: int, char_fill: str|None=None, char_empty: str|None=None):
+        print("▄▄▄▄▄▄▄▄▄▄")
+        for line in self.get_offset_preview(offset, char_fill, char_empty):
+            print(f'▌{''.join(line)}▐')
+        print("▀▀▀▀▀▀▀▀▀▀")
 
     def get_charcode_from_offset(self, value: int=0) -> int:
         return self.GLYPH_OFFSET + value
