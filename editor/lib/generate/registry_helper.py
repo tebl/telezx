@@ -86,7 +86,9 @@ class RegistryHelper(RepositoryHelper):
     def __pad_entry(self, string, max_length = 25):
         string = string[0:max_length]
         if len(string) < (max_length - 1):
-            return (string + ' ').ljust(max_length, '.')
+            if not string[-1] == '.':
+                return (string + ' ').ljust(max_length, '.')
+            return string.ljust(max_length, '.')
         return string
 
     def __create_toc_index(self, document_id_start: int):

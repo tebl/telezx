@@ -31,6 +31,25 @@ class ZXGlyph:
         for glyph_idx in range(self.get_glyph_count()):
             self.rgb_data[glyph_idx] = self.generate_glyph_rgb(glyph_idx, foreground, background)
 
+    def add_glyph(self, values: list[int, int, int, int, int, int, int, int]):
+        '''
+        Adds an 8x8 glyph to the underlying data structure
+        '''
+        if not len(values) == 8:
+            raise ValueError('Not 8x8 UDG')
+        self._set_glyph_data(numpy.insert(self._glyph_data, self._glyph_data.shape[0], values=values, axis=0))
+
+    def update_glyph(self, offset: int, values: list[int, int, int, int, int, int, int, int]):
+        '''
+        Update a glyphs pixel data
+        '''
+        if not len(values) == 8:
+            raise ValueError('Not 8x8 UDG')
+        if offset < 0 or offset >= self.get_glyph_count():
+            raise ValueError('Invalid offset')
+        self._glyph_data[offset] = values
+        self._set_glyph_data(self._glyph_data)
+
     def glyphs(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         for idx in range(0, self.get_glyph_count()):
             yield (self.get_charcode_from_offset(idx), self.get_offset(idx))
@@ -53,10 +72,14 @@ class ZXGlyph:
         mask = (1 << (7 - bit_idx))
         return (value & mask) != 0
 
-    def get_offset(self, offset):
+    def get_offset(self, offset: int):
+        if offset < 0 or offset >= self.get_glyph_count():
+            raise ValueError('Invalid offset')
         return self._glyph_data[offset]
     
-    def get_offset_rgb(self, offset):
+    def get_offset_rgb(self, offset: int):
+        if offset < 0 or offset >= self.get_glyph_count():
+            raise ValueError('Invalid offset')
         return self.rgb_data[offset]
 
     def get_charcode_from_offset(self, value: int=0) -> int:
@@ -67,14 +90,6 @@ class ZXGlyph:
         Get the number of glyphs stored in the underlying data structure
         '''
         return self._glyph_data.shape[0]
-
-    def add_glyph(self, values: list[int, int, int, int, int, int, int, int]):
-        '''
-        Adds an 8x8 glyph to the underlying data structure
-        '''
-        if not len(values) == 8:
-            raise ValueError('Not 8x8 UDG')
-        self._set_glyph_data(numpy.insert(self._glyph_data, self._glyph_data.shape[0], values=values, axis=0))
 
     def write(self, path: Path):
         glyph_data = numpy.reshape(self._glyph_data, shape=(self.get_glyph_count()*8))
