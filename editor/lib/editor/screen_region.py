@@ -87,6 +87,7 @@ class ScreenCoordinate(Coordinate):
         char_y = min(coordinate.char_y + shape[1], ZXScreen.SCREEN_HEIGHT_CHARS - 1)
         return ScreenCoordinate(char_x, char_y)
 
+
 class ScreenNavigator:
     '''
     Helper class with functions used to simplify navigation within the editor,

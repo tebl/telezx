@@ -1,8 +1,4 @@
-from tkinter import filedialog
-from ttkbootstrap.dialogs import Messagebox, Dialog
-from ttkbootstrap.widgets import ToolTip
 from ttkbootstrap.constants import *
-from ttkbootstrap import colorutils
 import ttkbootstrap as ttk
 
 from .custom_dialog import CustomDialog
