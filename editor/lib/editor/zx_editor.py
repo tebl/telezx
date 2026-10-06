@@ -55,7 +55,7 @@ class ZXEditor(ttk.Frame):
         self.flash_value = True
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
-        self.is_overwrite_enabled = False
+        self.is_insertion_enabled = True
 
         self.cursor = ScreenCoordinate(0, 0)
         self.region_screen = ScreenRegion.full()
@@ -703,7 +703,7 @@ class ZXEditor(ttk.Frame):
                 case 'Delete' | 'KP_Delete':
                     self.move_cursor_delete()
                 case 'Insert' | 'KP_Insert':
-                    self.set_overwrite(not self.is_overwrite_enabled)
+                    self.set_insertion_mode(not self.is_insertion_enabled)
                 case _:
                     if event.char:
                         ascii_code = ord(event.char)
@@ -908,7 +908,7 @@ class ZXEditor(ttk.Frame):
         if changed:
             self.zx_token.sync_cell(self.cursor.char_x, self.cursor.char_y)
 
-        if not self.is_overwrite_enabled:
+        if not self.is_insertion_enabled:
             ScreenNavigator.next(self.cursor, self.__get_cursor_region())
         self.refresh_editor()
 
@@ -946,9 +946,9 @@ class ZXEditor(ttk.Frame):
         self.is_sticky_enabled = value
         self.sidebar.palette.notify_sticky_changed(value)
 
-    def set_overwrite(self, value):
-        self.is_overwrite_enabled = value
-        self.sidebar.palette.notify_overwrite_changed(value)
+    def set_insertion_mode(self, value):
+        self.is_insertion_enabled = value
+        self.sidebar.palette.notify_insertion_mode_changed(value)
 
     def update_flash_periodic(self, initial_setup=False):
         if not initial_setup:
@@ -1105,7 +1105,7 @@ class Canvas(ttk.Frame):
     '''
     SCALE_MASTER = 0
 
-    def __init__(self, master, zx_editor, view_width, view_height, default_fill=0, style='bg.TFrame', scale_mode=0, label_padx=5, label_pady=5):
+    def __init__(self, master, zx_editor: ZXEditor, view_width: int, view_height: int, default_fill: int=0, style: str|None=None, scale_mode: int=0, label_padx: int=5, label_pady: int=5):
         super().__init__(master, style=style)
         self.zx_editor = zx_editor
         self.default_fill = default_fill
@@ -1128,7 +1128,7 @@ class Canvas(ttk.Frame):
         self.pixel_data = numpy.full(shape=(self.view_height*self.scale_value, self.view_width*self.scale_value, 3), fill_value=self.default_fill, dtype=numpy.uint8)
         self.flip_canvas()
 
-    def get_scale(self, value):
+    def get_scale(self, value) -> int:
         scaling = self.scale_mode
         if self.scale_mode == self.SCALE_MASTER:
             scaling = value
@@ -1338,6 +1338,198 @@ class DisplayArea(ttk.Frame):
         return (char_x, char_y)
 
 
+class Sidebar(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+
+        self.palette = ColourPalette(master=self, zx_editor=master)
+        self.palette.pack(fill=X, pady=(4, 0))
+
+        self.characters = CharacterPalette(self, zx_editor=master)
+        self.characters.pack(fill=X, pady=0)
+
+
+class ColourPalette(ttk.Frame):
+    def __init__(self, master, zx_editor: ZXEditor):
+        super().__init__(master, style='bg.TFrame')
+        self.zx_editor = zx_editor
+        self.is_bright = False
+        self.is_bright_var = ttk.BooleanVar(master=self, value=self.is_bright)
+        self.is_flash = False
+        self.is_flash_var = ttk.BooleanVar(master=self, value=self.is_flash)
+        self.is_inverted = False
+        self.is_inverted_var = ttk.BooleanVar(master=self, value=self.is_inverted)
+        self.is_sticky_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_sticky_enabled)
+        self.is_insertion_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_insertion_enabled)
+        self.current_ink = ZXScreen.WHITE
+        self.current_paper = ZXScreen.BLACK
+
+        lbl = ttk.Label(self, text="Ink:")
+        lbl.grid(row=0, column=0, sticky=W, padx=(0, 4))
+        self.ink_widgets = []
+
+        frame = ttk.Frame(self)
+        frame.grid(row=0, column=1)
+        for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
+            widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_INK, colour=ink_value)
+            widget.grid(row=0, column=ink_value, padx=0, pady=0)
+            widget.refresh()
+            self.ink_widgets.append(widget)
+
+
+        lbl = ttk.Label(self, text="Paper:")
+        lbl.grid(row=1, column=0, sticky=W, padx=(0, 4))
+        self.paper_widgets = []
+
+        frame = ttk.Frame(self)
+        frame.grid(row=1, column=1)
+        for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
+            widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_PAPER, colour=ink_value)
+            widget.grid(row=0, column=ink_value, padx=0, pady=0)
+            widget.refresh()
+            self.ink_widgets.append(widget)
+
+        frame = ttk.Frame(self)
+        frame.grid(row=2, column=1, sticky=NSEW)
+
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Bright", 
+            bootstyle="square-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_bright_var,
+            command=lambda: self.changed_bright(self.is_bright_var.get()))
+        btn.pack(anchor=W, padx=(4, 0))
+
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Flashing", 
+            bootstyle="square-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_flash_var,
+            command=lambda: self.changed_flash(self.is_flash_var.get()))
+        btn.pack(anchor=W, padx=(4, 0))
+
+        self.btn_inverted = ttk.Checkbutton(
+            frame, 
+            text="Inverted", 
+            bootstyle="square-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_inverted_var,
+            command=lambda: self.changed_inverted(self.is_inverted_var.get()))
+        self.btn_inverted.pack(anchor=W, padx=(4, 0))
+        ToolTip(self.btn_inverted, text="Enable to invert palette for the selected cell, swapping ink/paper when screen is rendered.\n\nKeyboard: Ctrl+i", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
+
+        # When enabled we ignore updates to the palette when inserting data,
+        # allowing us to lock a style for data entered.
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Keep attribute", 
+            bootstyle="danger-round-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_sticky_enabled_var,
+            command=lambda: self.zx_editor.set_sticky(self.is_sticky_enabled_var.get()))
+        btn.pack(anchor=W, padx=(4, 0))
+        ToolTip(btn, text="Palette will automatically update to reflect newly selected cell contents, set to enabled to keep current attribute active.\n\nKeyboard: Ctrl+f", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
+
+        # Determines if ZX Editor will attempt to have the text flow within
+        # a selected region.
+        btn = ttk.Checkbutton(
+            frame, 
+            text="Insertion mode", 
+            bootstyle="danger-round-toggle",
+            onvalue=True,
+            offvalue=False,
+            variable=self.is_insertion_enabled_var,
+            command=lambda: self.zx_editor.set_insertion_mode(self.is_insertion_enabled_var.get()))
+        btn.pack(anchor=W, padx=(4, 0))
+        ToolTip(btn, text="Enable to have text shift around within available space similar to a modern emulator.\n\nKeyboard: Insert", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
+
+    def changed_bright(self, value):
+        self.is_bright = value
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
+    def changed_flash(self, value):
+        self.is_flash = value
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
+    def changed_inverted(self, value):
+        self.is_inverted = value
+        self.zx_editor.set_cursor_inverted(self.get_inverted())
+        self.refresh()
+
+    def changed_ink(self, colour):
+        self.current_ink = colour
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
+    def changed_paper(self, colour):
+        self.current_paper = colour
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
+    def from_data(self, attribute, is_inverted):
+        if self.zx_editor.is_sticky_enabled:
+            return
+        attribute = ZXAttribute.from_value(attribute)
+        self.is_bright = attribute.is_bright
+        self.is_flash = attribute.is_flashing
+        self.current_ink = attribute.ink
+        self.current_paper = attribute.paper
+        self.is_inverted = is_inverted
+        self.refresh()
+
+    def get_attribute(self):
+        return ZXScreen.to_attribute(
+            self.is_flash, 
+            self.is_bright, 
+            self.current_paper, 
+            self.current_ink)
+    
+    def get_dataset(self):
+        return ColourData(self.get_attribute(),
+                           self.get_inverted())
+
+    def get_inverted(self):
+        '''
+        While scripts may care otherwise, the editor only deals with inverted
+        as either on or not defined at all. This was done in order to ensure
+        that we're not flipping things in invisible cells.
+        '''
+        if self.is_inverted:
+            return True
+        return ZXToken.UNDEFINED
+
+    def notify_scale_changed(self, value):
+        pass
+
+    def notify_insertion_mode_changed(self, value):
+        self.is_insertion_enabled_var.set(value)
+
+    def notify_sticky_changed(self, value):
+        self.is_sticky_enabled_var.set(value)
+
+    def refresh(self):
+        self.is_bright_var.set(self.is_bright)
+        self.is_flash_var.set(self.is_flash)
+        self.is_inverted_var.set(self.is_inverted)
+        for widget in self.ink_widgets:
+            widget.refresh()
+        for widget in self.paper_widgets:
+            widget.refresh()
+
+    def swap_attributes(self):
+        self.current_ink, self.current_paper = self.current_paper, self.current_ink
+        self.zx_editor.set_cursor_attribute(self.get_attribute())
+        self.refresh()
+
+
 class ContextMenu(ttk.Menu):
     OFFSET_X = 4
     OFFSET_Y = 4
@@ -1506,198 +1698,6 @@ class ContextMenu(ttk.Menu):
 
     def hide_menu(self):
         self.unpost()
-
-
-class Sidebar(ttk.Frame):
-    def __init__(self, master):
-        super().__init__(master)
-
-        self.palette = ColourPalette(master=self, zx_editor=master)
-        self.palette.pack(fill=X, pady=(4, 0))
-
-        self.characters = CharacterPalette(self, zx_editor=master)
-        self.characters.pack(fill=X, pady=0)
-
-
-class ColourPalette(ttk.Frame):
-    def __init__(self, master, zx_editor: ZXEditor):
-        super().__init__(master, style='bg.TFrame')
-        self.zx_editor = zx_editor
-        self.is_bright = False
-        self.is_bright_var = ttk.BooleanVar(master=self, value=self.is_bright)
-        self.is_flash = False
-        self.is_flash_var = ttk.BooleanVar(master=self, value=self.is_flash)
-        self.is_inverted = False
-        self.is_inverted_var = ttk.BooleanVar(master=self, value=self.is_inverted)
-        self.is_sticky_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_sticky_enabled)
-        self.is_overwrite_enabled_var = ttk.BooleanVar(master=self, value=self.zx_editor.is_overwrite_enabled)
-        self.current_ink = ZXScreen.WHITE
-        self.current_paper = ZXScreen.BLACK
-
-        lbl = ttk.Label(self, text="Ink:")
-        lbl.grid(row=0, column=0, sticky=W, padx=(0, 4))
-        self.ink_widgets = []
-
-        frame = ttk.Frame(self)
-        frame.grid(row=0, column=1)
-        for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
-            widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_INK, colour=ink_value)
-            widget.grid(row=0, column=ink_value, padx=0, pady=0)
-            widget.refresh()
-            self.ink_widgets.append(widget)
-
-
-        lbl = ttk.Label(self, text="Paper:")
-        lbl.grid(row=1, column=0, sticky=W, padx=(0, 4))
-        self.paper_widgets = []
-
-        frame = ttk.Frame(self)
-        frame.grid(row=1, column=1)
-        for ink_value in range(ZXScreen.BLACK, (ZXScreen.WHITE + 1)):
-            widget = ColourOption(frame, self.zx_editor, self, type=ColourOption.TYPE_PAPER, colour=ink_value)
-            widget.grid(row=0, column=ink_value, padx=0, pady=0)
-            widget.refresh()
-            self.ink_widgets.append(widget)
-
-        frame = ttk.Frame(self)
-        frame.grid(row=2, column=1, sticky=NSEW)
-
-        btn = ttk.Checkbutton(
-            frame, 
-            text="Bright", 
-            bootstyle="square-toggle",
-            onvalue=True,
-            offvalue=False,
-            variable=self.is_bright_var,
-            command=lambda: self.changed_bright(self.is_bright_var.get()))
-        btn.pack(anchor=W, padx=(4, 0))
-
-        btn = ttk.Checkbutton(
-            frame, 
-            text="Flashing", 
-            bootstyle="square-toggle",
-            onvalue=True,
-            offvalue=False,
-            variable=self.is_flash_var,
-            command=lambda: self.changed_flash(self.is_flash_var.get()))
-        btn.pack(anchor=W, padx=(4, 0))
-
-        self.btn_inverted = ttk.Checkbutton(
-            frame, 
-            text="Inverted", 
-            bootstyle="square-toggle",
-            onvalue=True,
-            offvalue=False,
-            variable=self.is_inverted_var,
-            command=lambda: self.changed_inverted(self.is_inverted_var.get()))
-        self.btn_inverted.pack(anchor=W, padx=(4, 0))
-        ToolTip(self.btn_inverted, text="Enable to invert palette for the selected cell, swapping ink/paper when screen is rendered.\n\nKeyboard: Ctrl+i", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
-
-        # When enabled we ignore updates to the palette when inserting data,
-        # allowing us to lock a style for data entered.
-        btn = ttk.Checkbutton(
-            frame, 
-            text="Keep attribute", 
-            bootstyle="danger-round-toggle",
-            onvalue=True,
-            offvalue=False,
-            variable=self.is_sticky_enabled_var,
-            command=lambda: self.zx_editor.set_sticky(self.is_sticky_enabled_var.get()))
-        btn.pack(anchor=W, padx=(4, 0))
-        ToolTip(btn, text="Palette will automatically update to reflect newly selected cell contents, set to enabled to keep current attribute active.\n\nKeyboard: Ctrl+f", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
-
-        # Determines if we're overwriting the current highlighted cell or
-        # advancing to the next position on write.
-        btn = ttk.Checkbutton(
-            frame, 
-            text="Cursor overwrite", 
-            bootstyle="danger-round-toggle",
-            onvalue=True,
-            offvalue=False,
-            variable=self.is_overwrite_enabled_var,
-            command=lambda: self.zx_editor.set_overwrite(self.is_overwrite_enabled_var.get()))
-        btn.pack(anchor=W, padx=(4, 0))
-        ToolTip(btn, text="Enable to overwrite current selected cell, when not enabled it will automatically move onto next available cell.\n\nKeyboard: Insert", delay=self.zx_editor.TOOLTIP_DELAY, bootstyle="inverse-primary")
-
-    def changed_bright(self, value):
-        self.is_bright = value
-        self.zx_editor.set_cursor_attribute(self.get_attribute())
-        self.refresh()
-
-    def changed_flash(self, value):
-        self.is_flash = value
-        self.zx_editor.set_cursor_attribute(self.get_attribute())
-        self.refresh()
-
-    def changed_inverted(self, value):
-        self.is_inverted = value
-        self.zx_editor.set_cursor_inverted(self.get_inverted())
-        self.refresh()
-
-    def changed_ink(self, colour):
-        self.current_ink = colour
-        self.zx_editor.set_cursor_attribute(self.get_attribute())
-        self.refresh()
-
-    def changed_paper(self, colour):
-        self.current_paper = colour
-        self.zx_editor.set_cursor_attribute(self.get_attribute())
-        self.refresh()
-
-    def from_data(self, attribute, is_inverted):
-        if self.zx_editor.is_sticky_enabled:
-            return
-        attribute = ZXAttribute.from_value(attribute)
-        self.is_bright = attribute.is_bright
-        self.is_flash = attribute.is_flashing
-        self.current_ink = attribute.ink
-        self.current_paper = attribute.paper
-        self.is_inverted = is_inverted
-        self.refresh()
-
-    def get_attribute(self):
-        return ZXScreen.to_attribute(
-            self.is_flash, 
-            self.is_bright, 
-            self.current_paper, 
-            self.current_ink)
-    
-    def get_dataset(self):
-        return ColourData(self.get_attribute(),
-                           self.get_inverted())
-
-    def get_inverted(self):
-        '''
-        While scripts may care otherwise, the editor only deals with inverted
-        as either on or not defined at all. This was done in order to ensure
-        that we're not flipping things in invisible cells.
-        '''
-        if self.is_inverted:
-            return True
-        return ZXToken.UNDEFINED
-
-    def notify_scale_changed(self, value):
-        pass
-
-    def notify_overwrite_changed(self, value):
-        self.is_overwrite_enabled_var.set(value)
-
-    def notify_sticky_changed(self, value):
-        self.is_sticky_enabled_var.set(value)
-
-    def refresh(self):
-        self.is_bright_var.set(self.is_bright)
-        self.is_flash_var.set(self.is_flash)
-        self.is_inverted_var.set(self.is_inverted)
-        for widget in self.ink_widgets:
-            widget.refresh()
-        for widget in self.paper_widgets:
-            widget.refresh()
-
-    def swap_attributes(self):
-        self.current_ink, self.current_paper = self.current_paper, self.current_ink
-        self.zx_editor.set_cursor_attribute(self.get_attribute())
-        self.refresh()
 
 
 class ColourData():

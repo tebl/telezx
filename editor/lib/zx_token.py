@@ -329,7 +329,6 @@ class ZXToken:
     def to_rgb(self, flash_value=False):
         return self.zx_screen.to_rgb(flash_value)
 
-
     @classmethod
     def from_file(cls, document_path):
         zx_token = ZXToken()
