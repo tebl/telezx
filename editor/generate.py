@@ -2,7 +2,7 @@
 import subprocess, sys
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities, VERSION
+from lib import ZXAttribute, ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities, VERSION
 from lib.generate import AssetHelper, DocumentHelper, RegistryHelper, TransformationHelper, TransformationFormatError
 
 def cmd_attribute(args, parser: ArgumentParser):
@@ -27,18 +27,19 @@ def cmd_attribute(args, parser: ArgumentParser):
         __print_attribute(attribute)
     print('Done.')
 
-def __print_attribute(value, col_width=8, indent_count: int=0):
-    parsed = ZXScreen.to_parsed_attribute(value)
+def __print_attribute(value: int, col_width: int=8, indent_count: int=0):
+    attribute = ZXAttribute.from_value(value)
     print_indented(f'Attribute  0x{value:02x}', indent_count=indent_count)
-    print_indented('Flash:'.ljust(col_width), 'yes' if parsed['is_flashing'] else 'no', indent_count=(indent_count+1))
-    print_indented('Bright:'.ljust(col_width), 'yes' if parsed['is_bright'] else 'no', indent_count=(indent_count+1))
-    print_indented('Ink:'.ljust(col_width), __get_colour(parsed['ink']), indent_count=(indent_count+1))
-    print_indented('Paper:'.ljust(col_width), __get_colour(parsed['paper']), indent_count=(indent_count+1))
+    print_indented('Flash:'.ljust(col_width), 'yes' if attribute.is_flashing else 'no', indent_count=(indent_count+1))
+    print_indented('Bright:'.ljust(col_width), 'yes' if attribute.is_bright else 'no', indent_count=(indent_count+1))
+    print_indented('Ink:'.ljust(col_width), __get_colour(attribute.ink), indent_count=(indent_count+1))
+    print_indented('Paper:'.ljust(col_width), __get_colour(attribute.paper), indent_count=(indent_count+1))
 
-def __get_colour(parsed_value):
-    for colour, value in ZXScreen.COLOURS.items():
-        if value == parsed_value:
-            return f'0x{value:01x} {colour}'
+def __get_colour(colour: int):
+    try:
+        return f'0x{colour:01x} {ZXAttribute.tokenise_colour(colour)}'
+    except ValueError:
+        pass
     return 'UNKNOWN'
 
 def cmd_assets(args, parser: ArgumentParser):

@@ -1,4 +1,5 @@
 from .name_tree_resolver import NameTreeResolver
+from .zx_attribute import ZXAttribute
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
 from .coordinate import Coordinate

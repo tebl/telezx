@@ -16,7 +16,7 @@ from .keyboard_dialog import KeyboardDialog
 from .license_dialog import LicenseDialog
 from .about_dialog import AboutDialog
 from .screen_region import CellDirection, ScreenNavigator, CellDirection, ScreenRegion, ScreenCoordinate
-from .. import ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
+from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -43,6 +43,8 @@ class ZXEditor(ttk.Frame):
     REFRESH_FLASH = int(1000/50*32)
     TOOLTIP_DELAY = 1000
     MAX_UNDO = 100
+
+    is_sticky_enabled: bool
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -271,13 +273,12 @@ class ZXEditor(ttk.Frame):
         region = ScreenRegion.from_tuples((0, 22), (31, 22))
         self.create_undo_region(region)
 
-        cursor_attribute = self.zx_token.get_attribute(self.cursor.char_x, self.cursor.char_y)
-        parsed_attribute = ZXScreen.to_parsed_attribute(cursor_attribute)
-        parsed_attribute['ink'] = ZXScreen.BLACK
-        cursor_attribute = ZXScreen.to_attribute(**parsed_attribute)
+        attribute = ZXAttribute.from_value(self.zx_token.get_attribute(self.cursor.char_x, 
+                                                                       self.cursor.char_y))
+        attribute.ink = ZXAttribute.BLACK
 
         for char_x in range(0, ZXScreen.SCREEN_WIDTH_CHARS):
-            self.zx_token.set_cell(char_x, 22, char_code=140, char_attribute=cursor_attribute)
+            self.zx_token.set_cell(char_x, 22, char_code=140, char_attribute=int(attribute))
         return 'break'
 
     def clicked_create_tractor(self, event=None):
@@ -354,51 +355,56 @@ class ZXEditor(ttk.Frame):
 
     def clicked_fill_bright(self, value: bool):
         region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
-        if self.__fill_calculated_attribute(region, 'is_bright', value):
+        if self.__fill_calculated_attribute(region, 'set_bright', value):
             self.refresh_editor()
             self.set_status(f"Fill {region}")
 
     def clicked_fill_flash(self, value: bool):
         region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
-        if self.__fill_calculated_attribute(region, 'is_flashing', value):
+        if self.__fill_calculated_attribute(region, 'set_flash', value):
+            self.refresh_editor()
+            self.set_status(f"Fill {region}")
+
+    def clicked_fill_inverted(self, value: bool):
+        region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
+        if self.__fill_inverted(region, value):
             self.refresh_editor()
             self.set_status(f"Fill {region}")
 
     def clicked_fill_ink(self, colour: int):
         region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
-        if self.__fill_calculated_attribute(region, 'ink', colour):
+        if self.__fill_calculated_attribute(region, 'set_ink', colour):
             self.refresh_editor()
             self.set_status(f"Fill {region}")
 
     def clicked_fill_paper(self, colour: int):
         region = self.region_highlight if self.region_highlight else ScreenRegion.from_coordinate(self.cursor)
-        if self.__fill_calculated_attribute(region, 'paper', colour):
+        if self.__fill_calculated_attribute(region, 'set_paper', colour):
             self.refresh_editor()
             self.set_status(f"Fill {region}")
 
-    def __fill_calculated_attribute(self, region: ScreenRegion, key: str, value: int) -> True:
+    def __fill_calculated_attribute(self, region: ScreenRegion, func_name: str, value: int) -> bool:
         if region:
             self.create_undo_region(region)
             for coord in region.cells(from_direction=CellDirection.NORTH):
-                attribute = self.zx_token.get_attribute(coord.char_x, coord.char_y)
-                parsed = ZXScreen.to_parsed_attribute(attribute)
-                parsed[key] = value
-                attribute = ZXScreen.to_attribute(**parsed)
+                attribute = ZXAttribute.from_value(self.zx_token.get_attribute(coord.char_x,
+                                                                               coord.char_y))
+                attribute.set_named(func_name, value)
                 if self.zx_token.is_cell_defined(coord.char_x, coord.char_y):
                     self.zx_token.set_attribute(coord.char_x, 
                                                 coord.char_y, 
-                                                char_attribute=attribute)
+                                                char_attribute=int(attribute))
                 else:
                     self.zx_token.set_cell(coord.char_x, 
                                            coord.char_y, 
                                            char_code=ZXFont.ASCII_SPACE, 
-                                           char_attribute=attribute)
+                                           char_attribute=int(attribute))
             self.set_status(f"Fill {region}")
         return True
 
     def __fill_attribute(self, region: ScreenRegion, attribute) -> bool:
         if region:
-            self.create_undo_region(region)            
+            self.create_undo_region(region)
             for coord in region.cells(from_direction=CellDirection.NORTH):
                 cell_copy = self.zx_token.get_cell(coord.char_x, coord.char_y)
                 # Allow setting attribute to undefined
@@ -408,6 +414,17 @@ class ZXEditor(ttk.Frame):
                         cell_copy.char_code = ZXFont.ASCII_SPACE
                 cell_copy.char_attribute = attribute
                 self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=cell_copy)
+            return True
+        return False
+
+    def __fill_inverted(self, region: ScreenRegion, value: bool=False) -> bool:
+        if region:
+            self.create_undo_region(region)
+            for coord in region.cells(from_direction=CellDirection.NORTH):
+                if value:
+                    self.zx_token.set_inverted(coord.char_x, coord.char_y, char_inverted=value)
+                else:
+                    self.zx_token.set_inverted(coord.char_x, coord.char_y, char_inverted=ZXToken.UNDEFINED)
             return True
         return False
 
@@ -1356,6 +1373,7 @@ class ContextMenu(ttk.Menu):
     SET_PAPER = 'Set paper'
     SET_BRIGHTNESS = 'Set brightness'
     SET_FLASHING = 'Set flashing'
+    SET_INVERTED = 'Set inverted'
     SET_ON = 'On'
     SET_OFF = 'Off'
 
@@ -1417,6 +1435,11 @@ class ContextMenu(ttk.Menu):
         self.flash_menu.add_command(label=self.SET_OFF, command=lambda: self.set_flash(False))
         self.add_cascade(label=self.SET_FLASHING, menu=self.flash_menu)
 
+        self.inverted_menu = ttk.Menu(self, tearoff=0)
+        self.inverted_menu.add_command(label=self.SET_ON, command=lambda: self.set_inverted(True))
+        self.inverted_menu.add_command(label=self.SET_OFF, command=lambda: self.set_inverted(False))
+        self.add_cascade(label=self.SET_INVERTED, menu=self.inverted_menu)
+
         self.add_separator()
 
         self.macro_menu = ttk.Menu(self, tearoff=0)
@@ -1439,6 +1462,9 @@ class ContextMenu(ttk.Menu):
 
     def set_flash(self, value: bool):
         self.zx_editor.clicked_fill_flash(value)
+
+    def set_inverted(self, value: bool):
+        self.zx_editor.clicked_fill_inverted(value)
 
     def __get_colour(self, colour_name: str):
         if colour_name in ZXScreen.COLOURS:
@@ -1621,11 +1647,11 @@ class ColourPalette(ttk.Frame):
     def from_data(self, attribute, is_inverted):
         if self.zx_editor.is_sticky_enabled:
             return
-        parsed = ZXScreen.to_parsed_attribute(attribute)
-        self.is_bright = parsed['is_bright']
-        self.is_flash = parsed['is_flashing']
-        self.current_ink = parsed['ink']
-        self.current_paper = parsed['paper']
+        attribute = ZXAttribute.from_value(attribute)
+        self.is_bright = attribute.is_bright
+        self.is_flash = attribute.is_flashing
+        self.current_ink = attribute.ink
+        self.current_paper = attribute.paper
         self.is_inverted = is_inverted
         self.refresh()
 
@@ -1680,16 +1706,16 @@ class ColourData():
         self.is_inverted = is_inverted
 
     def __str__(self):
-        token_string = ' '.join(str(x) for x in self.to_tokens())
+        token_string = ' '.join(str(x) for x in self.tokenise())
         return "{} ({})".format(
             'format',
             token_string
         )
 
-    def to_tokens(self):
+    def tokenise(self):
         if not self.is_inverted == ZXToken.UNDEFINED:
-            return [f"INVERTED={int(self.is_inverted)}"] + ZXScreen.to_tokens(self.attribute)
-        return ZXScreen.to_tokens(self.attribute)
+            return ['INVERTED'] + ZXAttribute.tokenise(self.attribute)
+        return ZXAttribute.tokenise(self.attribute)
     
 
 class ColourOption(Canvas):

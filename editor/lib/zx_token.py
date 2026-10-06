@@ -5,6 +5,7 @@ from PIL import Image
 from typing import Optional
 from pathlib import Path
 from .coordinate import Coordinate
+from .zx_attribute import ZXAttribute
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
@@ -358,9 +359,9 @@ class CellCopy:
     def __to_tokens(self):
         tokens = []
         if not self.char_code == ZXToken.UNDEFINED:
-            tokens += ZXScreen.to_tokens(self.char_attribute)
+            tokens += ZXAttribute.tokenise(self.char_attribute)
         if not self.char_inverted == ZXToken.UNDEFINED:
-            tokens += [f"INVERTED={int(self.char_inverted)}"]
+            tokens += [f'INVERTED={self.char_inverted}']
         if not tokens:
             return [self.UNDEFINED]
         return tokens
@@ -535,16 +536,14 @@ class ZXTokenCell:
             self.sync_screen(zx_token)
         return changed
     
-    def __select_attribute(self, attribute):
+    def __select_attribute(self, value: int):
+        '''
+        Determines the resulting attribute to use upon rendering, mainly by
+        looking at whether a cell has been set as inverted.
+        '''
         if self.char_inverted == ZXToken.UNDEFINED or not self.char_inverted:
-            return attribute
-        parsed = ZXScreen.to_parsed_attribute(attribute)
-        return ZXScreen.to_attribute(
-            is_flashing=parsed['is_flashing'],
-            is_bright=parsed['is_bright'],
-            ink=parsed['paper'],
-            paper=parsed['ink']
-        )
+            return value
+        return int(ZXAttribute.from_value(value).swap())
 
     def set_character(self, zx_token: ZXToken, char_code=ZXToken.UNDEFINED, sync_screen=True):
         changed = (not self.char_code == char_code)
@@ -584,11 +583,11 @@ class SpecsciiFormat:
         self.zx_token = zx_token
         self.current_attribute = zx_token.current_attribute
 
-        parsed = ZXScreen.to_parsed_attribute(self.current_attribute)
-        self.last_ink = parsed['ink']
-        self.last_paper = parsed['paper']
-        self.last_bright = parsed['is_bright']
-        self.last_flash = parsed['is_flashing']
+        a = ZXAttribute.from_value(self.current_attribute)
+        self.last_ink = a.ink
+        self.last_paper = a.paper
+        self.last_bright = a.is_bright
+        self.last_flash = a.is_flashing
         self.last_xor = False
         self.last_inverted = False
         self.last_xor = False
@@ -625,12 +624,12 @@ class SpecsciiFormat:
             return False
         return bool(value)
 
-    def __set_attribute(self, file, attribute):
-        parsed = ZXScreen.to_parsed_attribute(attribute)
-        self.__write_ink(file, parsed['ink'])
-        self.__write_paper(file, parsed['paper'])
-        self.__write_flash(file, parsed['is_flashing'])
-        self.__write_bright(file, parsed['is_bright'])
+    def __set_attribute(self, file, attribute: int):
+        attribute = ZXAttribute.from_value(attribute)
+        self.__write_ink(file, attribute.ink)
+        self.__write_paper(file, attribute.paper)
+        self.__write_flash(file, attribute.is_flashing)
+        self.__write_bright(file, attribute.is_bright)
 
     def __write_ink(self, file, ink):
         assert ink >= ZXScreen.BLACK and ink <= ZXScreen.WHITE

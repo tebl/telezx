@@ -1,4 +1,5 @@
 import numpy
+from .zx_attribute import ZXAttribute
 
 class ZXScreen:
     # Attributes
@@ -76,31 +77,29 @@ class ZXScreen:
         attr_idx = self.calculate_offset_attribute(char_x, char_y)
         return self.memory[attr_idx]
 
-    def to_rgb(self, flash_value=False):
+    def to_rgb(self, flash_cycle: bool=False):
         pixels = numpy.zeros(shape=(self.SCREEN_HEIGHT_PIXELS, self.SCREEN_WIDTH_PIXELS, 3), dtype=numpy.uint8)
         for pos_x in range(self.SCREEN_WIDTH_CHARS):
             for pos_y in range(self.SCREEN_HEIGHT_CHARS):
                 attr_idx = self.calculate_offset_attribute(pos_x, pos_y)
-                attr_value = self.to_parsed_attribute(self.memory[attr_idx])
+                attr_value = ZXAttribute.from_value(self.memory[attr_idx])
 
                 data_start = self.start_at[pos_x][pos_y]
                 for line in range(8):
                     data_idx = data_start + (line * 0x100)
                     data_value = self.memory[data_idx]
+
+                    bits = numpy.unpackbits(data_value)
                     for bit_idx in range(8):
                         pixels[pos_y*8 + line, pos_x*8 + bit_idx] = self.to_attribute_rgb(
-                            self.__check_bits(data_value, bit_idx),
+                            bits[bit_idx],
                             attr_value,
-                            flash_value
+                            flash_cycle
                         )
         return pixels
     
     def to_scr(self):
         return self.memory
-
-    def __check_bits(self, value, bit_idx):
-        mask = (1 << (7 - bit_idx))
-        return (value & mask) != 0
 
     def read_cell(self, char_x, char_y):
         return self.exctract_cell(char_x, char_y, self.memory)
@@ -163,56 +162,14 @@ class ZXScreen:
         )
 
     @classmethod
-    def to_attribute_rgb(cls, is_on, parsed_attribute, flash_value):
-        base_colour = parsed_attribute['ink'] if is_on else parsed_attribute['paper']
-        if parsed_attribute['is_flashing'] and flash_value:
-            base_colour = parsed_attribute['paper'] if is_on else parsed_attribute['ink']
+    def to_attribute_rgb(cls, is_on: bool, zx_attribute: ZXAttribute, flash_cycle: bool=False):
+        base_colour = zx_attribute.ink if is_on else zx_attribute.paper
+        if zx_attribute.is_flashing and flash_cycle:
+            base_colour = zx_attribute.paper if is_on else zx_attribute.ink
         return cls.colour_to_rgb(
             base_colour,
-            parsed_attribute['is_bright']
+            zx_attribute.is_bright
         )
-
-    @classmethod
-    def to_parsed_attribute(cls, attribute):
-        return {
-            'is_flashing': bool((attribute & cls.FLASH) == cls.FLASH),
-            'is_bright': bool((attribute & cls.BRIGHT) == cls.BRIGHT),
-            'paper': (attribute & 0b00111000) >> 3,
-            'ink': attribute & 0b00000111
-        }
-    
-    @classmethod
-    def to_tokens(cls, attribute):
-        parsed = cls.to_parsed_attribute(attribute)
-        parts = []
-        if parsed['is_flashing']:
-            parts.append('FLASH')
-        if parsed['is_bright']:
-            parts.append('BRIGHT')
-        parts.append(cls.to_colour_token(parsed['ink']))
-        parts.append(cls.to_colour_token(parsed['paper']))
-        return parts
-
-    @classmethod
-    def to_colour_token(cls, colour):
-        match colour:
-            case cls.BLACK:
-                return 'BLACK'
-            case cls.BLUE:
-                return 'BLUE'
-            case cls.RED:
-                return 'RED'
-            case cls.MAGENTA:
-                return 'MAGENTA'
-            case cls.GREEN:
-                return 'GREEN'
-            case cls.CYAN:
-                return 'CYAN'
-            case cls.YELLOW:
-                return 'YELLOW'
-            case cls.WHITE:
-                return 'WHITE'
-        raise ValueError(f'Invalid colour {colour}')
 
 
 class ZXScreenIterator:
