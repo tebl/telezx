@@ -53,15 +53,14 @@ class ZXEditor(ttk.Frame):
 
         self.scale = 3
         self.flash_value = True
+        self.is_bell_enabled = True
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
         self.is_insertion_enabled = True
 
-        # self.cursor = ScreenCoordinate(0, 0)
-        self.cursor = ScreenCoordinate(2, 2)
+        self.cursor = ScreenCoordinate(0, 0)
         self.region_screen = ScreenRegion.full()
-        # self.region_highlight = None
-        self.region_highlight = ScreenRegion.from_tuples((2,2), (4,4))
+        self.region_highlight = None
 
         self.zx_token = ZXToken()
         self.__create_boot_screen()
@@ -471,7 +470,7 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f'Exported screenshot: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
-            self.set_status(f'{e}')
+            self.set_error(f'{e}')
 
     def clicked_export_scr(self, event=None):
         try:
@@ -481,7 +480,7 @@ class ZXEditor(ttk.Frame):
                 self.set_status(f'Exported SCR: {filename}')
         except Exception as e:
             Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
-            self.set_status(f'{e}')
+            self.set_error(f'{e}')
         return 'break'
 
     def clicked_export_specscii(self, event=None):
@@ -493,7 +492,7 @@ class ZXEditor(ttk.Frame):
         except Exception as e:
             traceback.print_exc()
             Messagebox.show_error(parent=self, title='Export failed', message=f'Failed with error:\n{e}')
-            self.set_status(f'{e}')
+            self.set_error(f'{e}')
         return 'break'
 
     def clicked_invert(self, event=None):
@@ -542,7 +541,7 @@ class ZXEditor(ttk.Frame):
         except Exception as e:
             traceback.print_exc()
             Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
-            self.set_status(f'Load error: {e}')
+            self.set_error(f'Load error: {e}')
             print(e)
         self.refresh_canvas()
         return 'break'
@@ -911,7 +910,7 @@ class ZXEditor(ttk.Frame):
                                    char_attribute=self.sidebar.palette.get_attribute(), 
                                    char_inverted=self.sidebar.palette.get_inverted())
         else:
-            self.set_error('Unable to insert character: region full!')
+            self.set_error('Not enough space!')
 
     def __shift_cells(self, region: ScreenRegion):
         ScreenNavigator.force_inside_region(self.cursor, region)
@@ -964,6 +963,8 @@ class ZXEditor(ttk.Frame):
                         self.__shift_cells(self.region_highlight)
                         self.zx_token.set_cell(self.cursor.char_x, self.cursor.char_y)
                         ScreenNavigator.next(self.cursor, self.region_highlight)
+                else:
+                    self.set_error('Not enough space!')
         else:
             ScreenNavigator.newline(self.cursor, self.__get_cursor_region())
         self.refresh_editor()
@@ -1038,8 +1039,9 @@ class ZXEditor(ttk.Frame):
         self.status.set_status(message)
 
     def set_error(self, message):
-        self.set_status(message)
-        self.bell()
+        self.set_status(f'ERROR: {message}')
+        if self.is_bell_enabled:
+            self.bell()
 
     def set_sticky(self, value):
         self.is_sticky_enabled = value

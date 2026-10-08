@@ -2,7 +2,7 @@ import numpy
 from pathlib import Path
 from PIL import Image
 from .document_helper import DocumentHelper
-from .. import ZXFont, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, utilities
+from .. import ZXFont, ZXGlyph, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, utilities
 
 class TransformationHelper(DocumentHelper):
     src_path: Path
