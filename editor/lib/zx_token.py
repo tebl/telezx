@@ -33,6 +33,7 @@ class ZXToken:
     DOCUMENT_TYPE = 'ZXToken'
 
     def __init__(self, init_attribute: int|None=None):
+        self.debug_enabled = False
         self.zx_screen = ZXScreen()
         init_attribute = self.DEFAULT_ATTRIBUTE if init_attribute is None else init_attribute
         self.clear(attribute=init_attribute)
@@ -113,7 +114,8 @@ class ZXToken:
             self.set_cell(coord_end.char_x, char_y, char_code=chr_right, char_attribute=cell_copy.char_attribute)
 
     def debug_cell(self, char_x, char_y):
-        self.__lookup_cell(char_x, char_y).debug(self)
+        if self.debug_enabled:
+            self.__lookup_cell(char_x, char_y).debug(self)
 
     def export(self, document_path):
         with open(document_path, 'w') as file:

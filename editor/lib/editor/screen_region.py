@@ -5,6 +5,7 @@ from .. import ZXScreen, utilities, Coordinate
 
 class CellDirection(enum.Enum):
     ANY = enum.auto()
+    REVERSED = enum.auto()
     NORTH = enum.auto()
     SOUTH = enum.auto()
     EAST = enum.auto()
@@ -27,6 +28,9 @@ class CellDirection(enum.Enum):
 class ScreenCoordinate(Coordinate):
     def __init__(self, char_x: int, char_y: int):
         super().__init__(char_x, char_y)
+
+    def equals(self, char_x: int, char_y: int) -> True:
+        return (self.char_x == char_x and self.char_y == char_y)
 
     def move(self, direction: CellDirection):
         match direction:
@@ -102,7 +106,7 @@ class ScreenNavigator:
     @classmethod
     def down(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_y < region.max_char_y():
             cursor.set(cursor.char_x, cursor.char_y + 1)
@@ -113,7 +117,7 @@ class ScreenNavigator:
     @classmethod
     def end(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_x < region.max_char_x():
             cursor.set(region.max_char_x(), cursor.char_y)
@@ -128,7 +132,7 @@ class ScreenNavigator:
     @classmethod
     def home(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_x > region.min_char_x():
             cursor.set(region.min_char_x(), cursor.char_y)
@@ -143,7 +147,7 @@ class ScreenNavigator:
     @classmethod
     def newline(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_y < region.max_char_y():
             cursor.set(region.min_char_x(), cursor.char_y + 1)
@@ -153,7 +157,7 @@ class ScreenNavigator:
     @classmethod
     def next(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_x < region.max_char_x():
             cursor.set(cursor.char_x + 1, cursor.char_y)
@@ -168,7 +172,7 @@ class ScreenNavigator:
     @classmethod
     def previous(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_x > region.min_char_x():
             cursor.set(cursor.char_x - 1, cursor.char_y)
@@ -183,7 +187,7 @@ class ScreenNavigator:
     @classmethod
     def up(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
         if not region.is_cursor_inside(cursor):
-            return cls.__force_inside(cursor, region)
+            return cls.force_inside_region(cursor, region)
 
         if cursor.char_y > region.min_char_y():
             cursor.set(cursor.char_x, cursor.char_y - 1)
@@ -192,17 +196,17 @@ class ScreenNavigator:
         return False
 
     @classmethod
-    def __force_inside(cls, cursor: ScreenCoordinate, region: ScreenRegion) -> bool:
+    def force_inside_region(cls, coord: ScreenCoordinate, region: ScreenRegion) -> bool:
         char_x_alt = [region.min_char_x(), region.max_char_x()]
-        if cursor.char_x >= region.min_char_x() and cursor.char_x <= region.max_char_x():
-            char_x_alt.append(cursor.char_x)
+        if coord.char_x >= region.min_char_x() and coord.char_x <= region.max_char_x():
+            char_x_alt.append(coord.char_x)
         char_y_alt = [region.min_char_y(), region.max_char_y()]
-        if cursor.char_y >= region.min_char_y() and cursor.char_y <= region.max_char_y():
-            char_y_alt.append(cursor.char_y)
+        if coord.char_y >= region.min_char_y() and coord.char_y <= region.max_char_y():
+            char_y_alt.append(coord.char_y)
 
-        return cursor.set(
-            min(char_x_alt, key=lambda x: abs(x - cursor.char_x)), 
-            min(char_y_alt, key=lambda x: abs(x - cursor.char_y))
+        return coord.set(
+            min(char_x_alt, key=lambda x: abs(x - coord.char_x)), 
+            min(char_y_alt, key=lambda x: abs(x - coord.char_y))
         )
 
 
@@ -255,29 +259,56 @@ class ScreenRegion:
     def can_transpose_west(self):
         return self.coord_start.can_move_west()
 
-    def cells(self, from_direction: CellDirection) -> Generator[ScreenCoordinate]:
+    def cells(self, from_direction: CellDirection, reverse: bool=False, start_at: ScreenCoordinate|None=None) -> Generator[ScreenCoordinate]:
+        found = False
+        for (char_x, char_y) in self.__cell_coordinates(from_direction):
+            if start_at:
+                if found:
+                    yield self.__get_coordinate(char_x, char_y, reverse)
+
+                if start_at.equals(char_x, char_y):
+                    found = True
+                    yield self.__get_coordinate(char_x, char_y, reverse)
+                else:
+                    continue
+            else:
+                yield self.__get_coordinate(char_x, char_y, reverse)
+
+    def __cell_coordinates(self, from_direction: CellDirection):
         match from_direction:
             case CellDirection.NORTH | CellDirection.ANY:
                 for char_y in range(self.coord_start.char_y, self.coord_end.char_y + 1):
                     for char_x in range(self.coord_start.char_x, self.coord_end.char_x + 1):
-                        yield ScreenCoordinate(char_x, char_y)
+                        yield (char_x, char_y)
             case CellDirection.SOUTH:
                 for char_y in range(self.coord_end.char_y, self.coord_start.char_y - 1, -1):
                     for char_x in range(self.coord_start.char_x, self.coord_end.char_x + 1):
-                        yield ScreenCoordinate(char_x, char_y)
+                        yield (char_x, char_y)
             case CellDirection.EAST:
                 for char_x in range(self.coord_end.char_x, self.coord_start.char_x - 1, -1):
                     for char_y in range(self.coord_start.char_y, self.coord_end.char_y + 1):
-                        yield ScreenCoordinate(char_x, char_y)
+                        yield (char_x, char_y)
             case CellDirection.WEST:
                 for char_x in range(self.coord_start.char_x, self.coord_end.char_x + 1):
                     for char_y in range(self.coord_start.char_y, self.coord_end.char_y + 1):
-                        yield ScreenCoordinate(char_x, char_y)
+                        yield (char_x, char_y)
             case _:
                 raise ValueError('Unknown direction')
 
+    def __get_coordinate(self, char_x: int, char_y: int, reverse: bool=False) -> ScreenCoordinate:
+        if reverse:
+            return ScreenCoordinate(self.coord_end.char_x - (char_x - self.coord_start.char_x), 
+                                    self.coord_end.char_y - (char_y - self.coord_start.char_y))
+        return ScreenCoordinate(char_x, char_y)
+
     def coordinates(self) -> tuple[ScreenCoordinate, ScreenCoordinate]:
         return (self.coord_start, self.coord_end)
+
+    def first(self) -> ScreenCoordinate:
+        return self.__get_coordinate(self.coord_start.char_x, self.coord_start.char_y)
+
+    def last(self) -> ScreenCoordinate:
+        return self.__get_coordinate(self.coord_end.char_x, self.coord_end.char_y)
 
     def is_cursor_inside(self, cursor: ScreenCoordinate) -> bool:
         return self.is_inside(cursor.char_x, cursor.char_y)

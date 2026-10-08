@@ -41,3 +41,10 @@ class ZXFont(ZXGlyph):
     @classmethod
     def validate_ascii(cls, char_code):
         return char_code >= cls.ASCII_SPACE and char_code <= cls.ASCII_COPYRIGHT
+
+    @classmethod
+    def is_whitespace(cls, char_code):
+        match char_code:
+            case cls.ASCII_SPACE:
+                return True
+        return False 

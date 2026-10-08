@@ -16,7 +16,7 @@ class Coordinate:
         return f'(X={self.char_x}, Y={self.char_y})'
 
     def __eq__(self, value):
-        return (self.char_x == value.x and self.char_y == value.y)
+        return (self.char_x == value.char_x and self.char_y == value.char_y)
 
     def get(self):
         return (self.char_x, self.char_y)

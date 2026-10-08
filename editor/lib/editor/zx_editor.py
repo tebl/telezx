@@ -57,9 +57,11 @@ class ZXEditor(ttk.Frame):
         self.is_sticky_enabled = False
         self.is_insertion_enabled = True
 
-        self.cursor = ScreenCoordinate(0, 0)
+        # self.cursor = ScreenCoordinate(0, 0)
+        self.cursor = ScreenCoordinate(2, 2)
         self.region_screen = ScreenRegion.full()
-        self.region_highlight = None
+        # self.region_highlight = None
+        self.region_highlight = ScreenRegion.from_tuples((2,2), (4,4))
 
         self.zx_token = ZXToken()
         self.__create_boot_screen()
@@ -683,7 +685,7 @@ class ZXEditor(ttk.Frame):
             self.main.focus_set()
             match event.keysym:
                 case 'Enter' | 'KP_Enter' | 'Return':
-                    self.move_cursor_newline()
+                    self.insert_newline()
                 case 'Home' | 'KP_Home':
                     self.move_cursor_home()
                 case 'End' | 'KP_End':
@@ -706,9 +708,7 @@ class ZXEditor(ttk.Frame):
                     self.set_insertion_mode(not self.is_insertion_enabled)
                 case _:
                     if event.char:
-                        ascii_code = ord(event.char)
-                        if ZXFont.validate_ascii(ascii_code):
-                            self.set_cursor_character(ascii_code)
+                        self.insert_character(ord(event.char))
                     # print('Unknown key:', event.char, event.keysym, event.keycode)
             return 'break'
 
@@ -746,31 +746,8 @@ class ZXEditor(ttk.Frame):
             self.refresh_editor()
         return 'break'
 
-    def move_cursor_backspace(self, event=None):
-        if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
-            self.__clear_cursor_position()
-            self.refresh_editor()
-
-    def move_cursor_delete(self, event=None):
-        if self.__get_cursor_region().is_cursor_inside(self.cursor):
-            self.__clear_cursor_position()
-            self.refresh_editor()
-
-    def __clear_cursor_position(self):
-        char_x, char_y = self.cursor.get()
-        self.undo_memory.append(UndoOperation().add_cell(char_x, 
-                                                       char_y, 
-                                                       self.zx_token.get_cell(char_x, 
-                                                                              char_y)))
-        self.zx_token.set_cell(char_x, char_y)
-
     def move_cursor_right(self, event=None):
         if ScreenNavigator.next(self.cursor, self.__get_cursor_region()):
-            self.refresh_editor()
-        return 'break'
-
-    def move_cursor_newline(self, event=None):
-        if ScreenNavigator.newline(self.cursor, self.__get_cursor_region()):
             self.refresh_editor()
         return 'break'
 
@@ -786,7 +763,7 @@ class ZXEditor(ttk.Frame):
 
     def __get_cursor_region(self) -> ScreenRegion:
         '''
-        Cursor movement is performed within either the highlighted region or
+        Cursor movement is performed within either the highlighted region, or
         within the entire screen.
         '''
         return self.region_highlight if self.region_highlight else self.region_screen
@@ -896,20 +873,138 @@ class ZXEditor(ttk.Frame):
         self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
 
-    def set_cursor_character(self, char_code):
-        self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
-        changed = False
-        if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code, sync_screen=False):
-            changed = True
-        if self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_attribute(), sync_screen=False):
-            changed = True
-        if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_inverted(), sync_screen=False):
-            changed = True
-        if changed:
-            self.zx_token.sync_cell(self.cursor.char_x, self.cursor.char_y)
-
-        if not self.is_insertion_enabled:
+    def insert_character(self, char_code):
+        if not ZXFont.validate_ascii(char_code):
+            return
+        
+        if not self.is_insertion_enabled or not self.region_highlight:
+            self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
+            changed = False
+            if self.zx_token.set_character(self.cursor.char_x, self.cursor.char_y, char_code, sync_screen=False):
+                changed = True
+            if self.zx_token.set_attribute(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_attribute(), sync_screen=False):
+                changed = True
+            if self.zx_token.set_inverted(self.cursor.char_x, self.cursor.char_y, self.sidebar.palette.get_inverted(), sync_screen=False):
+                changed = True
+            if changed:
+                self.zx_token.sync_cell(self.cursor.char_x, self.cursor.char_y)
             ScreenNavigator.next(self.cursor, self.__get_cursor_region())
+        else:
+            self.__insert_character(char_code, self.region_highlight)
+        self.refresh_editor()
+
+    def __insert_character(self, char_code, region: ScreenRegion):
+        if self.__can_shift(region):
+            self.create_undo_region(region)
+            self.__shift_cells(region)
+            self.zx_token.set_cell(self.cursor.char_x, 
+                                   self.cursor.char_y, 
+                                   char_code=char_code, 
+                                   char_attribute=self.sidebar.palette.get_attribute(), 
+                                   char_inverted=self.sidebar.palette.get_inverted())
+            ScreenNavigator.next(self.cursor, self.__get_cursor_region())
+        elif self.cursor == region.coord_end:
+            self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
+            self.zx_token.set_cell(self.cursor.char_x, 
+                                   self.cursor.char_y, 
+                                   char_code=char_code, 
+                                   char_attribute=self.sidebar.palette.get_attribute(), 
+                                   char_inverted=self.sidebar.palette.get_inverted())
+        else:
+            self.set_error('Unable to insert character: region full!')
+
+    def __shift_cells(self, region: ScreenRegion):
+        ScreenNavigator.force_inside_region(self.cursor, region)
+        generator = region.cells(from_direction=CellDirection.NORTH, reverse=True)
+        previous = next(generator)
+        for coord in generator:
+            contents = self.zx_token.get_cell(coord.char_x, coord.char_y)
+            self.zx_token.set_cell(previous.char_x, previous.char_y, cell_copy=contents)
+            if self.cursor.equals(coord.char_x, coord.char_y):
+                return
+            previous = coord
+
+    def __unshift_cells(self, cursor: ScreenCoordinate, region: ScreenRegion):
+        '''
+        The same as __shift_cells except moving in the other direction, used
+        when deletinig a cell.
+        '''
+        ScreenNavigator.force_inside_region(cursor, region)
+        generator = region.cells(from_direction=CellDirection.NORTH, start_at=self.cursor)
+        previous = next(generator)
+        for coord in generator:
+            contents = self.zx_token.get_cell(coord.char_x, coord.char_y)
+            self.zx_token.set_cell(previous.char_x, previous.char_y, cell_copy=contents)
+            previous = coord
+        self.zx_token.set_cell(region.coord_end.char_x, region.coord_end.char_y)
+
+    def __can_shift(self, region: ScreenRegion, required: int=1) -> bool:
+        if self.cursor == region.coord_end:
+            return False
+
+        found = 0
+        for coord in region.cells(from_direction=CellDirection.NORTH, reverse=True):
+            c = self.zx_token.get_character(coord.char_x, coord.char_y)
+            if c < 0 or ZXFont.is_whitespace(c):
+                found += 1
+            else:
+                return False
+            
+            if found >= required:
+                return True
+        return False
+
+    def insert_newline(self):
+        if self.is_insertion_enabled and self.region_highlight:
+            if self.cursor.char_y < self.region_highlight.coord_end.char_y:
+                required = self.region_highlight.coord_end.char_x - self.cursor.char_x + 1
+                if self.__can_shift(self.region_highlight, required):
+                    self.create_undo_region(self.region_highlight)
+                    for x in range(required):
+                        self.__shift_cells(self.region_highlight)
+                        self.zx_token.set_cell(self.cursor.char_x, self.cursor.char_y)
+                        ScreenNavigator.next(self.cursor, self.region_highlight)
+        else:
+            ScreenNavigator.newline(self.cursor, self.__get_cursor_region())
+        self.refresh_editor()
+
+    def move_cursor_backspace(self, event=None):
+        if self.is_insertion_enabled and self.region_highlight:
+            if self.cursor == self.region_highlight.coord_start:
+                self.set_error('Already at beginning!')
+            else:
+                if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
+                    self.__unshift_cells(self.cursor, self.region_highlight)
+        else:
+            if ScreenNavigator.previous(self.cursor, self.__get_cursor_region()):
+                self.__clear_cursor_position()
+                self.refresh_editor()
+        self.refresh_editor()
+
+    def __clear_cursor_position(self):
+        char_x, char_y = self.cursor.get()
+        self.undo_memory.append(UndoOperation().add_cell(char_x, 
+                                                       char_y, 
+                                                       self.zx_token.get_cell(char_x, 
+                                                                              char_y)))
+        self.zx_token.set_cell(char_x, char_y)
+
+    def move_cursor_delete(self, event=None):
+        '''
+        Deletes the cell pointed to by the cursor, normally this is a straight
+        delete though when insertion mode is activated we will also move the
+        remaining characters from the region as well.
+        '''
+        if self.is_insertion_enabled and self.region_highlight:
+            if self.cursor == self.region_highlight.coord_end:
+                self.__clear_cursor_position()
+            else:
+                self.__unshift_cells(self.cursor, self.region_highlight)
+        else:
+            # In case weird things happened; ensure that we have a valid
+            # position before deleting something
+            if self.__get_cursor_region().is_cursor_inside(self.cursor):
+                self.__clear_cursor_position()
         self.refresh_editor()
 
     def set_cursor_attribute(self, attribute):
@@ -941,6 +1036,10 @@ class ZXEditor(ttk.Frame):
 
     def set_status(self, message):
         self.status.set_status(message)
+
+    def set_error(self, message):
+        self.set_status(message)
+        self.bell()
 
     def set_sticky(self, value):
         self.is_sticky_enabled = value
@@ -1763,14 +1862,14 @@ class CharacterPalette(ttk.Frame):
         self.zx_editor = zx_editor
 
         self.font_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
-        self.font_frame.pack(side=LEFT)
+        self.font_frame.pack(side=LEFT, anchor=N)
         self.font_widgets = []
 
         self.glyph_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
-        self.glyph_frame.pack(side=RIGHT)
+        self.glyph_frame.pack(side=RIGHT, anchor=N)
         self.glyph_widgets = []
 
-    def load_font(self, path, frame, widgets, value_offset):
+    def load_font(self, path, frame, widgets: list[CharacterOption], value_offset):
         font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'), generate_rgb=True)
         
         # Remove existing elements
@@ -1806,8 +1905,9 @@ class CharacterPalette(ttk.Frame):
         for widget in self.font_widgets:
             widget.notify_scale_changed(value)
 
+
 class CharacterOption(Canvas):
-    def __init__(self, master, zx_editor, glyph_idx, value_offset, scale_mode=0):
+    def __init__(self, master, zx_editor: ZXEditor, glyph_idx: int, value_offset: int, scale_mode: int=0):
         super().__init__(master, zx_editor, view_width=8, view_height=8, scale_mode=scale_mode, label_padx=0, label_pady=0)
         self.glyph_idx = glyph_idx
         self.value_offset = value_offset
@@ -1816,7 +1916,7 @@ class CharacterOption(Canvas):
         self.label.bind('<Leave>', self.mouse_exit)
 
     def mouse_clicked(self, event):
-        self.zx_editor.set_cursor_character(self.__get_char_code())
+        self.zx_editor.insert_character(self.__get_char_code())
 
     def __get_char_code(self):
         return (self.glyph_idx + self.value_offset)
@@ -1831,7 +1931,7 @@ class CharacterOption(Canvas):
 class Status(ttk.Frame):
     zx_editor: ZXEditor
 
-    def __init__(self, master, zx_editor):
+    def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(master, style='dark.TFrame')
         self.zx_editor = zx_editor
         self.columnconfigure(1, weight=1)
