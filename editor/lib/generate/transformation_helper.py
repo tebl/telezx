@@ -2,7 +2,7 @@ import numpy
 from pathlib import Path
 from PIL import Image
 from .document_helper import DocumentHelper
-from .. import ZXFont, ZXGlyph, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, utilities
+from .. import ZXFont, ZXSymbol, ZXScreen, ZXScreenIterator, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, utilities
 
 class TransformationHelper(DocumentHelper):
     src_path: Path
@@ -86,7 +86,7 @@ class TransformationHelper(DocumentHelper):
     def transform_clear_coordinate(self, char_x, char_y, attribute: int=None) -> bool:
         self.__ensure_loaded()
         self.logger.info('Clearing coordinate', f'(X={char_x}, Y={char_y})')
-        self.zx_screen.write_cell(char_x, char_y, ZXGlyph.generate_blank_glyph(), self.__get_attribute(attribute))
+        self.zx_screen.write_cell(char_x, char_y, ZXSymbol.generate_blank_glyph(), self.__get_attribute(attribute))
         return True
 
     def transform_clear_line(self, char_y: int, attribute: int|None=None) -> bool:
@@ -94,7 +94,7 @@ class TransformationHelper(DocumentHelper):
         attribute = self.__get_attribute(attribute)
         self.logger.info('Clearing line', char_y)
         for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-            self.zx_screen.write_cell(char_x, char_y, ZXGlyph.generate_blank_glyph(), attribute)
+            self.zx_screen.write_cell(char_x, char_y, ZXSymbol.generate_blank_glyph(), attribute)
         return True
 
     def transform_delete_line(self, char_y: int, attribute: int|None=None) -> bool:
@@ -102,7 +102,7 @@ class TransformationHelper(DocumentHelper):
         self.logger.info('Deleting line', char_y)
         self.transform_scroll(delta_x=0, delta_y=-1, start_y=char_y)
         for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-            self.zx_screen.write_cell(char_x, ZXScreen.SCREEN_HEIGHT_CHARS - 1, ZXGlyph.generate_blank_glyph(), attribute)
+            self.zx_screen.write_cell(char_x, ZXScreen.SCREEN_HEIGHT_CHARS - 1, ZXSymbol.generate_blank_glyph(), attribute)
         return True
 
     def transform_scroll(self, delta_x: int=0, delta_y: int=0, start_x: int=0, start_y: int=0) -> bool:

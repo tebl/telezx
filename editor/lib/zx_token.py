@@ -7,8 +7,9 @@ from pathlib import Path
 from .coordinate import Coordinate
 from .zx_attribute import ZXAttribute
 from .zx_screen import ZXScreen, ZXScreenIterator
-from .zx_glyph import ZXGlyph
+from .zx_symbol import ZXSymbol
 from .zx_font import ZXFont
+from .zx_glyph import ZXGlyph
 from .utilities import update_tree, get_project_root, HexYAML, format_padded_id
 
 class ZXToken:
@@ -33,7 +34,7 @@ class ZXToken:
     DOCUMENT_TYPE = 'ZXToken'
 
     def __init__(self, init_attribute: int|None=None):
-        self.debug_enabled = False
+        self.debug_enabled = True
         self.zx_screen = ZXScreen()
         init_attribute = self.DEFAULT_ATTRIBUTE if init_attribute is None else init_attribute
         self.clear(attribute=init_attribute)
@@ -292,7 +293,7 @@ class ZXToken:
     def set_selected_glyph(self, glyph_name):
         self.glyph_name = glyph_name
         self.glyph_path: Path = self.get_font_path(glyph_name)
-        self.glyph = ZXGlyph.from_file(self.glyph_path)
+        self.glyph = ZXSymbol.from_file(self.glyph_path)
 
     def get_font_path(self, font_name) -> Path:
         return get_project_root() / 'fonts' / f'{font_name}.bin'
@@ -434,11 +435,11 @@ class ZXTokenCell:
                 zx_token.font.get_offset(self.char_code - ZXFont.ASCII_SPACE),
                 self.__select_attribute(self.char_attribute)
             )
-        if self.char_code >= ZXGlyph.GLYPH_OFFSET:
+        if self.char_code >= ZXGlyph.CHAR_CODE_OFFSET:
             zx_token.zx_screen.write_cell(
                 self.char_x, 
                 self.char_y, 
-                zx_token.glyph.get_offset(self.char_code - ZXGlyph.GLYPH_OFFSET),
+                zx_token.glyph.get_offset(self.char_code - ZXGlyph.CHAR_CODE_OFFSET),
                 self.__select_attribute(self.char_attribute)
             )
 
@@ -471,11 +472,11 @@ class ZXTokenCell:
                     self.char_y, 
                     zx_token.font.get_offset(self.char_code - ZXFont.ASCII_SPACE)
                 )
-            if self.char_code >= ZXGlyph.GLYPH_OFFSET:
+            if self.char_code >= ZXGlyph.CHAR_CODE_OFFSET:
                 zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y, 
-                    zx_token.glyph.get_offset(self.char_code - ZXGlyph.GLYPH_OFFSET)
+                    zx_token.glyph.get_offset(self.char_code - ZXGlyph.CHAR_CODE_OFFSET)
                 )
 
         # Sync attribute information. Note that without a character present, we
@@ -577,8 +578,8 @@ class SpecsciiFormat:
     SET_COLUMN = 0x17
     ASCII_START = ZXFont.ASCII_SPACE
     ASCII_LAST = ZXFont.ASCII_COPYRIGHT
-    GLYPH_START = ZXGlyph.GLYPH_OFFSET
-    GLYPH_LAST = 0xff
+    GLYPH_START = ZXGlyph.CHAR_CODE_OFFSET
+    GLYPH_LAST = ZXGlyph.GLYPH_LAST_SYMBOL
 
     def __init__(self, zx_token: ZXToken):
         self.zx_token = zx_token

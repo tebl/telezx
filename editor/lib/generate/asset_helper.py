@@ -160,7 +160,7 @@ class AssetHelper(RepositoryHelper):
         return (0, page.font.ASCII_SPACE, page.font.ASCII_COPYRIGHT + 1)
 
     def __get_glyph_details(self, page: ZXToken):
-        return (page.glyph.GLYPH_OFFSET, 0, page.glyph.get_glyph_count())
+        return (ZXGlyph.CHAR_CODE_OFFSET, 0, page.glyph.count_symbols())
 
     def copy_default_frame(self, colour_name: str, global_asset: bool):
         base_path = utilities.get_project_root() / 'assets' if global_asset else self.asset_path

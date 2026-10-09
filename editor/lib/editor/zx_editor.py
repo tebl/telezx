@@ -706,8 +706,9 @@ class ZXEditor(ttk.Frame):
                 case 'Insert' | 'KP_Insert':
                     self.set_insertion_mode(not self.is_insertion_enabled)
                 case _:
-                    if event.char:
-                        self.insert_character(ord(event.char))
+                    char_code = ord(event.char)
+                    if event.char and ZXFont.validate_ascii(char_code):
+                        self.insert_character(char_code)
                     # print('Unknown key:', event.char, event.keysym, event.keycode)
             return 'break'
 
@@ -872,10 +873,7 @@ class ZXEditor(ttk.Frame):
         self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
 
-    def insert_character(self, char_code):
-        if not ZXFont.validate_ascii(char_code):
-            return
-        
+    def insert_character(self, char_code):        
         if not self.is_insertion_enabled or not self.region_highlight:
             self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
             changed = False
@@ -1882,7 +1880,7 @@ class CharacterPalette(ttk.Frame):
         # Add new ones
         grid_row = 0
         grid_column = 0
-        for char_index in range(font_data.get_glyph_count()):
+        for char_index in range(font_data.count_symbols()):
             widget = CharacterOption(frame, self.zx_editor, char_index, value_offset, scale_mode=3)
             widget.render_rgb(font_data.get_offset_rgb(char_index))
             widget.flip_canvas()
@@ -1898,10 +1896,10 @@ class CharacterPalette(ttk.Frame):
         return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
 
     def notify_font_changed(self, font_path: Path):
-        self.load_font(font_path, self.font_frame, self.font_widgets, ZXFont.FONT_OFFSET)
+        self.load_font(font_path, self.font_frame, self.font_widgets, ZXFont.CHAR_CODE_OFFSET)
 
     def notify_glyph_changed(self, glyph_path: Path):
-        self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets, ZXGlyph.GLYPH_OFFSET)
+        self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets, ZXGlyph.CHAR_CODE_OFFSET)
 
     def notify_scale_changed(self, value):
         for widget in self.font_widgets:

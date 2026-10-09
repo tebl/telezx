@@ -2,7 +2,7 @@ import unittest, tempfile, string
 from pathlib import Path
 from lib import utilities, ZXFont, ZXGlyph
 
-class TestZXGlyph(unittest.TestCase):
+class TestZXSymbol(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory(prefix='telezx-registry-')
 
@@ -13,7 +13,7 @@ class TestZXGlyph(unittest.TestCase):
         font_path = utilities.get_project_root() / 'fonts' / 'font_default.bin'
         font = ZXFont.from_file(path=font_path, generate_rgb=True)
         self.assertIsNotNone(font)
-        self.assertGreater(font.get_glyph_count(), 0)
+        self.assertGreater(font.count_symbols(), 0)
 
         for char_code, data in font.glyphs():
             self.assertEqual(len(data), 8)
@@ -24,7 +24,7 @@ class TestZXGlyph(unittest.TestCase):
         font_path = utilities.get_project_root() / 'fonts' / 'font_default.bin'
         font = ZXFont.from_file(path=font_path, generate_rgb=True)
         self.assertIsNotNone(font)
-        self.assertGreater(font.get_glyph_count(), 0)
+        self.assertGreater(font.count_symbols(), 0)
 
         # Read binary file for comparison
         font_bin = self.__get_contents(font_path, 'rb')
@@ -43,7 +43,7 @@ class TestZXGlyph(unittest.TestCase):
         font_path = utilities.get_project_root() / 'fonts' / 'font_glyphs.bin'
         font = ZXGlyph.from_file(path=font_path, generate_rgb=True)
         self.assertIsNotNone(font)
-        self.assertGreater(font.get_glyph_count(), 0)
+        self.assertGreater(font.count_symbols(), 0)
 
         # Read binary file for comparison
         font_bin = self.__get_contents(font_path, 'rb')
@@ -66,7 +66,7 @@ class TestZXGlyph(unittest.TestCase):
         font_path = utilities.get_project_root() / 'fonts' / 'font_glyphs.bin'
         font = ZXGlyph.from_file(path=font_path, generate_rgb=True)
         self.assertIsNotNone(font)
-        font_count = font.get_glyph_count()
+        font_count = font.count_symbols()
         self.assertGreater(font_count, 0)
 
         font.add_glyph([0, 1, 2, 3, 4, 5, 6, 7])
@@ -74,20 +74,20 @@ class TestZXGlyph(unittest.TestCase):
         font.write(font_out)
 
         font = ZXGlyph.from_file(path=font_out, generate_rgb=True)
-        self.assertEqual([v for v in font.get_offset(font.get_glyph_count() - 1)],
+        self.assertEqual([v for v in font.get_offset(font.count_symbols() - 1)],
                          [0, 1, 2, 3, 4, 5, 6, 7])        
 
     def test_load_glyph(self):
         font_path = utilities.get_project_root() / 'fonts' / 'font_glyphs.bin'
         glyphs = ZXGlyph.from_file(path=font_path, generate_rgb=True)
         self.assertIsNotNone(glyphs)
-        self.assertGreater(glyphs.get_glyph_count(), 0)
+        self.assertGreater(glyphs.count_symbols(), 0)
 
     def test_export_js(self):
         font_path = utilities.get_project_root() / 'fonts' / 'font_default.bin'
         font = ZXFont.from_file(path=font_path, generate_rgb=False)
         self.assertIsNotNone(font)
-        self.assertGreater(font.get_glyph_count(), 0)
+        self.assertGreater(font.count_symbols(), 0)
 
         export_path = Path(self.temp_dir.name) / 'export.js'
         font.export_js(export_path, 'DEFAULT')
