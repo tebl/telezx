@@ -56,7 +56,7 @@ class ZXEditor(ttk.Frame):
         self.is_bell_enabled = True
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
-        self.is_insertion_enabled = True
+        self.is_insertion_enabled = False
 
         self.cursor = ScreenCoordinate(0, 0)
         self.region_screen = ScreenRegion.full()
