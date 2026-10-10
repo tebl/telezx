@@ -9,8 +9,8 @@ class ZXGlyph(ZXSymbol):
     'Start of user definable graphics'
     GLYPH_LAST_SYMBOL = 0xff
     
-    def __init__(self, glyph_data, rgb_fg=255, rgb_bg=0, generate_rgb=False):
-        super().__init__(glyph_data, rgb_fg, rgb_bg, generate_rgb)
+    def __init__(self, glyph_data, char_code_offset: int=CHAR_CODE_OFFSET, rgb_fg=255, rgb_bg=0, generate_rgb=False):
+        super().__init__(glyph_data, char_code_offset=char_code_offset, rgb_fg=rgb_fg, rgb_bg=rgb_bg, generate_rgb=generate_rgb)
 
     def _get_js_name(self, name):
         if not name:

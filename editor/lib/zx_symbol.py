@@ -8,15 +8,13 @@ class ZXSymbol:
     GLYPH_WIDTH = 8
     GLYPH_HEIGHT = 8
 
-    CHAR_CODE_OFFSET = 0
-    'Offset added to index to get character code'
-
     _glyph_data: numpy.ndarray
     _rgb_fg: int
     _rgb_bg: int
     _generate_rgb: bool
 
-    def __init__(self, glyph_data: numpy.array, rgb_fg=255, rgb_bg=0, generate_rgb=False):
+    def __init__(self, glyph_data: numpy.array, char_code_offset: int, rgb_fg: int=255, rgb_bg: int=0, generate_rgb=False):
+        self._char_code_offset = char_code_offset
         self._generate_rgb = generate_rgb
         self._rgb_fg = rgb_fg
         self._rgb_bg = rgb_bg
@@ -25,12 +23,12 @@ class ZXSymbol:
     def _set_glyph_data(self, glyph_data: numpy.array):
         self._glyph_data = glyph_data
         if self._generate_rgb:
-            self.__generate_rgb(foreground=self._rgb_fg, background=self._rgb_bg)
+            self.__generate_rgb()
 
-    def __generate_rgb(self, foreground, background):
+    def __generate_rgb(self):
         self.rgb_data = {}
         for glyph_idx in range(self.count_symbols()):
-            self.rgb_data[glyph_idx] = self.generate_glyph_rgb(glyph_idx, foreground, background)
+            self.rgb_data[glyph_idx] = self.__generate_glyph_rgb(glyph_idx)
 
     def add_glyph(self, values: list[int, int, int, int, int, int, int, int]):
         '''
@@ -40,36 +38,50 @@ class ZXSymbol:
             raise ValueError('Not 8x8 UDG')
         self._set_glyph_data(numpy.insert(self._glyph_data, self._glyph_data.shape[0], values=values, axis=0))
 
+    def count_symbols(self):
+        '''
+        Get the number of glyphs stored in the underlying data structure
+        '''
+        return self._glyph_data.shape[0]
+
     def update_glyph(self, offset: int, values: list[int, int, int, int, int, int, int, int]):
         '''
-        Update a glyphs pixel data
+        Update a glyphs pixel data.
         '''
         if not len(values) == 8:
             raise ValueError('Not 8x8 UDG')
         if offset < 0 or offset >= self.count_symbols():
             raise ValueError('Invalid offset')
         self._glyph_data[offset] = values
-        self._set_glyph_data(self._glyph_data)
+        if self._generate_rgb:
+            self.rgb_data[offset] = self.__generate_glyph_rgb(offset)
+
+    def generate_rgb(self, rgb_fg: int=255, rgb_bg: int=0, force: bool=False):
+        if not self._generate_rgb or force:
+            self._generate_rgb = True
+            self._rgb_fg = rgb_fg
+            self._rgb_bg = rgb_bg
+            self.__generate_rgb()
 
     def glyphs(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         for idx in range(0, self.count_symbols()):
-            yield (self.get_charcode_from_offset(idx), self.get_offset(idx))
+            yield (self.get_char_code_from_offset(idx), self.get_offset(idx))
 
     def glyphs_rgb(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         if not self._generate_rgb:
             raise ValueError('RGB not available')
         for idx in range(0, self.count_symbols()):
-            yield (self.get_charcode_from_offset(idx), self.get_offset_rgb(idx))
+            yield (self.get_char_code_from_offset(idx), self.get_offset_rgb(idx))
 
-    def generate_glyph_rgb(self, offset, foreground, background):
-        data = numpy.full(shape=(8, 8, 3), fill_value=background, dtype=numpy.uint8)
+    def __generate_glyph_rgb(self, offset: int):
+        data = numpy.full(shape=(8, 8, 3), fill_value=self._rgb_bg, dtype=numpy.uint8)
         for row_idx, row_value in enumerate(self.get_offset(offset)):
             for bit_idx in range(8):
-                value = foreground if self.__check_bits(row_value, bit_idx) else background
+                value = self._rgb_fg if self.__check_bits(row_value, bit_idx) else self._rgb_bg
                 data[row_idx, bit_idx] = value
         return data
 
-    def __check_bits(self, value, bit_idx) -> int:
+    def __check_bits(self, value: int, bit_idx: int) -> int:
         mask = (1 << (7 - bit_idx))
         return (value & mask) != 0
 
@@ -77,6 +89,9 @@ class ZXSymbol:
         if offset < 0 or offset >= self.count_symbols():
             raise ValueError('Invalid offset')
         return self._glyph_data[offset]
+
+    def get_offset_from(self, char_code: int):
+        return self.get_offset(self.get_offset_from_char_code(char_code))
 
     def get_offset_transform(self, offset: int, mirror: bool=False, flip: bool=False):
         data = self.get_offset(offset)
@@ -91,7 +106,27 @@ class ZXSymbol:
             raise ValueError('Invalid offset')
         return self.rgb_data[offset]
 
-    def get_offset_preview(self, offset: int, char_fill: str|None=None, char_empty: str|None=None):
+    def get_char_code_from_offset(self, value: int=0) -> int:
+        return self._char_code_offset + value
+
+    def get_offset_from_char_code(self, char_code: int=0) -> int:
+        return char_code - self._char_code_offset
+
+    def is_blank(self, offset: int) -> bool:
+        return max(self.get_offset(offset)) == 0
+
+    def print_preview(self, char_fill: str|None=None, char_empty: str|None=None):
+        for idx in range(0, self.count_symbols()):
+            print(f'{self.get_char_code_from_offset(idx)}:')
+            self.print_offset_preview(idx, char_fill, char_empty)
+
+    def print_offset_preview(self, offset: int, char_fill: str|None=None, char_empty: str|None=None):
+        print("▄▄▄▄▄▄▄▄▄▄")
+        for line in self.__get_offset_preview(offset, char_fill, char_empty):
+            print(f'▌{''.join(line)}▐')
+        print("▀▀▀▀▀▀▀▀▀▀")
+
+    def __get_offset_preview(self, offset: int, char_fill: str|None=None, char_empty: str|None=None):
         data = self.get_offset(offset)
         return [ self.__preview_byte(value, char_fill, char_empty) for value in data ]
 
@@ -101,21 +136,6 @@ class ZXSymbol:
         if not char_empty:
             char_empty = '░'
         return [ char_fill if self.__check_bits(value, bit_idx) else char_empty for bit_idx in range(8)]
-
-    def print_offset_preview(self, offset: int, char_fill: str|None=None, char_empty: str|None=None):
-        print("▄▄▄▄▄▄▄▄▄▄")
-        for line in self.get_offset_preview(offset, char_fill, char_empty):
-            print(f'▌{''.join(line)}▐')
-        print("▀▀▀▀▀▀▀▀▀▀")
-
-    def get_charcode_from_offset(self, value: int=0) -> int:
-        return self.CHAR_CODE_OFFSET + value
-
-    def count_symbols(self):
-        '''
-        Get the number of glyphs stored in the underlying data structure
-        '''
-        return self._glyph_data.shape[0]
 
     def write(self, path: Path):
         glyph_data = numpy.reshape(self._glyph_data, shape=(self.count_symbols()*8))
@@ -135,7 +155,7 @@ class ZXSymbol:
             for value in self.get_offset(glyph_idx):
                 file.write(f'0x{format_padded_id(value, width=2).lower()}, ')
 
-            char_code = self.get_charcode_from_offset(glyph_idx)
+            char_code = self.get_char_code_from_offset(glyph_idx)
             if chr(char_code) in string.printable:
                 file.write(f' /* {str(char_code).rjust(3) } = "{chr(char_code)}" */')
             else:
@@ -178,10 +198,10 @@ class ZXSymbol:
     @classmethod
     def empty_file(cls, rgb_fg: int=255, rgb_bg: int=0, generate_rgb: bool=False):
         glyph_data = numpy.empty(shape=(0, 8), dtype=numpy.uint8)
-        return cls(glyph_data, rgb_fg, rgb_bg, generate_rgb)
-    
+        return cls(glyph_data, char_code_offset=cls.CHAR_CODE_OFFSET, rgb_fg=rgb_fg, rgb_bg=rgb_bg, generate_rgb=generate_rgb)
+        
     @classmethod
     def from_file(cls, path: Path, rgb_fg=255, rgb_bg=0, generate_rgb=False):
         glyph_data = numpy.fromfile(path, dtype=numpy.uint8)
         glyph_data = numpy.reshape(glyph_data, shape=((glyph_data.size // 8),8))
-        return cls(glyph_data, rgb_fg, rgb_bg, generate_rgb)
+        return cls(glyph_data, char_code_offset=cls.CHAR_CODE_OFFSET, rgb_fg=rgb_fg, rgb_bg=rgb_bg, generate_rgb=generate_rgb)

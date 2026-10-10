@@ -3098,5 +3098,22 @@ ZXToken:
                 attribute: 6
                 char_code: 51
                 inverted: -1
+    custom_characters:
+    -   - 170
+        - 85
+        - 170
+        - 85
+        - 170
+        - 85
+        - 170
+        - 85
+    -   - 85
+        - 170
+        - 85
+        - 170
+        - 85
+        - 170
+        - 85
+        - 170
     font: font_default
     glyph: font_glyphs

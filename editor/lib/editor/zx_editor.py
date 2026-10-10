@@ -52,7 +52,9 @@ class ZXEditor(ttk.Frame):
         self.__load_assets()
 
         self.scale = 3
-        self.flash_value = True
+        self.screen_flash_state = True
+
+        self.is_debug_enabled = True
         self.is_bell_enabled = True
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
@@ -62,7 +64,7 @@ class ZXEditor(ttk.Frame):
         self.region_screen = ScreenRegion.full()
         self.region_highlight = None
 
-        self.zx_token = ZXToken()
+        self.zx_token = ZXToken(debug_enabled=self.is_debug_enabled)
         self.__create_boot_screen()
         self.copied_cells = None
         self.copied_format = None
@@ -123,11 +125,17 @@ class ZXEditor(ttk.Frame):
 
         start_y = 11
         for idx, colour in enumerate([ZXScreen.RED, ZXScreen.YELLOW, ZXScreen.GREEN, ZXScreen.BLUE]):
-            self.zx_token.set_cell(start_x + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.zx_token.set_cell(start_x + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.zx_token.set_cell(start_x + 1 + idx*3, start_y, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-            self.zx_token.set_cell(start_x + 1 + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=ZXScreen.to_attribute(paper=colour))
-        self.zx_token.set_string(7, start_y + 3, "(Ctrl + n to clear)")
+            attribute = ZXAttribute(ink=colour, paper=ZXScreen.BLACK)
+            self.zx_token.set_cell(start_x + idx*3, start_y, char_code=146, char_attribute=int(attribute))
+            self.zx_token.set_cell(start_x + idx*3 + 1, start_y, char_code=146, char_attribute=int(attribute))
+            attribute.swap()
+            self.zx_token.set_cell(start_x + idx*3, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=int(attribute))
+            self.zx_token.set_cell(start_x + idx*3 + 1, start_y + 1, char_code=ZXFont.ASCII_SPACE, char_attribute=int(attribute))
+            attribute.swap()
+            self.zx_token.set_cell(start_x + idx*3, start_y + 2, char_code=145, char_attribute=int(attribute))
+            self.zx_token.set_cell(start_x + idx*3 + 1, start_y + 2, char_code=145, char_attribute=int(attribute))
+
+        self.zx_token.set_string(7, start_y + 4, "(Ctrl + n to clear)")
         self.zx_token.changes = False
 
     def clear_state(self):
@@ -547,10 +555,10 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def __load_font(self):
-        self.sidebar.characters.notify_font_changed(self.zx_token.font_path)
+        self.sidebar.characters.notify_font_changed()
 
     def __load_glyph(self):
-        self.sidebar.characters.notify_glyph_changed(self.zx_token.glyph_path)
+        self.sidebar.characters.notify_glyph_changed()
 
     def clicked_save(self, event=None):
         if self.zx_token.is_unnamed_document():
@@ -706,9 +714,10 @@ class ZXEditor(ttk.Frame):
                 case 'Insert' | 'KP_Insert':
                     self.set_insertion_mode(not self.is_insertion_enabled)
                 case _:
-                    char_code = ord(event.char)
-                    if event.char and ZXFont.validate_ascii(char_code):
-                        self.insert_character(char_code)
+                    if event.char:
+                        char_code = ord(event.char)
+                        if ZXFont.validate_ascii(char_code):
+                            self.insert_character(char_code)
                     # print('Unknown key:', event.char, event.keysym, event.keycode)
             return 'break'
 
@@ -1051,7 +1060,7 @@ class ZXEditor(ttk.Frame):
 
     def update_flash_periodic(self, initial_setup=False):
         if not initial_setup:
-            self.flash_value = not self.flash_value
+            self.screen_flash_state = not self.screen_flash_state
             self.refresh_canvas()
         self.after(self.REFRESH_FLASH, self.update_flash_periodic)
 
@@ -1372,7 +1381,7 @@ class DisplayArea(ttk.Frame):
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
 
-        rgb_data = self.zx_editor.zx_token.to_rgb(self.zx_editor.flash_value)
+        rgb_data = self.zx_editor.zx_token.to_rgb(self.zx_editor.screen_flash_state)
         rgb_data = numpy.repeat(numpy.repeat(rgb_data, self.zx_editor.scale, axis=0), self.zx_editor.scale, axis=1)
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -1857,9 +1866,10 @@ class ColourOption(Canvas):
 class CharacterPalette(ttk.Frame):
     NUM_COLUMNS = 6
 
-    def __init__(self, master, zx_editor):
+    def __init__(self, master, zx_editor: ZXEditor):
         super().__init__(master, style='bg.TFrame')
         self.zx_editor = zx_editor
+        self.scale_mode = 3
 
         self.font_frame = ttk.Frame(self, padding=5, style="bg.TFrame")
         self.font_frame.pack(side=LEFT, anchor=N)
@@ -1869,9 +1879,16 @@ class CharacterPalette(ttk.Frame):
         self.glyph_frame.pack(side=RIGHT, anchor=N)
         self.glyph_widgets = []
 
-    def load_font(self, path, frame, widgets: list[CharacterOption], value_offset):
-        font_data = ZXFont.from_file(path, rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'), generate_rgb=True)
-        
+    def __get_colour(self, color_label):
+        return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
+
+    def notify_font_changed(self):
+        self.__load_font(self.font_frame, self.font_widgets)
+
+    def __load_font(self, frame, widgets: list[CharacterOption], value_offset=ZXFont.CHAR_CODE_OFFSET):
+        font_data = self.zx_editor.zx_token.font
+        font_data.generate_rgb(rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'))
+
         # Remove existing elements
         for widget in widgets:
             widget.destroy()
@@ -1881,7 +1898,7 @@ class CharacterPalette(ttk.Frame):
         grid_row = 0
         grid_column = 0
         for char_index in range(font_data.count_symbols()):
-            widget = CharacterOption(frame, self.zx_editor, char_index, value_offset, scale_mode=3)
+            widget = CharacterOption(frame, self.zx_editor, char_index, value_offset, scale_mode=self.scale_mode)
             widget.render_rgb(font_data.get_offset_rgb(char_index))
             widget.flip_canvas()
             widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
@@ -1892,14 +1909,34 @@ class CharacterPalette(ttk.Frame):
                 grid_row += 1
             widgets.append(widget)   
 
-    def __get_colour(self, color_label):
-        return colorutils.color_to_rgb(self.zx_editor.master.style.colors.get(color_label))
+    def __load_glyphs(self, frame, widgets: list[CharacterOption], value_offset=ZXGlyph.CHAR_CODE_OFFSET):
+        font_data = self.zx_editor.zx_token.glyph
+        font_data.generate_rgb(rgb_fg=self.__get_colour('fg'), rgb_bg=self.__get_colour('bg'))
 
-    def notify_font_changed(self, font_path: Path):
-        self.load_font(font_path, self.font_frame, self.font_widgets, ZXFont.CHAR_CODE_OFFSET)
+        # Remove existing elements
+        for widget in widgets:
+            widget.destroy()
+        widgets.clear()
 
-    def notify_glyph_changed(self, glyph_path: Path):
-        self.load_font(glyph_path, self.glyph_frame, self.glyph_widgets, ZXGlyph.CHAR_CODE_OFFSET)
+        # Add new ones
+        grid_row = 0
+        grid_column = 0
+        for char_index in range(font_data.count_symbols()):
+            if max(font_data.get_offset(char_index)) == 0:
+                continue
+            widget = CharacterOption(frame, self.zx_editor, char_index, value_offset, scale_mode=self.scale_mode)
+            widget.render_rgb(font_data.get_offset_rgb(char_index))
+            widget.flip_canvas()
+            widget.grid(row=grid_row, column=grid_column, padx=0, pady=0)
+
+            grid_column += 1
+            if grid_column == self.NUM_COLUMNS:
+                grid_column = 0
+                grid_row += 1
+            widgets.append(widget)   
+
+    def notify_glyph_changed(self):
+        self.__load_glyphs(self.glyph_frame, self.glyph_widgets)
 
     def notify_scale_changed(self, value):
         for widget in self.font_widgets:

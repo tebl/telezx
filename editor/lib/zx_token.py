@@ -33,9 +33,10 @@ class ZXToken:
     # Defined so that ZXFrame generates identical files
     DOCUMENT_TYPE = 'ZXToken'
 
-    def __init__(self, init_attribute: int|None=None):
-        self.debug_enabled = True
+    def __init__(self, init_attribute: int|None=None, debug_enabled: bool=False):
+        self.debug_enabled = debug_enabled
         self.zx_screen = ZXScreen()
+        self.custom_characters = []
         init_attribute = self.DEFAULT_ATTRIBUTE if init_attribute is None else init_attribute
         self.clear(attribute=init_attribute)
 
@@ -55,7 +56,7 @@ class ZXToken:
         self.changes = False
 
     def __clear_background(self):
-        self.background = None
+        self.background_path = None
         self.background_data = None
 
     def __clear_cells(self):
@@ -66,6 +67,7 @@ class ZXToken:
                 self.cells[char_y][char_x] = ZXTokenCell(char_x, char_y, self.UNDEFINED, self.UNDEFINED)
 
     def __clear_fonts(self):
+        self.custom_characters = []
         self.set_selected_font(self.DEFAULT_FONT)
         self.set_selected_glyph(self.DEFAULT_GLYPH)
 
@@ -171,7 +173,7 @@ class ZXToken:
         return ''.join(parts)
 
     def has_background(self):
-        if self.background is not None and self.background_data is not None:
+        if self.background_path is not None and self.background_data is not None:
             return True
         return False
 
@@ -200,6 +202,7 @@ class ZXToken:
         if root['background']:
             self.set_background(root['background'])
         self.set_selected_font(root['font'])
+        self.__load_custom_characters(root['custom_characters'])
         self.set_selected_glyph(root['glyph'])
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -212,6 +215,7 @@ class ZXToken:
             self.DOCUMENT_TYPE: {
                 'attribute': ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK),
                 'background': None,
+                'custom_characters': [],
                 'font': self.DEFAULT_FONT,
                 'glyph': self.DEFAULT_GLYPH,
                 'cells': {
@@ -228,6 +232,11 @@ class ZXToken:
             raise ValueError("does not look like a {}-file".format(self.DOCUMENT_TYPE))
         return data
 
+    def __load_custom_characters(self, character_data: list):
+        self.custom_characters = []
+        for idx, cc_data in enumerate(character_data):
+            self.custom_characters.append(CustomCharacter(idx, cc_data))
+
     def render_cells(self):
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -239,9 +248,9 @@ class ZXToken:
             self.changes = True
         return result
 
-    def set_background(self, background_path):
+    def set_background(self, background_path: Path):
         self.background_data = numpy.fromfile(background_path, dtype='uint8')
-        self.background = background_path
+        self.background_path = background_path
         self.zx_screen.flip_memory(self.background_data)
         self.render_cells()
         self.changes = True
@@ -293,7 +302,14 @@ class ZXToken:
     def set_selected_glyph(self, glyph_name):
         self.glyph_name = glyph_name
         self.glyph_path: Path = self.get_font_path(glyph_name)
-        self.glyph = ZXSymbol.from_file(self.glyph_path)
+        self.glyph = ZXGlyph.from_file(self.glyph_path)
+
+        for idx in range(0, ZXGlyph.GLYPH_LAST_SYMBOL - ZXGlyph.GLYPH_OFFSET_UDG + 1):
+            offset = self.glyph.get_offset_from_char_code(ZXGlyph.GLYPH_OFFSET_UDG + idx)
+            if idx < len(self.custom_characters):
+                self.glyph.update_glyph(offset, self.custom_characters[idx].data)
+            else:
+                self.glyph.update_glyph(offset, ZXGlyph.generate_blank_glyph())
 
     def get_font_path(self, font_name) -> Path:
         return get_project_root() / 'fonts' / f'{font_name}.bin'
@@ -318,8 +334,9 @@ class ZXToken:
         result = self.__yaml_defaults()
         root = result[self.DOCUMENT_TYPE]
         root['attribute'] = HexYAML(self.current_attribute)
-        root['background'] = self.__get_relative_path(self.background)
+        root['background'] = self.__get_relative_path(self.background_path)
         root['font'] = self.font_name
+        root['custom_characters'] = [ cc.data for cc in self.custom_characters]
         root['glyph'] = self.glyph_name
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -337,6 +354,38 @@ class ZXToken:
         zx_token = ZXToken()
         zx_token.load(document_path)
         return zx_token
+
+
+class CustomCharacter:
+    type UDG = list[int, int, int, int, int, int, int, int]
+    _index: int
+    _data: UDG
+
+    def __init__(self, index: int, data: UDG|None=None):
+        self.index = index
+        self.data = data
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, data: UDG):
+        if data is None:
+            data = ZXSymbol.generate_blank_glyph()
+        if not len(data) == 8:
+            raise ValueError('Not 8x8 UDG')
+        self._data = data
+
+    @property
+    def index(self):
+        return self._index
+
+    @index.setter
+    def index(self, value: int):
+        if value < 0 or (value + ZXGlyph.GLYPH_OFFSET_UDG) > ZXGlyph.GLYPH_LAST_SYMBOL:
+            raise ValueError(f'Invalid index (expected 0-15)')
+        self._index = value
 
 
 class CellCopy:
@@ -470,13 +519,13 @@ class ZXTokenCell:
                 zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y, 
-                    zx_token.font.get_offset(self.char_code - ZXFont.ASCII_SPACE)
+                    zx_token.font.get_offset_from(self.char_code)
                 )
             if self.char_code >= ZXGlyph.CHAR_CODE_OFFSET:
                 zx_token.zx_screen.write_cell(
                     self.char_x, 
                     self.char_y, 
-                    zx_token.glyph.get_offset(self.char_code - ZXGlyph.CHAR_CODE_OFFSET)
+                    zx_token.glyph.get_offset_from(self.char_code)
                 )
 
         # Sync attribute information. Note that without a character present, we
