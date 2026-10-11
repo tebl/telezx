@@ -113,6 +113,8 @@ class ZXSymbol:
         return char_code - self._char_code_offset
 
     def is_blank(self, offset: int) -> bool:
+        if offset == 0:
+            return False
         return max(self.get_offset(offset)) == 0
 
     def print_preview(self, char_fill: str|None=None, char_empty: str|None=None):
@@ -194,6 +196,18 @@ class ZXSymbol:
     @classmethod
     def generate_blank_glyph(cls):
         return [0x0]*8
+
+    @classmethod
+    def generate_placeholder_glyph(cls):
+        return [ 0b11111111,
+                0b10000001,
+                0b10111101,
+                0b10001001,
+                0b10010001,
+                0b10111101,
+                0b10000001,
+                0b11111111
+        ]
 
     @classmethod
     def empty_file(cls, rgb_fg: int=255, rgb_bg: int=0, generate_rgb: bool=False):

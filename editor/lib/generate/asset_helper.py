@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, ArgumentError
 from pathlib import Path
 from .repository_helper import RepositoryHelper
-from .. import ZXDocument, ZXPage_Token, ZXGlyph, ZXFont, ZXFrame, ZXScreen, ZXToken, utilities
+from .. import ZXAttribute, ZXDocument, ZXPage_Token, ZXSymbol, ZXGlyph, ZXFont, ZXFrame, ZXScreen, ZXToken, utilities
 
 class AssetHelper(RepositoryHelper):
     DEFAULT_DESCRIPTION = 'default'
@@ -73,8 +73,8 @@ class AssetHelper(RepositoryHelper):
         with self._get_document(document_id, self.TEST_TITLE, self.TEST_ABBREVIATION, target_directory) as document:
             self.__create_index_page(document)
             self.__create_colour_bars(document)
-            self.__create_symbol_page(document, self.TEST_FONT, details_func=self.__get_font_details)
-            self.__create_symbol_page(document, self.TEST_GLYPHS, details_func=self.__get_glyph_details)
+            self.__create_symbol_page(document, self.TEST_FONT, font=ZXFont.get_default())
+            self.__create_symbol_page(document, self.TEST_GLYPHS, font=ZXGlyph.get_default())
 
             # Save and export
             document.save()
@@ -138,29 +138,29 @@ class AssetHelper(RepositoryHelper):
         # Add reference to created token page
         ZXPage_Token(parent=document, zxtoken_path=page.document_path, export_format='TKN')
 
-    def __create_symbol_page(self, document: ZXDocument, title, details_func):
+    def __create_symbol_page(self, document: ZXDocument, title, font: ZXSymbol):
         page: ZXToken
         with self._get_titlepage(document, title, add_frame=False) as page:
+            # ZXToken will replace empty custom character "slots" with zeroes
+            # by default, here we intentionally want those to show up.
+            if isinstance(font, ZXGlyph):
+                for offset in range(ZXGlyph.GLYPH_LAST_SYMBOL - ZXGlyph.GLYPH_OFFSET_UDG + 1):
+                    page.add_custom_character(ZXGlyph.generate_placeholder_glyph())
+
             char_y = 4
             char_x = 1
-            offset, char_start, char_end = details_func(page)
-            for i, char in enumerate(range(char_start, char_end)):
-                char_code = offset + char
-                page.set_cell(char_x, char_y, char_code=char_code, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE, is_bright=True))
-                char_x += 2
-                if char_x >= ZXScreen.SCREEN_WIDTH_CHARS - 1:
-                    char_x = 1
-                    char_y += 2
+
+            for char_code, char_data in font.glyphs():
+                if page.is_char_code_defined(char_code):
+                    page.set_cell(char_x, char_y, char_code=char_code, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE, is_bright=True))
+                    char_x += 2
+                    if char_x >= ZXScreen.SCREEN_WIDTH_CHARS - 1:
+                        char_x = 1
+                        char_y += 2
             page.save()
 
         # Add reference to created token page
         ZXPage_Token(parent=document, zxtoken_path=page.document_path, export_format='TKN')
-
-    def __get_font_details(self, page: ZXToken):
-        return (0, page.font.ASCII_SPACE, page.font.ASCII_COPYRIGHT + 1)
-
-    def __get_glyph_details(self, page: ZXToken):
-        return (ZXGlyph.CHAR_CODE_OFFSET, 0, page.glyph.count_symbols())
 
     def copy_default_frame(self, colour_name: str, global_asset: bool):
         base_path = utilities.get_project_root() / 'assets' if global_asset else self.asset_path

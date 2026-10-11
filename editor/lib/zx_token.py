@@ -10,7 +10,8 @@ from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_symbol import ZXSymbol
 from .zx_font import ZXFont
 from .zx_glyph import ZXGlyph
-from .utilities import update_tree, get_project_root, HexYAML, format_padded_id
+from .utilities import update_tree, get_project_root, HexYAML, BinaryYAML, format_padded_id
+type UDG = list[int, int, int, int, int, int, int, int]
 
 class ZXToken:
     UNDEFINED = -1
@@ -45,6 +46,14 @@ class ZXToken:
 
     def __exit__(self, exc_type, exc, tb):
         self.save()
+
+    def add_custom_character(self, character_data: UDG) -> int:
+        next_id = len(self.custom_characters)
+        offset = ZXGlyph.get_offset_udg(next_id)
+        self.custom_characters.append(CustomCharacter(next_id, character_data))
+        self.glyph.update_glyph(offset, 
+                                character_data)
+        return offset
 
     def clear(self, attribute):
         self.current_attribute = attribute
@@ -189,7 +198,12 @@ class ZXToken:
         cell = self.__lookup_cell(char_x, char_y)
         return not cell.char_code == ZXToken.UNDEFINED
 
-    def load(self, document_path):
+    def is_char_code_defined(self, char_code: int) -> bool:
+        if char_code > ZXFont.ASCII_COPYRIGHT:
+            return not self.glyph.is_blank(self.glyph.get_offset_from_char_code(char_code))
+        return not self.font.is_blank(self.font.get_offset_from_char_code(char_code))
+
+    def load(self, document_path: Path):
         data = self.__yaml_defaults()
         with open(document_path, 'r') as file:
             data = update_tree(data, self.__load_zx_page(file))
@@ -285,7 +299,7 @@ class ZXToken:
             self.changes = True
         return result
 
-    def set_document(self, document_path):
+    def set_document(self, document_path: Path):
         self.document_path = document_path
 
     def set_inverted(self, char_x, char_y, char_inverted=UNDEFINED, sync_screen=True) -> bool:
@@ -294,12 +308,12 @@ class ZXToken:
             self.changes = True
         return result
 
-    def set_selected_font(self, font_name):
+    def set_selected_font(self, font_name: str):
         self.font_name = font_name
         self.font_path: Path = self.get_font_path(font_name)
         self.font = ZXFont.from_file(self.font_path)
 
-    def set_selected_glyph(self, glyph_name):
+    def set_selected_glyph(self, glyph_name: str):
         self.glyph_name = glyph_name
         self.glyph_path: Path = self.get_font_path(glyph_name)
         self.glyph = ZXGlyph.from_file(self.glyph_path)
@@ -311,7 +325,7 @@ class ZXToken:
             else:
                 self.glyph.update_glyph(offset, ZXGlyph.generate_blank_glyph())
 
-    def get_font_path(self, font_name) -> Path:
+    def get_font_path(self, font_name: str) -> Path:
         return get_project_root() / 'fonts' / f'{font_name}.bin'
 
     def save(self):
@@ -336,7 +350,7 @@ class ZXToken:
         root['attribute'] = HexYAML(self.current_attribute)
         root['background'] = self.__get_relative_path(self.background_path)
         root['font'] = self.font_name
-        root['custom_characters'] = [ cc.data for cc in self.custom_characters]
+        root['custom_characters'] = [ cc.to_dict() for cc in self.custom_characters]
         root['glyph'] = self.glyph_name
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -350,14 +364,13 @@ class ZXToken:
         return self.zx_screen.to_rgb(flash_value)
 
     @classmethod
-    def from_file(cls, document_path):
+    def from_file(cls, document_path: Path):
         zx_token = ZXToken()
         zx_token.load(document_path)
         return zx_token
 
 
 class CustomCharacter:
-    type UDG = list[int, int, int, int, int, int, int, int]
     _index: int
     _data: UDG
 
@@ -387,6 +400,8 @@ class CustomCharacter:
             raise ValueError(f'Invalid index (expected 0-15)')
         self._index = value
 
+    def to_dict(self):
+        return [ BinaryYAML(v) for v in self.data ]
 
 class CellCopy:
     UNDEFINED = 'UNDEFINED'

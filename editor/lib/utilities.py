@@ -150,10 +150,19 @@ def update_tree(data, update):
 class HexYAML(int):
     pass
 
+class BinaryYAML(int):
+    pass
+
 def hexed_yaml_presenter(dumper, data):
     return yaml.ScalarNode(
         'tag:yaml.org,2002:int', 
         str(data) if data < 0 else hex(data)
+    )
+
+def binary_yaml_presenter(dumper, data):
+    return yaml.ScalarNode(
+        'tag:yaml.org,2002:int', 
+        str(data) if data < 0 else bin(data)
     )
 
 class QuotedYAML(str):
@@ -168,3 +177,4 @@ def quoted_yaml_presenter(dumper, data):
 
 yaml.add_representer(QuotedYAML, quoted_yaml_presenter)
 yaml.add_representer(HexYAML, hexed_yaml_presenter)
+yaml.add_representer(BinaryYAML, binary_yaml_presenter)

@@ -23,3 +23,10 @@ class ZXGlyph(ZXSymbol):
                                  rgb_fg, 
                                  rgb_bg, 
                                  generate_rgb)
+
+    @classmethod
+    def get_offset_udg(self, udg_offset: int) -> int:
+        offset = ZXGlyph.GLYPH_OFFSET_UDG - ZXGlyph.CHAR_CODE_OFFSET + udg_offset
+        if offset > ZXGlyph.GLYPH_LAST_SYMBOL:
+            raise ValueError('UDG offset overflow')
+        return offset
