@@ -3,12 +3,14 @@ from pathlib import Path
 from PIL import Image
 from .utilities import format_padded_id
 from .zx_screen import ZXScreen
+type UDG = list[int, int, int, int, int, int, int, int]
 
 class ZXSymbol:
     GLYPH_WIDTH = 8
     GLYPH_HEIGHT = 8
 
     _glyph_data: numpy.ndarray
+    _mask_data: dict[int, numpy.ndarray]
     _rgb_fg: int
     _rgb_bg: int
     _generate_rgb: bool
@@ -22,15 +24,16 @@ class ZXSymbol:
 
     def _set_glyph_data(self, glyph_data: numpy.array):
         self._glyph_data = glyph_data
+        self._mask_data = {}
         if self._generate_rgb:
             self.__generate_rgb()
 
     def __generate_rgb(self):
         self.rgb_data = {}
         for glyph_idx in range(self.count_symbols()):
-            self.rgb_data[glyph_idx] = self.__generate_glyph_rgb(glyph_idx)
+            self.rgb_data[glyph_idx] = self.__generate_symbol_rgb(glyph_idx)
 
-    def add_glyph(self, values: list[int, int, int, int, int, int, int, int]):
+    def add_symbol(self, values: UDG):
         '''
         Adds an 8x8 glyph to the underlying data structure
         '''
@@ -44,17 +47,36 @@ class ZXSymbol:
         '''
         return self._glyph_data.shape[0]
 
-    def update_glyph(self, offset: int, values: list[int, int, int, int, int, int, int, int]):
+    def update_symbol(self, offset: int, values: UDG):
         '''
-        Update a glyphs pixel data.
+        Update a symbols pixel data. When the symbol has been masked out we'll
+        silently forget about that detail.
         '''
+        self._validate_offset(offset)
         if not len(values) == 8:
             raise ValueError('Not 8x8 UDG')
-        if offset < 0 or offset >= self.count_symbols():
-            raise ValueError('Invalid offset')
         self._glyph_data[offset] = values
+
+        if offset in self._mask_data:
+            self.mask_symbol(offset, None)
+        else:
+            if self._generate_rgb:
+                self.rgb_data[offset] = self.__generate_symbol_rgb(offset)
+
+    def mask_symbol(self, offset: int, values: UDG|None):
+        '''
+        When dealing with the user definable symbols we'll need to selectively
+        return that data instead of what's stored in the file, calling
+        mask_symbol sets the data to use instead for a specific offset. Note
+        that toggling it's state will also change RGB-version of the data.
+        '''
+        if values is None:
+            if offset in self._mask_data:
+                del self._mask_data[offset]
+        else:
+            self._mask_data[offset] = values
         if self._generate_rgb:
-            self.rgb_data[offset] = self.__generate_glyph_rgb(offset)
+            self.rgb_data[offset] = self.__generate_symbol_rgb(offset)
 
     def generate_rgb(self, rgb_fg: int=255, rgb_bg: int=0, force: bool=False):
         if not self._generate_rgb or force:
@@ -63,17 +85,17 @@ class ZXSymbol:
             self._rgb_bg = rgb_bg
             self.__generate_rgb()
 
-    def glyphs(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
+    def symbols(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         for idx in range(0, self.count_symbols()):
             yield (self.get_char_code_from_offset(idx), self.get_offset(idx))
 
-    def glyphs_rgb(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
+    def symbols_rgb(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         if not self._generate_rgb:
             raise ValueError('RGB not available')
         for idx in range(0, self.count_symbols()):
             yield (self.get_char_code_from_offset(idx), self.get_offset_rgb(idx))
 
-    def __generate_glyph_rgb(self, offset: int):
+    def __generate_symbol_rgb(self, offset: int):
         data = numpy.full(shape=(8, 8, 3), fill_value=self._rgb_bg, dtype=numpy.uint8)
         for row_idx, row_value in enumerate(self.get_offset(offset)):
             for bit_idx in range(8):
@@ -86,9 +108,15 @@ class ZXSymbol:
         return (value & mask) != 0
 
     def get_offset(self, offset: int):
+        self._validate_offset(offset)
+        if offset in self._mask_data:
+            return self._mask_data[offset]
+        return self._glyph_data[offset]
+
+    def _validate_offset(self, offset: int) -> bool:
         if offset < 0 or offset >= self.count_symbols():
             raise ValueError('Invalid offset')
-        return self._glyph_data[offset]
+        return True
 
     def get_offset_from(self, char_code: int):
         return self.get_offset(self.get_offset_from_char_code(char_code))
@@ -102,8 +130,7 @@ class ZXSymbol:
         return data
 
     def get_offset_rgb(self, offset: int):
-        if offset < 0 or offset >= self.count_symbols():
-            raise ValueError('Invalid offset')
+        self._validate_offset(offset)
         return self.rgb_data[offset]
 
     def get_char_code_from_offset(self, value: int=0) -> int:

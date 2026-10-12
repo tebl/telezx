@@ -7,11 +7,10 @@ from pathlib import Path
 from .coordinate import Coordinate
 from .zx_attribute import ZXAttribute
 from .zx_screen import ZXScreen, ZXScreenIterator
-from .zx_symbol import ZXSymbol
+from .zx_symbol import ZXSymbol, UDG
 from .zx_font import ZXFont
 from .zx_glyph import ZXGlyph
 from .utilities import update_tree, get_project_root, HexYAML, BinaryYAML, format_padded_id
-type UDG = list[int, int, int, int, int, int, int, int]
 
 class ZXToken:
     UNDEFINED = -1
@@ -48,12 +47,18 @@ class ZXToken:
         self.save()
 
     def add_custom_character(self, character_data: UDG) -> int:
-        next_id = len(self.custom_characters)
-        offset = ZXGlyph.get_offset_udg(next_id)
-        self.custom_characters.append(CustomCharacter(next_id, character_data))
-        self.glyph.update_glyph(offset, 
-                                character_data)
+        '''
+        Register a custom character, along the way it will also alter the
+        loaded version of the glyphs.
+        '''
+        offset = self.__next_cc_offset()
+        self.custom_characters.append(CustomCharacter(character_data))
+        self.glyph.mask_symbol(offset, character_data)
         return offset
+
+    def __next_cc_offset(self) -> int:
+        next_id = len(self.custom_characters)
+        return ZXGlyph.get_offset_udg(next_id)
 
     def clear(self, attribute):
         self.current_attribute = attribute
@@ -249,12 +254,12 @@ class ZXToken:
     def __load_custom_characters(self, character_data: list):
         self.custom_characters = []
         for idx, cc_data in enumerate(character_data):
-            self.custom_characters.append(CustomCharacter(idx, cc_data))
+            self.custom_characters.append(CustomCharacter(cc_data))
 
     def render_cells(self):
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                self.__lookup_cell(char_x, char_y).sync_screen(self)
+                self.__lookup_cell(char_x, char_y).sync_cell_to_screen(self)
 
     def set_attribute(self, char_x, char_y, char_attribute=UNDEFINED, sync_screen=True) -> bool:
         result = self.__lookup_cell(char_x, char_y).set_attribute(self, char_attribute, sync_screen)
@@ -283,7 +288,7 @@ class ZXToken:
         if not char_inverted == self.UNSPECIFIED:
             result = True if cell.set_inverted(self, char_inverted, sync_screen=False) else result
         if result:
-            cell.sync_screen(self)
+            cell.sync_cell_to_screen(self)
             self.changes = True
         return result
 
@@ -321,9 +326,9 @@ class ZXToken:
         for idx in range(0, ZXGlyph.GLYPH_LAST_SYMBOL - ZXGlyph.GLYPH_OFFSET_UDG + 1):
             offset = self.glyph.get_offset_from_char_code(ZXGlyph.GLYPH_OFFSET_UDG + idx)
             if idx < len(self.custom_characters):
-                self.glyph.update_glyph(offset, self.custom_characters[idx].data)
+                self.glyph.mask_symbol(offset, self.custom_characters[idx].data)
             else:
-                self.glyph.update_glyph(offset, ZXGlyph.generate_blank_glyph())
+                self.glyph.mask_symbol(offset, ZXGlyph.generate_blank_glyph())
 
     def get_font_path(self, font_name: str) -> Path:
         return get_project_root() / 'fonts' / f'{font_name}.bin'
@@ -342,7 +347,7 @@ class ZXToken:
         Without it we won't get any contents written to the display
         memory.
         '''
-        self.__lookup_cell(char_x, char_y).sync_screen(self)
+        self.__lookup_cell(char_x, char_y).sync_cell_to_screen(self)
 
     def to_dict(self):
         result = self.__yaml_defaults()
@@ -371,11 +376,9 @@ class ZXToken:
 
 
 class CustomCharacter:
-    _index: int
     _data: UDG
 
-    def __init__(self, index: int, data: UDG|None=None):
-        self.index = index
+    def __init__(self, data: UDG|None=None):
         self.data = data
 
     @property
@@ -389,16 +392,6 @@ class CustomCharacter:
         if not len(data) == 8:
             raise ValueError('Not 8x8 UDG')
         self._data = data
-
-    @property
-    def index(self):
-        return self._index
-
-    @index.setter
-    def index(self, value: int):
-        if value < 0 or (value + ZXGlyph.GLYPH_OFFSET_UDG) > ZXGlyph.GLYPH_LAST_SYMBOL:
-            raise ValueError(f'Invalid index (expected 0-15)')
-        self._index = value
 
     def to_dict(self):
         return [ BinaryYAML(v) for v in self.data ]
@@ -512,7 +505,7 @@ class ZXTokenCell:
             return zx_token.zx_screen.get_attribute_at(self.char_x, self.char_y)
         return self.char_attribute
 
-    def sync_screen(self, zx_token: ZXToken):
+    def sync_cell_to_screen(self, zx_token: ZXToken):
         # Pixels are either rendered from a specified character, or we attempt
         # to recover the original pixels from the background image.
         if self.char_code == ZXToken.UNDEFINED:
@@ -592,14 +585,14 @@ class ZXTokenCell:
         changed = (not self.char_attribute == char_attribute)
         self.char_attribute = char_attribute
         if sync_screen:
-            self.sync_screen(zx_token)
+            self.sync_cell_to_screen(zx_token)
         return changed
 
     def set_inverted(self, zx_token: ZXToken, char_inverted=ZXToken.UNDEFINED, sync_screen=True):
         changed = (not self.char_inverted == char_inverted)
         self.char_inverted = char_inverted
         if sync_screen:
-            self.sync_screen(zx_token)
+            self.sync_cell_to_screen(zx_token)
         return changed
     
     def __select_attribute(self, value: int):
@@ -615,7 +608,7 @@ class ZXTokenCell:
         changed = (not self.char_code == char_code)
         self.char_code = char_code
         if sync_screen:
-            self.sync_screen(zx_token)
+            self.sync_cell_to_screen(zx_token)
         return changed
 
     def to_dict(self):

@@ -15,7 +15,7 @@ class TestZXSymbol(unittest.TestCase):
         self.assertIsNotNone(font)
         self.assertGreater(font.count_symbols(), 0)
 
-        for char_code, data in font.glyphs():
+        for char_code, data in font.symbols():
             self.assertEqual(len(data), 8)
             self.assertGreaterEqual(char_code, ZXFont.ASCII_SPACE)
             self.assertLessEqual(char_code, ZXFont.ASCII_COPYRIGHT)
@@ -62,14 +62,14 @@ class TestZXSymbol(unittest.TestCase):
         with open(path, mode) as file:
             return file.read()
 
-    def test_add_glyph(self):
+    def test_add_symbol(self):
         font_path = utilities.get_project_root() / 'fonts' / 'font_glyphs.bin'
         font = ZXGlyph.from_file(path=font_path, generate_rgb=True)
         self.assertIsNotNone(font)
         font_count = font.count_symbols()
         self.assertGreater(font_count, 0)
 
-        font.add_glyph([0, 1, 2, 3, 4, 5, 6, 7])
+        font.add_symbol([0, 1, 2, 3, 4, 5, 6, 7])
         font_out = Path(self.temp_dir.name) / 'font_test.bin'
         font.write(font_out)
 

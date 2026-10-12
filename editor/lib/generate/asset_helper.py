@@ -150,7 +150,7 @@ class AssetHelper(RepositoryHelper):
             char_y = 4
             char_x = 1
 
-            for char_code, char_data in font.glyphs():
+            for char_code, char_data in font.symbols():
                 if page.is_char_code_defined(char_code):
                     page.set_cell(char_x, char_y, char_code=char_code, char_attribute=ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.WHITE, is_bright=True))
                     char_x += 2
