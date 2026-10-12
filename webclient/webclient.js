@@ -55,8 +55,11 @@ const SPECSCII_TOKEN = {
     FLASH: 0x12,
     BRIGHT: 0x13,
     INVERT: 0x14,
-    CURSOR: 0x16
+    CURSOR: 0x16,
+    GLYPH: 0x1f
 };
+const GLYPH_UDG_START = 0xf0;
+const GLYPH_UDG_END = 0xff;
 
 const buffer = new ArrayBuffer(SIZE_MEMORY);
 const memory = new Uint8Array(buffer);
@@ -657,6 +660,7 @@ function process_tokens(data, default_attribute) {
     let position = 0;
     let token_attribute = default_attribute;
     let mode_inverted = false;
+    let custom_characters = [];
     while (position < data.length) {
         // SPECSCII format constants
         // Stream format with embedded escape codes (ZX Spectrum BASIC control codes):
@@ -716,6 +720,12 @@ function process_tokens(data, default_attribute) {
                 token_attribute = (token_attribute & 0xc7) | (data[position] << 3);
                 position++;
                 continue;
+            
+            case SPECSCII_TOKEN.GLYPH:
+                position++;
+                custom_characters.push(data.slice(position, position + 8));
+                position += 8;
+                continue;
         }
 
         /* Regular characters */
@@ -737,7 +747,7 @@ function process_tokens(data, default_attribute) {
             } else {
                 ui_set_cursor_attribute(token_attribute);
             }
-            ui_print_glyph(data[position]);
+            ui_print_glyph(data[position], custom_characters);
             position++;
             continue;
         }
@@ -829,7 +839,22 @@ function ui_primary_header() {
     ui_set_font(FONT_DEFAULT);
 }
 
-function ui_print_glyph(character) {
+/**
+ * Renders the specified glyph, ie. a character above 0x80.
+ * 
+ * Note that for characters above 0xf0 we should instead attempt to render a
+ * character defined for the specific page, the calculated offset of which
+ * should correspond to an index in the array provided by custom_characters
+ * (falling back to FONT_GLYPHS if not defined).
+ */
+function ui_print_glyph(character, custom_characters) {
+    if (character >= GLYPH_UDG_START) {
+        let offset = character - GLYPH_UDG_START;
+        if (offset < custom_characters.length) {
+            ui_print_bytes(custom_characters[offset]);
+            return;
+        }
+    }
     ui_print_bytes(ui_get_glyph_data(character - 0x80));
 }
 
