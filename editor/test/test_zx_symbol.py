@@ -4,7 +4,7 @@ from lib import utilities, ZXFont, ZXGlyph
 
 class TestZXSymbol(unittest.TestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory(prefix='telezx-registry-')
+        self.temp_dir = tempfile.TemporaryDirectory(prefix='telezx-symbols-')
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -77,6 +77,23 @@ class TestZXSymbol(unittest.TestCase):
         self.assertEqual([v for v in font.get_offset(font.count_symbols() - 1)],
                          [0, 1, 2, 3, 4, 5, 6, 7])        
 
+    def test_mask_symbol(self):
+        font_path = utilities.get_project_root() / 'fonts' / 'font_glyphs.bin'
+        font = ZXGlyph.from_file(path=font_path, generate_rgb=True)
+        offset = 10
+
+        # zero out
+        font.update_symbol(offset, [0]*8)
+        self.assertEqual(max(font.get_offset(offset)), 0)
+
+        # mask out with 0xff
+        font.mask_symbol(offset, [255]*8)
+        self.assertEqual(max(font.get_offset(offset)), 255)
+
+        # check that our zeroed out value returns
+        font.mask_symbol(offset, None)
+        self.assertEqual(max(font.get_offset(offset)), 0)
+
     def test_load_glyph(self):
         font_path = utilities.get_project_root() / 'fonts' / 'font_glyphs.bin'
         glyphs = ZXGlyph.from_file(path=font_path, generate_rgb=True)
@@ -92,4 +109,3 @@ class TestZXSymbol(unittest.TestCase):
         export_path = Path(self.temp_dir.name) / 'export.js'
         font.export_js(export_path, 'DEFAULT')
         self.assertTrue(export_path.is_file())
-        # print(self.__get_contents(export_path, 'r'))
