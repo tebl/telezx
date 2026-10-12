@@ -41,7 +41,7 @@ class ZXTokenConverter(BaseConverter):
                 self.save_as(output_path)
             case ZXDocument.EXTENSION_TOKEN:
                 self._log_export(output_path.suffix, output_path)
-                self.zx_token.export_to_specscii(output_path)
+                self.zx_token.export_to_tokens(output_path)
             case _:
                 self._log_export(output_path.suffix, output_path)
                 self.zx_token.export_screenshot(output_path)

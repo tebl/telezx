@@ -495,7 +495,7 @@ class ZXEditor(ttk.Frame):
         try:
             filename = filedialog.asksaveasfilename(parent=self, title='Export to SPECSCII', filetypes=[("SPECSCII", ('*.specscii')), ("All files", "*.*")], defaultextension='.specscii', confirmoverwrite=True)
             if filename:
-                self.zx_token.export_to_specscii(specscii_path=filename)
+                self.zx_token.export_to_tokens(specscii_path=filename)
                 self.set_status(f'Exported SPECSCII: {filename}')
         except Exception as e:
             traceback.print_exc()

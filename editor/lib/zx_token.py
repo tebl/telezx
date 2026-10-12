@@ -37,7 +37,7 @@ class ZXToken:
     def __init__(self, init_attribute: int|None=None, debug_enabled: bool=False):
         self.debug_enabled = debug_enabled
         self.zx_screen = ZXScreen()
-        self.custom_characters = []
+        self.custom_characters: list[CustomCharacter] = []
         init_attribute = self.DEFAULT_ATTRIBUTE if init_attribute is None else init_attribute
         self.clear(attribute=init_attribute)
 
@@ -148,8 +148,8 @@ class ZXToken:
         with open(scr_path, 'wb') as file:
             file.write(self.zx_screen.to_scr())
 
-    def export_to_specscii(self, specscii_path):
-        SpecsciiFormat.write_document(self, specscii_path)
+    def export_to_tokens(self, specscii_path):
+        TokenFormatter.write_document(self, specscii_path)
 
     def get_attribute(self, char_x, char_y):
         '''
@@ -631,15 +631,40 @@ class ZXTokenCell:
         self.char_inverted = int(data['inverted'])
 
 
-class SpecsciiFormat:
-    SET_INK = 0x10
-    SET_PAPER = 0x11
-    SET_FLASH = 0x12
-    SET_BRIGHT = 0x13
-    SET_INVERSE = 0x14
-    SET_XOR = 0x15
-    SET_CURSOR = 0x16
-    SET_COLUMN = 0x17
+class TokenFormatter:
+    '''
+    Converts ZXToken to a SpecSCII-like format, meaning that there will be some
+    non-standard tokens. On the other hand, am I required to describe something
+    as non-standard if no written standard actually exists?
+
+    Everything from 0x20 (ASCII-space character) and upwards should match
+    standard characters up to 0x7F, and glyphs reserved from 0x80 up until
+    0xFF. The stuff below is up to the program to define, but to avoid some
+    headache it should overlap with known parts of SpecCSCII.
+
+    TeleZX sets aside glyphs in the region of 0xF0 up to 0xFF for custom
+    glyphs for a specific page. SET_GLYPH takes 8 bytes for a 8x8 UDG, defined
+    in the order that they are written.
+    '''
+    #             0x00   Blank for obvious reasons
+    #             0x0d   Matches character set (Enter)
+    SET_INK     = 0x10 # Matches character set
+    SET_PAPER   = 0x11 # Matches character set
+    SET_FLASH   = 0x12 # Matches character set
+    SET_BRIGHT  = 0x13 # Matches character set
+    SET_INVERSE = 0x14 # Matches character set
+    SET_OVER    = 0x15 # Matches character set
+    SET_CURSOR  = 0x16 # Matches character set (AT)
+    SET_COLUMN  = 0x17 # Matches character set (TAB)
+    #             0x18    
+    #             0x19    
+    #             0x1A    
+    #             0x1B
+    #             0x1C
+    #             0x1D
+    #             0x1E
+    SET_GLYPH   = 0x1F # TeleZX set custom glyph
+
     ASCII_START = ZXFont.ASCII_SPACE
     ASCII_LAST = ZXFont.ASCII_COPYRIGHT
     GLYPH_START = ZXGlyph.CHAR_CODE_OFFSET
@@ -662,28 +687,36 @@ class SpecsciiFormat:
 
     def write_formatted(self, specscii_path):
         with open(specscii_path, 'wb') as file:
-            for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
-                for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
-                    cell = self.zx_token.cells[char_y][char_x]
+            self._write_custom_characters(file)
+            self._write_formatted_cells(file)
 
-                    # Skip if there's no content
-                    if cell.char_code == ZXToken.UNDEFINED:
-                        continue
+    def _write_custom_characters(self, file):
+        for cc in self.zx_token.custom_characters:
+            self.__write_bytes(file, [self.SET_GLYPH] + cc.data)
 
-                    # Move cursor to match
-                    self.__write_cursor(file, char_x, char_y)
+    def _write_formatted_cells(self, file):
+        for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
+            for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
+                cell = self.zx_token.cells[char_y][char_x]
 
-                    # Update attribute at location
-                    if not cell.char_attribute == ZXToken.UNDEFINED:
-                        self.__set_attribute(file, cell.char_attribute)
-                    else:
-                        self.__set_attribute(file, self.current_attribute)
+                # Skip if there's no content
+                if cell.char_code == ZXToken.UNDEFINED:
+                    continue
 
-                    self.__write_inverted(file, self.__get_inverted(cell.char_inverted))
+                # Move cursor to match
+                self.__write_cursor(file, char_x, char_y)
 
-                    # Output a character
-                    if not cell.char_code == ZXToken.UNDEFINED:
-                        self.__write_character(file, cell.char_code)
+                # Update attribute at location
+                if not cell.char_attribute == ZXToken.UNDEFINED:
+                    self.__set_attribute(file, cell.char_attribute)
+                else:
+                    self.__set_attribute(file, self.current_attribute)
+
+                self.__write_inverted(file, self.__get_inverted(cell.char_inverted))
+
+                # Output a character
+                if not cell.char_code == ZXToken.UNDEFINED:
+                    self.__write_character(file, cell.char_code)
     
     def __get_inverted(self, value):
         if value == ZXToken.UNDEFINED:
@@ -740,7 +773,7 @@ class SpecsciiFormat:
             (self.SET_INVERSE, 1 if is_inverted else 0)
         )
 
-    def __write_xor(self, file, is_xor):
+    def __write_over(self, file, is_xor):
         '''
         WARNING: Absolutely no idea what this does.
         '''
@@ -749,7 +782,7 @@ class SpecsciiFormat:
             return
         self.__write_bytes(
             file, 
-            (self.SET_XOR, 1 if is_xor else 0)
+            (self.SET_OVER, 1 if is_xor else 0)
         )
 
     def __write_cursor(self, file, char_x, char_y):
@@ -801,4 +834,4 @@ class SpecsciiFormat:
 
     @classmethod
     def write_document(cls, zx_token: ZXToken, specscii_path):
-        SpecsciiFormat(zx_token).write_formatted(specscii_path)
+        TokenFormatter(zx_token).write_formatted(specscii_path)

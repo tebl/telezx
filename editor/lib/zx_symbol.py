@@ -199,14 +199,15 @@ class ZXSymbol:
 
     @classmethod
     def generate_placeholder_glyph(cls):
-        return [ 0b11111111,
-                0b10000001,
-                0b10111101,
-                0b10001001,
-                0b10010001,
-                0b10111101,
-                0b10000001,
-                0b11111111
+        return [
+            0b11111111,
+            0b10000001,
+            0b10100101,
+            0b10100101,
+            0b10100101,
+            0b10011001,
+            0b10000001,
+            0b11111111
         ]
 
     @classmethod

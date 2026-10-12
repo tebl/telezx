@@ -5,7 +5,7 @@ from .. import ZXToken, ZXDocument
 class TKNConverter(BaseConverter):
     @classmethod
     def export_to(cls, zx_token: ZXToken, output_path: Path) -> bool:
-        zx_token.export_to_specscii(output_path)
+        zx_token.export_to_tokens(output_path)
         return True
 
     @classmethod

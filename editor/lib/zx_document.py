@@ -644,7 +644,7 @@ class ZXPage_Token(ZXPage):
             case 'TKN':
                 target_path = self.get_export_path(output_base, page_idx, ZXDocument.EXTENSION_TOKEN)
                 self.logger.debug('export', self.zxtoken_path, '->', target_path, indent=(log_indent+1))
-                zx_token.export_to_specscii(target_path)
+                zx_token.export_to_tokens(target_path)
                 if self.parent.enable_preview:
                     zx_token.export_screenshot(f'{target_path}{ZXDocument.EXTENSION_SCREENSHOT}')
                 if self.src_about:
@@ -723,7 +723,7 @@ class ZXPage_ClearText(ZXPage):
         zx_token = self.__get_zx_token()
         self._overlay_text(zx_token, self.text_lines, self.text_attribute, text_link_attribute=self.text_link_attribute)
             
-        zx_token.export_to_specscii(target_path)
+        zx_token.export_to_tokens(target_path)
         if self.parent.enable_preview:
             zx_token.export_screenshot(f'{target_path}{ZXDocument.EXTENSION_SCREENSHOT}')
         return (self.INDEX_TYPE_TKN, zx_token.current_attribute)
