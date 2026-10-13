@@ -1,8 +1,8 @@
 import re
 import yaml
 from pathlib import Path
-from typing import Generator
-from .utilities import update_tree, format_padded_id, HexYAML, QuotedYAML, parse_document_id, parse_asset_id, format_padded_int
+from typing import Generator, Any
+from .utilities import update_tree, format_padded_id, HexYAML, QuotedYAML, parse_document_id, parse_asset_id, format_padded_int, ensure_int_range
 from .zx_registry import ZXRegistry
 from .zx_logger import ZXLogger
 from .zx_token import ZXToken, ZXScreen
@@ -22,6 +22,7 @@ class ZXDocument:
     EXTENSION_DOCUMENT_TMP = EXTENSION_DOCUMENT + '-tmp'
     FILENAME_DEFAULT = f'document{EXTENSION_DOCUMENT}'
 
+    CYCLE_PERIOD_DEFAULT = 20
     DOCUMENT_ID_NONE = 0x0
     DOCUMENT_ID_MIN = 0x0001
     DOCUMENT_ID_MAX = 0xffff
@@ -37,7 +38,7 @@ class ZXDocument:
 
     enable_preview = True
 
-    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str|None=None, abbreviation: str|None=None, link_a: int|None=None, link_a_txt: str|None=None, link_b: int|None=None, link_b_txt: str|None=None, link_c: int|None=None, link_c_txt: str|None=None, tags: list[str]|None=None, include_toc: bool=True):
+    def __init__(self, repository: Path, document_path: Path, document_id: int=0, description: str|None=None, abbreviation: str|None=None, link_a: int|None=None, link_a_txt: str|None=None, link_b: int|None=None, link_b_txt: str|None=None, link_c: int|None=None, link_c_txt: str|None=None, tags: list[str]|None=None, include_toc: bool=True, cycle_details: CycleDetails|None=None):
         self.logger = ZXLogger.get_instance()
         self.repository = Path(repository)
         self.document_path = Path(document_path)
@@ -53,6 +54,7 @@ class ZXDocument:
         self.link_c = link_c
         self.link_c_txt = link_c_txt
         self.include_toc = include_toc
+        self.cycle_details = CycleDetails.blank() if cycle_details is None else cycle_details
         self.pages = []
 
     def __iter__(self):
@@ -114,7 +116,8 @@ class ZXDocument:
             0x16 Link B TXT (8+\0)  9
             0x1f Link C             4
             0x23 Link C TXT (8+\0)  9
-            0x2c <unused>           20
+            0x2c Cycle value        4
+            0x30 <unused>           16
             0x40 Page 0 type (hex)  2
             0x42 Page 0 parameter   2
         '''
@@ -129,6 +132,7 @@ class ZXDocument:
             self.__export_link(file, self.link_a, self.link_a_txt, registry)
             self.__export_link(file, self.link_b, self.link_b_txt, registry)
             self.__export_link(file, self.link_c, self.link_c_txt, registry)
+            self.__export_cycle_details(file)
 
             # Align byte boundary so that records start at position 64 (0x40),
             # giving us around 20 bytes of overhead that we can fill if we find
@@ -150,9 +154,6 @@ class ZXDocument:
 
         return True
 
-    def __export_record(self, file, value, pad_to_size, pad_chr):
-        file.write(self.__pad_record(value, pad_to_size, pad_chr))
-
     def __export_hex(self, file, value: int):
         file.write(f'{value:02X}')
 
@@ -166,8 +167,19 @@ class ZXDocument:
             file.write('0000')
             file.write('\0'*(ZXRegistry.ABBREVIATION_CHARS + 1))
 
+    def __export_record(self, file, value, pad_to_size, pad_chr):
+        file.write(self.__pad_record(value, pad_to_size, pad_chr))
+
     def __pad_record(self, value, pad_to_size, pad_chr):
         return value.ljust(pad_to_size, pad_chr)[0:(pad_to_size + 1)]
+
+    def __export_cycle_details(self, file):
+        if self.cycle_details.enabled:
+            byte_a, byte_b = self.cycle_details.get_export()
+            self.__export_hex(file, byte_a)
+            self.__export_hex(file, byte_b)
+        else:
+            file.write('\0'*4)
 
     def get_output_path(self, output_directory: Path) -> Path:
         return self.get_output_base(output_directory).with_suffix(self.EXTENSION_INDEX)
@@ -287,6 +299,7 @@ class ZXDocument:
         root['document_id'] = HexYAML(self.document_id)
         root['description'] = self.description
         root['abbreviation'] = self.abbreviation
+        root['cycle_details'] = self.cycle_details.to_dict()
         root['link_a'] = HexYAML(self.link_a) if self.link_a is not None else None
         root['link_a_txt'] = self.link_a_txt
         root['link_b'] = HexYAML(self.link_b) if self.link_b is not None else None
@@ -320,8 +333,10 @@ class ZXDocument:
             link_c=root['link_c'],
             link_c_txt=root['link_c_txt'],
             tags=root['tags'] if 'tags' in root else [],
-            include_toc=root['include_toc'] if 'include_toc' in root else True
+            include_toc=root['include_toc'] if 'include_toc' in root else True,
+            cycle_details=CycleDetails.from_dict(root['cycle_details']) if 'cycle_details' in root else CycleDetails.blank()
         )
+
         for page_data in root['pages']:
             ZXPage.from_dict(zx_document, page_data)
 
@@ -369,15 +384,16 @@ class ZXDocument:
     def __yaml_defaults(cls) -> dict:
         return {
             cls.__name__: {
-                'document_id':  0,
-                'description':  None,   # Registry description (21 characters)
-                'abbreviation': None,   # Link text (8 characters)
-                'link_a':       None,   # Link A (4 characters, hex)
-                'link_a_txt':   None,   #  - Description (8 characters)
-                'link_b':       None,   # Link B (4 characters, hex)
-                'link_b_txt':   None,   #  - Description (8 characters)
-                'link_c':       None,   # Link C (4 characters, hex)
-                'link_c_txt':   None,   #  - Description (8 characters)
+                'document_id':      0,
+                'description':      None,   # Registry description (21 characters)
+                'abbreviation':     None,   # Link text (8 characters)
+                'link_a':           None,   # Link A (4 characters, hex)
+                'link_a_txt':       None,   #  - Description (8 characters)
+                'link_b':           None,   # Link B (4 characters, hex)
+                'link_b_txt':       None,   #  - Description (8 characters)
+                'link_c':           None,   # Link C (4 characters, hex)
+                'link_c_txt':       None,   #  - Description (8 characters)
+                'cycle_details':    CycleDetails.blank().to_dict(),
                 'pages': []
             }
         }
@@ -389,6 +405,53 @@ class ZXDocument:
             if data is None or cls.__name__ not in data:
                 raise ValueError("does not look like a {}-file".format(cls.__name__))
             return data
+
+class CycleDetails:
+    def __init__(self, enabled: bool=False, period: int=ZXDocument.CYCLE_PERIOD_DEFAULT, start_at: int=ZXDocument.PAGE_ID_MIN):
+        self.enabled = enabled
+        self.period = period
+        self.start_at = start_at
+
+    def __str__(self):
+        return f'{self.__class__.__name__}({self.enabled=}, {self.period=}, {self.start_at=})'
+
+    @property
+    def period(self):
+        return self._period
+
+    @period.setter
+    def period(self, value: int):
+        self._period = ensure_int_range(value, 1, 127)
+
+    @property
+    def start_at(self):
+        return self._start_at
+
+    @start_at.setter
+    def start_at(self, value: int):
+        self._start_at = ensure_int_range(value, ZXDocument.PAGE_ID_MIN, ZXDocument.PAGE_ID_MAX)
+
+    def get_export(self):
+        if not self.enabled:
+            return (0x00, 0x00)
+        return (0x80 + self.period, self.start_at)
+
+    def to_dict(self):
+        return {
+            'enabled': self.enabled,
+            'period': self._period,
+            'start_at': self._start_at
+        }
+
+    @classmethod
+    def blank(cls):
+        return CycleDetails()
+
+    @classmethod
+    def from_dict(cls, data: dict) -> CycleDetails:
+        return CycleDetails(enabled=data['enabled'],
+                            period=data['period'],
+                            start_at=data['start_at'])
 
 
 class ZXDocumentOverflowError(Exception):

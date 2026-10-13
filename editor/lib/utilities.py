@@ -88,17 +88,21 @@ def parse_document_id(value):
 def parse_page_id(value):
     return ensure_int(value, 0, 99)
 
-def ensure_int(value, value_min, value_max, base=10):
+def ensure_int(value: str, value_min: int, value_max: int, base: int=10) -> int:
     '''
     Ensure that we get an integer between the supplied value range, both ends
     included in the comparison.
     '''
     value = int(value, base)
-    if value < value_min or value > value_max:
-        raise ValueError(f'Value not between {value_min} and {value_max}')
+    ensure_int_range(value, value_min, value_max)
     return value
 
-def sanitize_filename(filename):
+def ensure_int_range(value: int, value_min: int, value_max: int) -> int:
+    if value < value_min or value > value_max:
+        raise ValueError(f'Value {value} not between {value_min} and {value_max}')
+    return value
+
+def sanitize_filename(filename: str) -> str:
     filename = str(filename)
     filename = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
     filename = re.sub(r'[^\w\s-]', '', filename)
