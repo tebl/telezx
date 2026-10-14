@@ -56,6 +56,7 @@ const SPECSCII_TOKEN = {
     BRIGHT: 0x13,
     INVERT: 0x14,
     CURSOR: 0x16,
+    BORDER: 0x1e,
     GLYPH: 0x1f
 };
 const GLYPH_UDG_START = 0xf0;
@@ -68,7 +69,8 @@ const screen_map = zx_calculate_lookup_table();
 
 var cursor_x = 0;
 var cursor_y = 0;
-var current_border = STYLE_DEFAULT_BORDER;
+var current_border = null;
+var current_border_page = null;
 var current_document = DOCUMENT_DEFAULT;
 var current_font = FONT_DEFAULT;
 var current_input = ""
@@ -193,14 +195,28 @@ function render_memory() {
         }
     }
 
-    set_border(current_border);
+    render_border();
 }
 
-function set_border(border_colour, is_bright=false, alpha=192) {
-    fill_area(0, 0, SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, border_colour, is_bright, alpha);
-    fill_area(0, (SCREEN_HEIGHT_PIXELS + BORDER_HEIGHT), SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, border_colour, is_bright, alpha);
-    fill_area(0, BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, border_colour, is_bright, alpha);
-    fill_area((BORDER_WIDTH + SCREEN_WIDTH_PIXELS), BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, border_colour, is_bright, alpha);
+/**
+ * Renders the border area of the screen, allowing the system-wide
+ * border to take precedence if one has been set. The one for the
+ * page if we have one, if none are set we fall back to the default
+ * value for the application.
+ * 
+ * Alpha does not exist on the hardware itself, but looks better in
+ * a web browser to cut down on the noise.
+ */
+function render_border() {
+    let attribute_colour = STYLE_DEFAULT_BORDER;
+    if (current_border_page != null) attribute_colour = current_border_page;
+    if (current_border != null) attribute_colour = current_border;
+
+    let alpha = 192;
+    fill_area(0, 0, SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, attribute_colour, false, alpha);
+    fill_area(0, (SCREEN_HEIGHT_PIXELS + BORDER_HEIGHT), SCREEN_WIDTH_PIXELS + BORDER_WIDTH*2, BORDER_HEIGHT, attribute_colour, false, alpha);
+    fill_area(0, BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, attribute_colour, false, alpha);
+    fill_area((BORDER_WIDTH + SCREEN_WIDTH_PIXELS), BORDER_HEIGHT, BORDER_WIDTH, SCREEN_HEIGHT_PIXELS, attribute_colour, false, alpha);
 
 }
 
@@ -654,7 +670,8 @@ function parse_index_IDX(content) {
 }
 
 function process_tokens(data, default_attribute) {
-    zx_clear_memory(0x00, default_attribute)
+    zx_clear_memory(0x00, default_attribute);
+    current_border_page = null;
 
     ui_set_cursor(0, 0);
     let position = 0;
@@ -673,6 +690,9 @@ function process_tokens(data, default_attribute) {
         // - 0x15 XX = OVER (0 or 1) - XOR mode
         // - 0x16 YY XX = AT row, col - position cursor
         // - 0x17 XX = TAB to column
+        // - 0x1e XX = Set border value (d7=1 to enable (d2-d0 for colour))
+        // - 0x1f XX XX XX XX XX XX XX XX XX = Custom glyph definition 
+        //                                     (8 bytes, up to 16 allowed)
         // - Other bytes = character codes (0x20-0x7F printable, 0x80-0xFF block graphics)
 
         const current_byte = data[position];
@@ -721,6 +741,17 @@ function process_tokens(data, default_attribute) {
                 position++;
                 continue;
             
+            case SPECSCII_TOKEN.BORDER:
+                position++;
+                if ((data[position] & 0x80) == 0x80) {
+                    current_border_page = data[position] & ATTRIBUTE.WHITE;
+                } else {
+                    current_border_page = null;
+                }
+
+                position++;
+                continue;
+
             case SPECSCII_TOKEN.GLYPH:
                 position++;
                 custom_characters.push(data.slice(position, position + 8));
@@ -988,7 +1019,7 @@ function ui_set_error(description, clear_index=true) {
     if (clear_index) {
         current_index = null;
     }
-    current_border = ATTRIBUTE.RED;
+    ui_set_border(ATTRIBUTE.RED);
 }
 
 /**
@@ -998,7 +1029,7 @@ function ui_set_error(description, clear_index=true) {
 function ui_clear_status() {
     current_status = "";
     current_status_type = STATUS_TYPES.NONE;
-    current_border = STYLE_DEFAULT_BORDER;
+    current_border = null;
 }
 
 /**

@@ -18,10 +18,10 @@ class ZXToken:
     UNSPECIFIED = -2
     'Used as method parameter, indicates that a parameter is unused'
 
-    DEFAULT_INK = ZXScreen.BLACK
-    DEFAULT_PAPER = ZXScreen.WHITE
-    DEFAULT_ATTRIBUTE = ZXScreen.to_attribute(ink=DEFAULT_INK, paper=DEFAULT_PAPER)
-    HEADER_ATTRIBUTE = ZXScreen.to_attribute(ink=ZXScreen.BLACK, paper=ZXScreen.BLACK)
+    DEFAULT_INK = ZXAttribute.BLACK
+    DEFAULT_PAPER = ZXAttribute.WHITE
+    DEFAULT_ATTRIBUTE = ZXAttribute.to_value(ink=DEFAULT_INK, paper=DEFAULT_PAPER)
+    HEADER_ATTRIBUTE = ZXAttribute.to_value(ink=ZXAttribute.BLACK, paper=ZXAttribute.BLACK)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
     FILE_EXTENSION = '.zxtoken'
@@ -46,28 +46,15 @@ class ZXToken:
     def __exit__(self, exc_type, exc, tb):
         self.save()
 
-    def add_custom_character(self, character_data: UDG) -> int:
-        '''
-        Register a custom character, along the way it will also alter the
-        loaded version of the glyphs.
-        '''
-        offset = self.__next_cc_offset()
-        self.custom_characters.append(CustomCharacter(character_data))
-        self.glyph.mask_symbol(offset, character_data)
-        return offset
-
-    def __next_cc_offset(self) -> int:
-        next_id = len(self.custom_characters)
-        return ZXGlyph.get_offset_udg(next_id)
-
     def clear(self, attribute):
-        self.current_attribute = attribute
+        self.border: int=0
+        self.current_attribute: int = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
         self.__clear_cells()
         self.__clear_fonts()
         self.set_document(None)
-        self.changes = False
+        self.changes: bool = False
 
     def __clear_background(self):
         self.background_path = None
@@ -84,6 +71,20 @@ class ZXToken:
         self.custom_characters = []
         self.set_selected_font(self.DEFAULT_FONT)
         self.set_selected_glyph(self.DEFAULT_GLYPH)
+
+    def add_custom_character(self, character_data: UDG) -> int:
+        '''
+        Register a custom character, along the way it will also alter the
+        loaded version of the glyphs.
+        '''
+        offset = self.__next_cc_offset()
+        self.custom_characters.append(CustomCharacter(character_data))
+        self.glyph.mask_symbol(offset, character_data)
+        return offset
+
+    def __next_cc_offset(self) -> int:
+        next_id = len(self.custom_characters)
+        return ZXGlyph.get_offset_udg(next_id)
 
     def create_box(self, coord_a: Coordinate, coord_b: Coordinate, style: int=BOX_STYLE):
         chr_top_left = 140
@@ -218,6 +219,7 @@ class ZXToken:
         self.clear(root['attribute'])
         self.set_document(document_path)
 
+        self.border = root['border'] if 'border' in root else 0
         if root['background']:
             self.set_background(root['background'])
         self.set_selected_font(root['font'])
@@ -232,7 +234,8 @@ class ZXToken:
     def __yaml_defaults(self):
         return {
             self.DOCUMENT_TYPE: {
-                'attribute': ZXScreen.to_attribute(ink=ZXScreen.WHITE, paper=ZXScreen.BLACK),
+                'attribute': ZXAttribute.to_value(ink=ZXAttribute.WHITE, paper=ZXAttribute.BLACK),
+                'border': 0,
                 'background': None,
                 'custom_characters': [],
                 'font': self.DEFAULT_FONT,
@@ -354,6 +357,7 @@ class ZXToken:
         root = result[self.DOCUMENT_TYPE]
         root['attribute'] = HexYAML(self.current_attribute)
         root['background'] = self.__get_relative_path(self.background_path)
+        root['border'] = HexYAML(self.border)
         root['font'] = self.font_name
         root['custom_characters'] = [ cc.to_dict() for cc in self.custom_characters]
         root['glyph'] = self.glyph_name
@@ -655,8 +659,8 @@ class TokenFormatter:
     #             0x1B
     #             0x1C
     #             0x1D
-    #             0x1E
-    SET_GLYPH   = 0x1F # TeleZX set custom glyph
+    SET_BORDER  = 0x1E # TeleZX: set page border
+    SET_GLYPH   = 0x1F # TeleZX: set custom glyph
 
     ASCII_START = ZXFont.ASCII_SPACE
     ASCII_LAST = ZXFont.ASCII_COPYRIGHT
@@ -668,10 +672,11 @@ class TokenFormatter:
         self.current_attribute = zx_token.current_attribute
 
         a = ZXAttribute.from_value(self.current_attribute)
-        self.last_ink = a.ink
-        self.last_paper = a.paper
-        self.last_bright = a.is_bright
-        self.last_flash = a.is_flashing
+        self.last_ink: int = a.ink
+        self.last_paper: int = a.paper
+        self.last_bright: bool = a.is_bright
+        self.last_flash: bool = a.is_flashing
+        self.last_border: int|None = None
         self.last_xor = False
         self.last_inverted = False
         self.last_xor = False
@@ -680,6 +685,7 @@ class TokenFormatter:
 
     def write_formatted(self, specscii_path):
         with open(specscii_path, 'wb') as file:
+            self._write_border(file, self.zx_token.border)
             self._write_custom_characters(file)
             self._write_formatted_cells(file)
 
@@ -723,15 +729,36 @@ class TokenFormatter:
         self.__write_flash(file, attribute.is_flashing)
         self.__write_bright(file, attribute.is_bright)
 
+    def _write_border(self, file, value: int):
+        '''
+        Write border value, note that this should be masked off when used to
+        avoid affecting MIC (d3) and EAR (d4) simultaneously. Highest bit (d7)
+        is interpreted by TeleZX as enable with the three lower three bits
+        specifying colour.
+
+        The lowest three bits specify the border colour; a zero in bit 3 activates the MIC output, whilst a one in bit 4 activates the EAR output and the internal speaker. However, the EAR and MIC sockets are connected only by resistors, so activating one activates the other; the EAR is generally used for output as it produces a louder sound. The upper two bits are unused.
+        '''
+        assert value >= ZXAttribute.MIN and value <= ZXAttribute.MAX
+        if self.last_border is None and not self._border_enabled(value):
+            return
+        if self.last_border == value:
+            return
+        
+        self.last_border = value
+        self.__write_bytes(file, (self.SET_BORDER, value))
+
+    def _border_enabled(self, value: int):
+        return not (value & 0x80) == 0
+
     def __write_ink(self, file, ink):
-        assert ink >= ZXScreen.BLACK and ink <= ZXScreen.WHITE
+        assert ink >= ZXAttribute.BLACK and ink <= ZXAttribute.WHITE
         if self.last_ink == ink:
             return
         self.last_ink = ink
         self.__write_bytes(file, (self.SET_INK, ink))
 
     def __write_paper(self, file, paper):
-        assert paper >= ZXScreen.BLACK and paper <= ZXScreen.WHITE
+        assert paper >= ZXAttribute.BLACK and paper <= ZXAttribute.WHITE
         if self.last_paper == paper:
             return
         self.last_paper = paper

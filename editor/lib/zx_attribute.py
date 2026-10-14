@@ -1,6 +1,10 @@
+from typing import Any, Self
 from . import utilities
 
 class ZXAttribute:
+    MIN = 0x00
+    MAX = 0xff
+
     # Attributes
     BLACK   = 0b00000000
     BLUE    = 0b00000001
@@ -41,12 +45,16 @@ class ZXAttribute:
         self.is_flashing = bool(is_flashing)
 
     def __int__(self):
-        return int(
-            (self.FLASH if self.is_flashing else 0x00) | 
-            (self.BRIGHT if self.is_bright else 0x00) | 
-            (self.paper << 3) |
-            self.ink
-        )
+        return self.to_value(is_flashing=self.is_flashing,
+                             is_bright=self.is_bright,
+                             paper=self.paper,
+                             ink=self.ink)
+
+    def __index__(self):
+        return self.__int__()
+
+    def __str__(self):
+        return ' '.join(self.tokenise(int(self)))
 
     @property
     def ink(self):
@@ -64,30 +72,30 @@ class ZXAttribute:
     def paper(self, colour: int):
         self._paper = colour % (self.WHITE + 1)
 
-    def swap(self) -> ZXAttribute:
+    def swap(self) -> Self:
         '''
         Swaps ink and paper
         '''
         self.ink, self.paper = self.paper, self.ink
         return self
 
-    def set_ink(self, colour: int) -> ZXAttribute:
+    def set_ink(self, colour: int) -> Self:
         self.ink = colour
         return self
 
-    def set_paper(self, colour: int) -> ZXAttribute:
+    def set_paper(self, colour: int) -> Self:
         self.paper = colour
         return self
 
-    def set_bright(self, enabled: bool=False) -> ZXAttribute:
+    def set_bright(self, enabled: bool=False) -> Self:
         self.is_bright = enabled
         return self
 
-    def set_flash(self, enabled: bool=False) -> ZXAttribute:
+    def set_flash(self, enabled: bool=False) -> Self:
         self.is_flashing = enabled
         return self
 
-    def set_named(self, func_name, value):
+    def set_named(self, func_name: str, value: Any) -> Self:
         if func_name in (self.set_ink.__name__,
                          self.set_paper.__name__,
                          self.set_bright.__name__,
@@ -112,6 +120,15 @@ class ZXAttribute:
         return bool((value & cls.BRIGHT) == cls.BRIGHT)
 
     @classmethod
+    def to_value(cls, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE) -> int:
+        return (
+            (cls.FLASH if is_flashing else 0x00) | 
+            (cls.BRIGHT if is_bright else 0x00) | 
+            (paper << 3) |
+            ink
+        )
+
+    @classmethod
     def from_value(cls, value: int) -> ZXAttribute:
         return ZXAttribute(
             is_flashing=cls.get_is_flashing_from(value),
@@ -134,8 +151,10 @@ class ZXAttribute:
         if attribute.is_bright:
             parts.append(cls.tokenise_attribute(cls.BRIGHT))
         parts.append(cls.tokenise_colour(attribute.ink))
+        parts.append('ink')
         parts.append('on')
         parts.append(cls.tokenise_colour(attribute.paper))
+        parts.append('paper')
         return parts
 
     @classmethod
