@@ -35,6 +35,23 @@ const DOCUMENT_TOC = 0xff00;
 
 const SCREEN_REFRESH = 1000/50;
 const PAGE_CYCLE_MIN = 5;
+
+/** Time spent before flashing attributes are flipped around, and as it's tied
+ *  to refresh we should ideally get one every 32 frames like the original ULA.
+ */
+const PAGE_FLASH_UPDATE = 32;
+
+/** Time spent between checking if we should navigate to the next page,
+ *  defining how long the number of cycles defined in the index should
+ *  individually last.
+ */
+const PAGE_CYCLE_UPDATE = 50;
+/** How long it takes before the current input is accepted without an explicit
+ *  enter. This is tied to SCREEN_REFRESH, so a value of 100 would be roughly
+ *  2 seconds.
+ */
+const PAGE_INPUT_UPDATE = 100;
+
 const SCREEN_WIDTH_CHARS = 32;
 const SCREEN_HEIGHT_CHARS = 24;
 const SCREEN_WIDTH_PIXELS = SCREEN_WIDTH_CHARS*8;
@@ -74,8 +91,10 @@ var current_border = null;
 var current_border_page = null;
 var current_document = DOCUMENT_DEFAULT;
 var current_font = FONT_DEFAULT;
-var current_input = ""
+var current_input = "";
+var current_input_timer = -1;
 var current_page = -1;
+var current_page_cycle_timer = 0;
 
 var current_index = null;
 var current_status = "";
@@ -90,7 +109,6 @@ var canvas_image;
 var canvas_interval_id;
 var canvas_flash_timer = 0;
 var canvas_flash_value = false;
-var page_cycle_timer = 0;
 
 function zx_calculate_lookup_table() {
     var lookup = Array();
@@ -316,16 +334,27 @@ function schedule_periodic_refresh() {
  */
 function periodic_refresh() {
     canvas_flash_timer++;
-    if (canvas_flash_timer >= 32) {
+    if (canvas_flash_timer >= PAGE_FLASH_UPDATE) {
         canvas_flash_timer = 0;
         canvas_flash_value = !canvas_flash_value;
     }
 
-    page_cycle_timer++;
-    if (page_cycle_timer >= 50) {
-        page_cycle_timer = 0;
+    current_page_cycle_timer++;
+    if (current_page_cycle_timer >= PAGE_CYCLE_UPDATE) {
+        current_page_cycle_timer = 0;
         check_cycle_timer();
     }
+
+    if (current_input_timer >= 0) {
+        current_input_timer++;
+        if (current_input_timer >= PAGE_INPUT_UPDATE) {
+            parse_current_input();
+        }
+    }
+
+    // if (current_input_timer > 0 && ((Date.now() - current_input_timer) > 1000)) {
+    //     parse_current_input();
+    // }
 
     request_render_screen();
 }
@@ -563,17 +592,12 @@ function handle_key(key_name) {
         case "e":
         case "f":
             current_input = (current_input + key_name.toUpperCase()).slice(-4);
+            current_input_timer = 0;
             request_render_screen();
             break;
         case "Enter":
-            var document_id = Number('0x' + current_input.padEnd(4, '0'));
-            if (isNaN(document_id) || document_id == DOCUMENT_ZERO) {
-                ui_set_document(DOCUMENT_DEFAULT);
-            } else {
-                ui_set_document(document_id);
-            }
-            fetch_index();
-            break;
+            parse_current_input();
+        break;
 
         case "End":
             ui_set_document(DOCUMENT_TOC);
@@ -646,6 +670,17 @@ function handle_key(key_name) {
     }
 
     return true;
+}
+
+function parse_current_input() {
+    current_input_timer = -1;
+    var document_id = Number('0x' + current_input.padEnd(4, '0'));
+    if (isNaN(document_id) || document_id == DOCUMENT_ZERO) {
+        ui_set_document(DOCUMENT_DEFAULT);
+    } else {
+        ui_set_document(document_id);
+    }
+    fetch_index();
 }
 
 function handle_keydown(event) {
@@ -868,6 +903,7 @@ function ui_clear_canvas(red, green, blue, alpha) {
  */
 function ui_clear_input() {
     current_input = "";
+    current_input_timer = -1;
 }
 
 /**
@@ -1083,7 +1119,7 @@ function ui_set_error(description, clear_index=true) {
     if (clear_index) {
         current_index = null;
     }
-    ui_set_border(ATTRIBUTE.RED);
+    current_border = ATTRIBUTE.RED;
 }
 
 /**
