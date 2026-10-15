@@ -34,6 +34,7 @@ const DOCUMENT_DEFAULT = 0x1000;
 const DOCUMENT_TOC = 0xff00;
 
 const SCREEN_REFRESH = 1000/50;
+const PAGE_CYCLE_MIN = 5;
 const SCREEN_WIDTH_CHARS = 32;
 const SCREEN_HEIGHT_CHARS = 24;
 const SCREEN_WIDTH_PIXELS = SCREEN_WIDTH_CHARS*8;
@@ -49,15 +50,15 @@ const STATUS_TYPES = { NONE: -1, OK: 0, ERROR: 1 };
 const INDEX_TYPES = { NONE: 'NONE', INDEX: 'IDX' };
 const ASSET_TYPES = { TOKEN: 0xaa, SCR: 0x55}
 const SPECSCII_TOKEN = {
-    ENTER: 0x0d,
-    INK: 0x10,
-    PAPER: 0x11,
-    FLASH: 0x12,
+    ENTER:  0x0d,
+    INK:    0x10,
+    PAPER:  0x11,
+    FLASH:  0x12,
     BRIGHT: 0x13,
     INVERT: 0x14,
     CURSOR: 0x16,
     BORDER: 0x1e,
-    GLYPH: 0x1f
+    GLYPH:  0x1f
 };
 const GLYPH_UDG_START = 0xf0;
 const GLYPH_UDG_END = 0xff;
@@ -89,6 +90,7 @@ var canvas_image;
 var canvas_interval_id;
 var canvas_flash_timer = 0;
 var canvas_flash_value = false;
+var page_cycle_timer = 0;
 
 function zx_calculate_lookup_table() {
     var lookup = Array();
@@ -314,11 +316,29 @@ function schedule_periodic_refresh() {
  */
 function periodic_refresh() {
     canvas_flash_timer++;
-    if (canvas_flash_timer > 31) {
+    if (canvas_flash_timer >= 32) {
         canvas_flash_timer = 0;
         canvas_flash_value = !canvas_flash_value;
     }
+
+    page_cycle_timer++;
+    if (page_cycle_timer >= 50) {
+        page_cycle_timer = 0;
+        check_cycle_timer();
+    }
+
     request_render_screen();
+}
+
+function check_cycle_timer() {
+    if (current_index == null) return;
+    if (!current_index.cycle_details.enabled) return;
+
+    current_index.cycle_details.countdown--;
+    if (current_index.cycle_details.countdown <= 0) {
+        current_index.cycle_details.countdown = current_index.cycle_details.period;
+        fetch_page_next(looparound=true);
+    }
 }
 
 /**
@@ -425,10 +445,15 @@ function fetch_page() {
     return generate_blank_page(ERROR_ATTRIBUTE);
 }
 
-function fetch_page_next() {
+function fetch_page_next(looparound=false) {
     if (have_page_id(current_page + 1)) {
         current_page += 1;
         fetch_page();
+    } else {
+        if (looparound && have_page_id(0)) {
+            current_page = 0;
+            fetch_page();
+        }
     }
 }
 
@@ -568,12 +593,14 @@ function handle_key(key_name) {
         case "PageUp":
         case "ArrowUp":
             ui_clear_input();
+            set_cycle_disabled();
             fetch_page_previous();
             break;
 
         case "PageDown":
         case "ArrowDown":
             ui_clear_input();
+            set_cycle_disabled();
             fetch_page_next();
             break;
 
@@ -641,15 +668,17 @@ function parse_index(content) {
 }
 
 function parse_index_IDX(content) {
+    let page_count = get_idx_hex(content, 0x3, 2);
     var index_data = {
         type: 'IDX',
-        page_count: get_idx_hex(content, 0x3, 2),
+        page_count: page_count,
         link_a: get_idx_page(content, 0x5, 4),
         link_a_txt: get_idx_string(content, 0x9, 9),
         link_b: get_idx_page(content, 0x12, 4),
         link_b_txt: get_idx_string(content, 0x16, 9),
         link_c: get_idx_page(content, 0x1f, 4),
         link_c_txt: get_idx_string(content, 0x23, 9),
+        cycle_details: get_cycle_details(content, 0x2c, page_count),
         pages: {}
     };
 
@@ -667,6 +696,41 @@ function parse_index_IDX(content) {
     current_index = index_data;
     fetch_page();
     return true;
+}
+
+/**
+ * Parses cycle details from index data, packed into two hex values represented
+ * as clear text.
+ */
+function get_cycle_details(content, start_at, max_pages) {
+    let enabled = false;
+    let period = 20;
+    let start_page = 0;
+    if (content[start_at] != '\0') {
+        let cycle_params = get_idx_hex(content, start_at, 2);
+        enabled = (cycle_params & 0x80) == 0x80;
+        if (enabled) {
+            period = (cycle_params & 0b01111111);
+            if (period < PAGE_CYCLE_MIN) period = PAGE_CYCLE_MIN;
+            start_page = get_idx_hex(content, start_at + 2, 2) % max_pages;
+        }
+    }
+    return {
+        enabled: enabled, 
+        period: period, 
+        countdown: period,
+        start_page: start_page
+    }
+}
+
+function get_cycle_enabled() {
+    if (current_index == null) return false;
+    return current_index.cycle_details.enabled;
+}
+
+function set_cycle_disabled() {
+    if (current_index == null) return;
+    current_index.cycle_details.enabled = false;
 }
 
 function process_tokens(data, default_attribute) {
@@ -930,7 +994,7 @@ function ui_secondary_header() {
         ui_set_cursor(SCREEN_WIDTH_CHARS - 5, 23);
         ui_print_string(
             String(current_page + 1).padStart(2, '0') + '/' + String(current_index.page_count).padStart(2, '0'),
-            STYLE_HEADER_FIELD
+            get_cycle_enabled() ? STYLE_HEADER_INPUT : STYLE_HEADER_FIELD
         );
     }
 }
