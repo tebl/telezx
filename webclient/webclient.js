@@ -84,7 +84,6 @@ const buffer = new ArrayBuffer(SIZE_MEMORY);
 const memory = new Uint8Array(buffer);
 const screen_map = zx_calculate_lookup_table();
 
-
 var cursor_x = 0;
 var cursor_y = 0;
 var current_border = null;

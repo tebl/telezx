@@ -174,7 +174,7 @@ class ZXDocument:
         return value.ljust(pad_to_size, pad_chr)[0:(pad_to_size + 1)]
 
     def __export_cycle_details(self, file):
-        if self.cycle_details.enabled:
+        if self.cycle_details.enabled and len(self.pages) > 1:
             byte_a, byte_b = self.cycle_details.get_export()
             self.__export_hex(file, byte_a)
             self.__export_hex(file, byte_b)
