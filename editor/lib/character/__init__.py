@@ -1,1 +1,2 @@
 from .character_editor import CharacterEditor
+from .zx_font_definition import ZXFontDefinition

@@ -7,7 +7,7 @@ from pathlib import Path
 from .coordinate import Coordinate
 from .zx_attribute import ZXAttribute
 from .zx_screen import ZXScreen, ZXScreenIterator
-from .zx_symbol import ZXSymbol, UDG
+from .zx_symbol import ZXSymbol, CustomCharacter, UDG
 from .zx_font import ZXFont
 from .zx_glyph import ZXGlyph
 from .utilities import update_tree, get_project_root, HexYAML, BinaryYAML, format_padded_id
@@ -378,27 +378,6 @@ class ZXToken:
         zx_token.load(document_path)
         return zx_token
 
-
-class CustomCharacter:
-    _data: UDG
-
-    def __init__(self, data: UDG|None=None):
-        self.data = data
-
-    @property
-    def data(self):
-        return self._data
-
-    @data.setter
-    def data(self, data: UDG):
-        if data is None:
-            data = ZXSymbol.generate_blank_glyph()
-        if not len(data) == 8:
-            raise ValueError('Not 8x8 UDG')
-        self._data = data
-
-    def to_dict(self):
-        return [ BinaryYAML(v) for v in self.data ]
 
 class CellCopy:
     UNDEFINED = 'UNDEFINED'

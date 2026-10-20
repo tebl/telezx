@@ -13,7 +13,7 @@ def main():
     parser.add_argument('-v', '--version', action='store_true', help="Show version information")
     parser.add_argument('-t', '--themename', help="Specify theme")
     parser.add_argument('--list-themes', action='store_true', help="List theme options")
-    parser.add_argument('path', nargs='?', help='Specify zxtoken-file to open')
+    parser.add_argument('path', nargs='?', help='Specify font-file to open')
 
     args = parser.parse_args()
     if args.version:

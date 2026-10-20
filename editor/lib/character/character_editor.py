@@ -12,6 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 from .. import ZXAttributeRGB, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
+from .zx_font_definition import ZXFontDefinition
 
 class CharacterEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Character Editor'
@@ -32,7 +33,7 @@ class CharacterEditor(ttk.Frame):
 
         You should have received a copy of the GNU General Public License
         along with this program.  If not, see <https://www.gnu.org/licenses/>.'''
-
+    TITLEBAR_REFRESH = 250
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -43,24 +44,24 @@ class CharacterEditor(ttk.Frame):
         self.is_debug_enabled: bool=True
         self.is_grid_enabled: bool=True
 
+        self.document = ZXFontDefinition()
+        self._current_offset: int=0
+
         self.rowconfigure(2, weight=1)
         self.columnconfigure(2, weight=1)
-
+        self.columnconfigure(3, weight=1)
         self.menu = Menu(self, char_editor=self)
         self.menu.grid(row=0, column=0, columnspan=4, sticky=EW)
-
         self.selector = Selector(self, char_editor=self)
-        self.selector.grid(row=1, column=0, rowspan=2, sticky=NSEW)
-
+        self.selector.grid(row=1, column=0, rowspan=2, sticky=NSEW, padx=(10, 10), pady=(10, 10))
         self.sidebar = Sidebar(self, char_editor=self)
-        self.sidebar.grid(row=1, column=3, sticky=NSEW, padx=5, pady=5)
-
+        self.sidebar.grid(row=1, column=3, sticky=NSEW, padx=(10, 10), pady=(10, 10))
         self.editor = EditingArea(self, char_editor=self)
         self.editor.grid(row=1, column=1, sticky=NW)
-
         self.status = Status(self, char_editor=self)
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
-        self.status.set_status('Editor started')
+
+        self.update_title_periodic()
 
     def __load_assets(self):
         image_files = {
@@ -82,7 +83,9 @@ class CharacterEditor(ttk.Frame):
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
 
     def on_new(self):
-        pass
+        self.document = ZXFontDefinition()
+        self._current_offset = 0
+        self.notify_document_changed()
 
     def on_open(self):
         pass
@@ -93,6 +96,36 @@ class CharacterEditor(ttk.Frame):
     def on_quit(self, root):
         root.destroy()
 
+    def notify_document_changed(self):
+        self.sidebar.notify_document_changed()
+        self.selector.notify_document_changed()
+        self.editor.notify_document_changed()
+
+    def notify_offset_changed(self):
+        self.sidebar.notify_offset_changed()
+        self.editor.notify_offset_changed()
+
+    def set_offset(self, value: int):
+        self._current_offset = value
+        self.notify_offset_changed()
+
+    def get_current_offset(self) -> int:
+        return self._current_offset
+
+    def update_offset(self, data):
+        self.document.update_offset(self._current_offset, data)
+
+    def update_title_periodic(self):
+        self.update_title()
+        self.after(self.TITLEBAR_REFRESH, self.update_title_periodic)
+
+    def update_title(self):
+        self.master.title(
+            "{} ({})".format(
+                self.PROGRAM_TITLE, 
+                self.document.get_title()
+            )
+        )
 
 class EditingArea(ttk.Frame):
     NOGRID_Y_OFFSET = 2
@@ -106,26 +139,25 @@ class EditingArea(ttk.Frame):
 
         self.char_data = numpy.zeros(shape=(8,8), dtype=numpy.uint8)
 
-        font = ZXFont.get_default()
-        self.from_data(font.get_offset(1))
-
         self.label = ttk.Label(self)
         self.label.pack(padx=5, pady=5)
-        self.label.bind('<Button-1>', self.on_click)
-        # self.label.bind('<Motion>', self.on_click)
-        self.label.bind('<Button-3>', self.on_click_alt)
-        self.notify_scale_changed(self.char_editor.scale)
 
-    def clear(self):
-        self.pixel_data[:] = self.default_fill
+        self.label.bind('<B1-Motion>', self.on_click)
+        self.label.bind('<Button-1>', self.on_click)
+        self.label.bind('<Button-3>', self.on_click_alt)
+        self.label.bind('<B3-Motion>', self.on_click_alt)
+        self.notify_scale_changed(self.char_editor.scale)
 
     def __create(self):
         colour = self.__get_fill_colour()
         self.pixel_data = numpy.full(shape=(self.__get_canvas_height(), self.__get_canvas_width(), 3), fill_value=colour, dtype=numpy.uint8)
 
     def from_data(self, character_data):
-        for char_y, packed in enumerate(character_data):
-            self.char_data[char_y:] = numpy.unpackbits(packed)
+        for pos_y, packed in enumerate(character_data):
+            self.char_data[pos_y:] = numpy.unpackbits(packed)
+
+    def to_data(self):
+        return [ numpy.packbits(v) for v in self.char_data ]
 
     def __get_fill_colour(self):
         if self.char_editor.is_grid_enabled:
@@ -142,6 +174,22 @@ class EditingArea(ttk.Frame):
         num_pixels += 8
         return num_pixels
 
+    def notify_document_changed(self):
+        self.__clear()
+
+    def __clear(self):
+        self.char_data[:] = 0
+        self.refresh()
+
+    def notify_offset_changed(self):
+        try:
+            char = self.char_editor.document.get_offset(self.char_editor.get_current_offset())
+            self.from_data(char.data)
+        except ValueError:
+            self.char_editor.status.set_status('Invalid offset!')
+            self.__clear()
+        self.refresh()
+
     def notify_grid_changed(self, grid_enabled):
         self.__create()
         self.refresh()
@@ -153,13 +201,12 @@ class EditingArea(ttk.Frame):
     def on_click(self, event=None):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
             char_x, char_y = self.get_screen_position(event.x, event.y)
-            print(event.x, event.y, '->', char_x, char_y)
-        # self.refresh()
+            self.__update_cell(char_x, char_y, 1)
 
     def on_click_alt(self, event=None):
-        font = ZXFont.get_default()
-        self.from_data(font.get_offset(2))
-        self.refresh()
+        if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
+            char_x, char_y = self.get_screen_position(event.x, event.y)
+            self.__update_cell(char_x, char_y, 0)
 
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
@@ -172,30 +219,34 @@ class EditingArea(ttk.Frame):
             for char_y in range(8):
                 yield (char_x, char_y)
 
-    def __refresh_cell(self, char_x: int, char_y: int):
-        pix_x, pix_y, pix_size = self.get_canvas_position(char_x, char_y)
-        # rgb_x, rgb_y, rgb_size = self.__get_screen_position(char_x, char_y)
-        self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = self.__get_rgb(char_x, char_y)
+    def __update_cell(self, pos_x: int, pos_y: int, value: int):
+        self.char_data[pos_y][pos_x] = value
+        self.char_editor.update_offset(self.to_data())
+        self.__refresh_cell(pos_x, pos_y)
+        self.__flip_canvas()
 
-    def __get_rgb(self, char_x: int, char_y: int):
-        return self.char_editor.attribute.to_rgb(self.char_data[char_y][char_x] == 1)
+    def __refresh_cell(self, pos_x: int, pos_y: int):
+        pix_x, pix_y, pix_size = self.get_canvas_position(pos_x, pos_y)
+        self.pixel_data[pix_y:pix_y+pix_size, pix_x:pix_x+pix_size] = self.__get_rgb(pos_x, pos_y)
 
-    def get_canvas_position(self, char_x, char_y) -> tuple[int, int, int]:
+    def __get_rgb(self, pos_x: int, pos_y: int):
+        return self.char_editor.attribute.to_rgb(self.char_data[pos_y][pos_x] == 1)
+
+    def get_canvas_position(self, pos_x, pos_y) -> tuple[int, int, int]:
         '''
         Translate from cursor location to pixel ranges within the displayed canvas,
         adjusted for whether a 1px wide grid is enabled. If not enabled then we
         will instead try to center image within canvas.
         '''
-        x = char_x*self.char_editor.scale
-        y = char_y*self.char_editor.scale
+        x = pos_x*self.char_editor.scale
+        y = pos_y*self.char_editor.scale
         if self.char_editor.is_grid_enabled:
-            x += char_x + 1
-            y += char_y + 1
+            x += pos_x + 1
+            y += pos_y + 1
         else:
             x += 8 // 2
             y+= self.NOGRID_Y_OFFSET
         return (x, y, self.char_editor.scale)
-
 
     def get_screen_position(self, pos_x, pos_y):
         '''
@@ -278,41 +329,89 @@ class Selector(ttk.Frame):
     def __init__(self, master, char_editor: CharacterEditor):
         super().__init__(master, style='info')
         self.char_editor = char_editor
-        self.view = ttk.Treeview(self, columns=('offset', 'character'), show='tree')
-        self.view.heading('offset', text="Offset")
-        self.view.heading('character', text="Character")
-        self.view.column('#0', width=100, anchor=W, stretch=False)
-        self.view.column('offset', width=50, anchor=W, stretch=False)
-        self.view.column('character', width=50, anchor=W, stretch=False)
-        self.view.pack(fill=Y, expand=True)
+        self.view = ttk.Treeview(self, columns=('Offset', 'CharCode', 'ASCII'), show='tree')
+        self.view.heading('Offset', text="Offset")
+        self.view.heading('CharCode', text="Character")
+        self.view.heading('ASCII', text="ASCII")
+        self.view.column('#0', width=80, anchor=W, stretch=False)
+        self.view.column('Offset', width=50, anchor=E, stretch=False)
+        self.view.column('CharCode', width=50, anchor=E, stretch=False)
+        self.view.column('ASCII', width=50, anchor=CENTER, stretch=False)
+        self.view.pack(side=LEFT, fill=Y, expand=True)
 
-        font = ZXFont.get_default()
-        root = self.view.insert('', 'end', text='Symbols', open=True)
-        for char_code, data in font.symbols():
-            char = chr(char_code)
-            self.view.insert(root, "end", values=(char_code, char if char in string.printable else ''))
+        self.scroll = ttk.Scrollbar(self, orient=VERTICAL, command=self.view.yview, style='primary')
+        self.scroll.pack(side=RIGHT, fill=Y)
+        self.view.configure(yscrollcommand=self.scroll.set)
 
+        self.view.bind("<Button-1>", self.on_click)
+        # self.view.bind("<Double-Button-1>", self.on_click)
+
+        # trigger load
+        self.notify_document_changed()
+
+    def clear(self):
+        for id in self.view.get_children():
+            self.view.delete(id)
+
+    def notify_document_changed(self):
+        self.clear()
+        if self.char_editor.document.is_font():
+            self.root = self.view.insert('', 'end', text='Characters', open=True)
+            if self.char_editor.document.symbols:
+                for offset, char_code, symbol in self.char_editor.document.get_symbols():
+                    ascii = ZXFont.get_comparable_ascii(char_code)
+                    self.view.insert(self.root, "end", values=(offset, char_code, ascii))
+        else:
+            self.root = self.view.insert('', 'end', text='Glyphs', open=True)
+            if self.char_editor.document.symbols:
+                for offset, char_code, symbol in self.char_editor.document.get_symbols():
+                    self.view.insert(self.root, "end", values=(offset, char_code, ''))
+
+    def on_click(self, event=None):
+        row = self.view.identify_row(event.y)
+        if not row:
+            return
+        values = self.view.item(row)['values']
+        if not values:
+            return
+        self.char_editor.set_offset(self.view.item(row)['values'][0])
 
 class Sidebar(ttk.Frame):
     char_editor: CharacterEditor
 
     def __init__(self, master, char_editor: CharacterEditor):
-        super().__init__(master, style='dark', padding=(4, 4))
+        super().__init__(master, style='dark', padding=(4, 4), borderwidth=1, relief='flat')
         self.char_editor = char_editor
+        self.__create_details()
 
-        lbl_1 = ttk.Label(self, text='Test1')
-        lbl_1.pack()
+    def __create_details(self):
+        self.details = ttk.Frame(self)
+        self.details.grid(row=0, column=0, sticky=NW)
+        self.details.columnconfigure(1, weight=1)
 
-        lbl_2 = ttk.Label(self, text='Test2')
-        lbl_2.pack()
+        padding = (4,4)
+        self.doc_type = ttk.Label(self.details, text='Definition type:', padding=padding, style='info')
+        self.doc_type.grid(row=0, column=0, sticky=W)
+        self.doc_type_value = ttk.Label(self.details, text=self.char_editor.document.get_type(), padding=padding)
+        self.doc_type_value.grid(row=0, column=1, sticky=EW)
+        
+        self.doc_offset = ttk.Label(self.details, text='Base offset:', padding=padding, style='info')
+        self.doc_offset.grid(row=1, column=0, sticky=W)
+        self.doc_offset_value = ttk.Label(self.details, text=self.char_editor.document.char_code_offset, padding=padding)
+        self.doc_offset_value.grid(row=1, column=1, sticky=EW)
 
-        lbl_3 = ttk.Label(self, text='Test3')
-        lbl_3.pack()
+        self.doc_selected = ttk.Label(self.details, text='Selected:', padding=padding, style='info')
+        self.doc_selected.grid(row=3, column=0, sticky=W)
+        self.doc_selected_value = ttk.Label(self.details, text=self.char_editor.get_current_offset(), padding=padding)
+        self.doc_selected_value.grid(row=3, column=1, sticky=EW)
 
-        # lbl = ttk.Label(self, text="Ink:")
-        # lbl.grid(row=0, column=0, sticky=W, padx=(0, 4))
-        # self.ink_widgets = []
+    def notify_document_changed(self):
+        self.doc_type_value.configure(text=self.char_editor.document.get_type())
+        self.doc_offset_value.configure(text=self.char_editor.document.char_code_offset)
+        self.notify_offset_changed()
 
+    def notify_offset_changed(self):
+        self.doc_selected_value.configure(text=self.char_editor.get_current_offset())
 
 class Status(ttk.Frame):
     char_editor: CharacterEditor

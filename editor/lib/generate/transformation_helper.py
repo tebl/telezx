@@ -36,8 +36,8 @@ class TransformationHelper(DocumentHelper):
             end_x = start_x + ZXFont.GLYPH_WIDTH
 
             using_font = font if (char_x % 2) else font_alt
-            pixels[start_y:end_y, start_x:end_x] = using_font.get_ascii(padded[0], rgb=True)
-            pixels[start_y+ZXFont.GLYPH_HEIGHT:end_y+ZXFont.GLYPH_HEIGHT, start_x:end_x] = using_font.get_ascii(padded[1], rgb=True)
+            pixels[start_y:end_y, start_x:end_x] = using_font.get_ascii_data(padded[0], rgb=True)
+            pixels[start_y+ZXFont.GLYPH_HEIGHT:end_y+ZXFont.GLYPH_HEIGHT, start_x:end_x] = using_font.get_ascii_data(padded[1], rgb=True)
 
         for char_y in range(0, ZXScreen.SCREEN_HEIGHT_CHARS):
             padded = utilities.format_padded_int(char_y)
@@ -49,8 +49,8 @@ class TransformationHelper(DocumentHelper):
             end_x = start_x + ZXFont.GLYPH_WIDTH
 
             using_font = font if (char_y % 2) else font_alt
-            pixels[start_y:end_y, start_x:end_x] = using_font.get_ascii(padded[0], rgb=True)
-            pixels[start_y:end_y, start_x+ZXFont.GLYPH_WIDTH:end_x+ZXFont.GLYPH_WIDTH] = using_font.get_ascii(padded[1], rgb=True)
+            pixels[start_y:end_y, start_x:end_x] = using_font.get_ascii_data(padded[0], rgb=True)
+            pixels[start_y:end_y, start_x+ZXFont.GLYPH_WIDTH:end_x+ZXFont.GLYPH_WIDTH] = using_font.get_ascii_data(padded[1], rgb=True)
 
         image = Image.fromarray(pixels)
         image.save(path_out)

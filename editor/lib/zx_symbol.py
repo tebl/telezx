@@ -1,7 +1,7 @@
 import numpy, string, typing
 from pathlib import Path
 from PIL import Image
-from .utilities import format_padded_id
+from .utilities import format_padded_id, BinaryYAML
 from .zx_screen import ZXScreen
 type UDG = list[int, int, int, int, int, int, int, int]
 
@@ -21,6 +21,9 @@ class ZXSymbol:
         self._rgb_fg = rgb_fg
         self._rgb_bg = rgb_bg
         self._set_glyph_data(glyph_data)
+
+    # def __iter__(self):
+    #     return iter(self.pages)
 
     def _set_glyph_data(self, glyph_data: numpy.array):
         self._glyph_data = glyph_data
@@ -85,9 +88,10 @@ class ZXSymbol:
             self._rgb_bg = rgb_bg
             self.__generate_rgb()
 
-    def symbols(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
+    def symbols(self, translate_offset: bool=True) -> typing.Generator[tuple[int, numpy.ndarray]]:
         for idx in range(0, self.count_symbols()):
-            yield (self.get_char_code_from_offset(idx), self.get_offset(idx))
+            yield (self.get_char_code_from_offset(idx) if translate_offset else idx,
+                   self.get_offset(idx))
 
     def symbols_rgb(self) -> typing.Generator[tuple[int, numpy.ndarray]]:
         if not self._generate_rgb:
@@ -247,3 +251,25 @@ class ZXSymbol:
         glyph_data = numpy.fromfile(path, dtype=numpy.uint8)
         glyph_data = numpy.reshape(glyph_data, shape=((glyph_data.size // 8),8))
         return cls(glyph_data, char_code_offset=cls.CHAR_CODE_OFFSET, rgb_fg=rgb_fg, rgb_bg=rgb_bg, generate_rgb=generate_rgb)
+
+
+class CustomCharacter:
+    _data: UDG
+
+    def __init__(self, data: UDG|None=None):
+        self.data = data
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, data: UDG):
+        if data is None:
+            data = ZXSymbol.generate_blank_glyph()
+        if not len(data) == 8:
+            raise ValueError('Not 8x8 UDG')
+        self._data = data
+
+    def to_dict(self):
+        return [ BinaryYAML(v) for v in self.data ]

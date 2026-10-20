@@ -11,7 +11,7 @@ class ZXFont(ZXSymbol):
     def __init__(self, glyph_data, char_code_offset: int=CHAR_CODE_OFFSET, rgb_fg=255, rgb_bg=0, generate_rgb=False):
         super().__init__(glyph_data, char_code_offset=char_code_offset, rgb_fg=rgb_fg, rgb_bg=rgb_bg, generate_rgb=generate_rgb)
 
-    def get_ascii(self, character: str, rgb: bool=False):
+    def get_ascii_data(self, character: str, rgb: bool=False):
         offset = ord(character) - self.ASCII_SPACE
         if rgb:
             return self.get_offset_rgb(offset)
@@ -21,6 +21,23 @@ class ZXFont(ZXSymbol):
         if not name:
             return 'FONT_DEFAULT'
         return super()._get_js_name(name)
+
+    @classmethod
+    def get_comparable_ascii(self, char_code: int) -> str:
+        '''
+        The ZX Spectrum character set is mostly ASCII-compatible, but some
+        things have shifted around and we need to get a more suitable string
+        representation for use in the program.
+        '''
+        match char_code:
+            case 94:
+                return '↑'
+            case 96:
+                return '£'
+            case 127:
+                return '©'
+            case _:
+                return chr(char_code)
 
     @classmethod
     def get_default(cls, rgb_fg=255, rgb_bg=0, generate_rgb=False):
