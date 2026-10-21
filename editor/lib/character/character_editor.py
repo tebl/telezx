@@ -70,9 +70,6 @@ class CharacterEditor(BaseEditor):
         self.master.bind("<Control-KeyPress-o>", self.on_open)
         self.master.bind("<Control-KeyPress-s>", self.on_save)
         self.master.bind("<Control-KeyPress-q>", self.on_quit)
-        self.master.bind("<Prior>", self.on_previous_symbol)
-        self.master.bind("<Next>", self.on_next_symbol)
-
 
         self.update_title_periodic()
 
@@ -121,14 +118,6 @@ class CharacterEditor(BaseEditor):
         self.document = ZXFontDefinition()
         self._current_offset = 0
         self.notify_document_changed()
-
-    def on_next_symbol(self, event=None):
-        print('next')
-        return 'break'
-
-    def on_previous_symbol(self, event=None):
-        print('previous')
-        return 'break'
 
     def on_open(self, event=None):
         try:
@@ -196,10 +185,6 @@ class CharacterEditor(BaseEditor):
     def notify_scale_changed(self):
         self.editor.notify_scale_changed()
 
-    def set_offset(self, value: int):
-        self._current_offset = value
-        self.notify_offset_changed()
-
     def set_scale(self, value: int):
         self.scale = value
         self.notify_scale_changed()
@@ -207,8 +192,14 @@ class CharacterEditor(BaseEditor):
     def set_status(self, message):
         self.status.set_status(message)
 
-    def get_current_offset(self) -> int:
+    @property
+    def current_offset(self) -> int:
         return self._current_offset
+
+    @current_offset.setter
+    def current_offset(self, value: int):
+        self._current_offset = value
+        self.notify_offset_changed()
 
     def sync_offset(self, data):
         self.document.update_offset(self._current_offset, data)
@@ -266,7 +257,7 @@ class EditingArea(ttk.Frame):
         return num_pixels
 
     def notify_document_changed(self):
-        if self.char_editor.get_current_offset() is None:
+        if self.char_editor.current_offset is None:
             self.__clear()
         else:
             self.notify_offset_changed()
@@ -277,7 +268,7 @@ class EditingArea(ttk.Frame):
 
     def notify_offset_changed(self):
         try:
-            char = self.char_editor.document.get_offset(self.char_editor.get_current_offset())
+            char = self.char_editor.document.get_offset(self.char_editor.current_offset)
             self.from_data(char.data)
         except ValueError:
             self.char_editor.status.set_status('Invalid offset!')
@@ -510,6 +501,7 @@ class Selector(ttk.Frame):
         self.view.configure(yscrollcommand=self.scroll.set)
 
         self.view.bind("<Button-1>", self.on_click)
+        self.view.bind("<<TreeviewSelect>>", self.on_navigation)
         # self.view.bind("<Double-Button-1>", self.on_click)
 
         # trigger load
@@ -535,12 +527,23 @@ class Selector(ttk.Frame):
 
     def on_click(self, event=None):
         row = self.view.identify_row(event.y)
-        if not row:
-            return
-        values = self.view.item(row)['values']
-        if not values:
-            return
-        self.char_editor.set_offset(self.view.item(row)['values'][0])
+        self.__selection_changed(from_object=row)
+
+    def on_navigation(self, event=None):
+        focus = self.view.focus()
+        self.__selection_changed(from_object=focus)
+
+    def __selection_changed(self, from_object) -> int|None:
+        if not from_object:
+            return None
+        item = self.view.item(from_object)
+        if not item:
+            return None
+        values = item['values']
+        if values == '':
+            return None
+        self.char_editor.current_offset = values[0]
+
 
 class Sidebar(ttk.Frame):
     char_editor: CharacterEditor
@@ -568,7 +571,7 @@ class Sidebar(ttk.Frame):
 
         self.doc_selected = ttk.Label(self.details, text='Selected:', padding=padding, style='info')
         self.doc_selected.grid(row=3, column=0, sticky=W)
-        self.doc_selected_value = ttk.Label(self.details, text=self.char_editor.get_current_offset(), padding=padding)
+        self.doc_selected_value = ttk.Label(self.details, text=self.char_editor.current_offset, padding=padding)
         self.doc_selected_value.grid(row=3, column=1, sticky=EW)
 
     def notify_document_changed(self):
@@ -577,7 +580,7 @@ class Sidebar(ttk.Frame):
         self.notify_offset_changed()
 
     def notify_offset_changed(self):
-        self.doc_selected_value.configure(text=self.char_editor.get_current_offset())
+        self.doc_selected_value.configure(text=self.char_editor.current_offset)
 
 class Status(ttk.Frame):
     char_editor: CharacterEditor
