@@ -5,9 +5,8 @@ from ttkbootstrap.constants import *
 import webbrowser
 
 class CustomDialog(Dialog):
-    def __init__(self, master, zx_editor, title):
+    def __init__(self, master, title):
         super().__init__(master, title=title)
-        self.zx_editor = zx_editor
         self.custom_pad_y = 3
         self.custom_pad_x = 10
         self.custom_pad_border = 20

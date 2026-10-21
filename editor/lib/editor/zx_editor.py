@@ -12,11 +12,9 @@ from PIL import Image, ImageTk
 
 from .copy_operation import CopyData, CopyOperation
 from .undo_operation import UndoOperation
-from .keyboard_dialog import KeyboardDialog
-from .license_dialog import LicenseDialog
-from .about_dialog import AboutDialog
 from .screen_region import CellDirection, ScreenNavigator, CellDirection, ScreenRegion, ScreenCoordinate
-from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
+from .editor_keyboard_dialog import EditorKeyboardDialog
+from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -146,10 +144,6 @@ class ZXEditor(ttk.Frame):
         '''
         self.region_highlight = None
         self.undo_memory: list[UndoOperation] = []
-
-    def clicked_about(self, event=None):
-        AboutDialog(self, self).show()
-        return 'break'
 
     def clicked_background(self, event=None):
         try:
@@ -512,12 +506,16 @@ class ZXEditor(ttk.Frame):
             self.main.focus_set()
         return 'break'
 
-    def clicked_keyboard(self, event=None):
-        KeyboardDialog(self, self).show()
+    def clicked_about(self, event=None):
+        AboutDialog(self).show()
         return 'break'
 
     def clicked_license(self, event=None):
-        LicenseDialog(self, self).show()
+        LicenseDialog(self).show()
+        return 'break'
+
+    def clicked_keyboard(self, event=None):
+        EditorKeyboardDialog(self).show()
         return 'break'
 
     def clicked_new(self, event=None):
@@ -1186,7 +1184,7 @@ class Menu(ttk.Frame):
         )
         btn.grid(row=0, column=6)        
 
-        ## Export options
+        ## About options
         about_options = ttk.Menu(self)
         about_options.add_command(label="About", command=self.zx_editor.clicked_about)
         about_options.add_command(label="License", command=self.zx_editor.clicked_license)

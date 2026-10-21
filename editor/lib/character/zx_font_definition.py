@@ -1,6 +1,6 @@
 import yaml, typing
 from pathlib import Path
-from .. import BaseDocument, ZXFont, ZXGlyph, CustomCharacter, utilities
+from .. import BaseDocument, ZXLogger, ZXFont, ZXGlyph, CustomCharacter, utilities
 type Symbols = list[CustomCharacter]
 
 class ZXFontDefinition(BaseDocument):
@@ -50,10 +50,10 @@ class ZXFontDefinition(BaseDocument):
     def is_glyphs(self) -> bool:
         return not self.is_font()
 
-    def import_bin(self, bin_path: Path):
+    def import_bin(self, file_path: Path):
         self.symbols = []
         loader = ZXFont if self.is_font() else ZXGlyph
-        data = loader.from_file(path=bin_path)
+        data = loader.from_file(path=file_path)
         for offset, data in data.symbols():
             self.symbols.append(CustomCharacter(data))
         self._changes = True
@@ -73,6 +73,13 @@ class ZXFontDefinition(BaseDocument):
                 'symbols': []
             }
         }
+
+    @classmethod
+    def from_binary(cls, file_path: Path, char_code_offset: int=ZXFont.CHAR_CODE_OFFSET) -> typing.Self:
+        ZXLogger.get_instance().debug('Importing data from', file_path)
+        doc: ZXFontDefinition = ZXFontDefinition(char_code_offset)
+        doc.import_bin(file_path)
+        return doc
 
     @classmethod
     def from_dict(cls, data: dict[str, typing.Any]) -> typing.Any:

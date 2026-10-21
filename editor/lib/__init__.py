@@ -14,6 +14,7 @@ from .zx_registry import ZXRegistry, ZXRegistryEntry, ZXRegistryTag
 from .zx_logger import ZXLogger
 from .utilities import update_tree
 from .generate import RepositoryHelper, RegistryHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
-from .editor import ZXEditor, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenCoordinate, ScreenNavigator, ScreenRegion, CustomDialog, KeyboardDialog, LicenseDialog, AboutDialog
+from .common import CustomDialog, AboutDialog, KeyboardDialog, LicenseDialog
+from .editor import ZXEditor, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenCoordinate, ScreenNavigator, ScreenRegion
 from .convert import ATRConverter, TKNConverter, ZXTokenConverter, S81Converter
 VERSION = "TeleZX v0.1"

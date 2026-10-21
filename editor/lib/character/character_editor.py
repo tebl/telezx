@@ -10,8 +10,9 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, ZXAttributeRGB, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
+from .. import BaseEditor, ZXAttributeRGB, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities, LicenseDialog, AboutDialog, KeyboardDialog
 from .zx_font_definition import ZXFontDefinition
+from .editor_keyboard_dialog import EditorKeyboardDialog
 
 class CharacterEditor(BaseEditor):
     PROGRAM_TITLE = 'ZX Character Editor'
@@ -35,6 +36,9 @@ class CharacterEditor(BaseEditor):
     
     FILE_TYPE = 'ZXFont'
     FILE_EXTENSION = '.zxfont'
+    BINARY_TYPE = 'Binary'
+    BINARY_EXTENSION = '.bin'
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,10 +65,14 @@ class CharacterEditor(BaseEditor):
         self.status = Status(self, char_editor=self)
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
 
+        self.master.bind("<Control-KeyPress-g>", self.on_toggle_grid)
         self.master.bind("<Control-KeyPress-n>", self.on_new)
         self.master.bind("<Control-KeyPress-o>", self.on_open)
         self.master.bind("<Control-KeyPress-s>", self.on_save)
         self.master.bind("<Control-KeyPress-q>", self.on_quit)
+        self.master.bind("<Prior>", self.on_previous_symbol)
+        self.master.bind("<Next>", self.on_next_symbol)
+
 
         self.update_title_periodic()
 
@@ -76,6 +84,7 @@ class CharacterEditor(BaseEditor):
             'set-scale': 'zx-scale.png',
             'grid-enabled': 'zx-grid.png',
             'grid-disabled': 'zx-grid-disabled.png',
+            'import': 'zx-import.png',
             'export': 'zx-export.png',
             'about': 'zx-about.png',
             'logo': 'zx-logo.png'
@@ -87,13 +96,39 @@ class CharacterEditor(BaseEditor):
     def on_delete_window(self, root):
         return super().on_delete_window(root)
 
+    def on_export(self, event=None):
+        pass
+
+    def on_import(self, char_code_offset=ZXFont.CHAR_CODE_OFFSET):
+        if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
+            return
+        try:
+            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[(self.BINARY_TYPE, (f'*{self.BINARY_EXTENSION}')), ("All files", "*.*")], multiple=False)
+            if filename:
+                self.document = ZXFontDefinition.from_binary(filename, char_code_offset)
+                self.notify_document_changed()
+                self.set_status(f'Symbols loaded from {filename}')
+        except Exception as e:
+            traceback.print_exc()
+            Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
+            self.set_error(f'Load error: {e}')
+            print(e)
+        return 'break'
+
     def on_new(self, event=None):
         if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
             return
         self.document = ZXFontDefinition()
         self._current_offset = 0
-        # self.document.import_bin(utilities.get_project_root() / 'fonts'/ 'font_default.bin')
         self.notify_document_changed()
+
+    def on_next_symbol(self, event=None):
+        print('next')
+        return 'break'
+
+    def on_previous_symbol(self, event=None):
+        print('previous')
+        return 'break'
 
     def on_open(self, event=None):
         try:
@@ -111,6 +146,18 @@ class CharacterEditor(BaseEditor):
             print(e)
         return 'break'
 
+    def on_open_about(self, event=None):
+        AboutDialog(self).show()
+        return 'break'
+
+    def on_open_license(self, event=None):
+        LicenseDialog(self).show()
+        return 'break'
+
+    def on_open_keyboard(self, event=None):
+        EditorKeyboardDialog(self).show()
+        return 'break'
+
     def on_save(self, event=None):
         if self.document.is_untitled():
             try:
@@ -125,6 +172,10 @@ class CharacterEditor(BaseEditor):
         self.set_status(f'Document saved: {self.document.document_path}')
         return 'break'
 
+    def on_toggle_grid(self, event=None):
+        self.toggle_grid()
+        return 'break'
+
     def on_quit(self, event=None):
         self.on_delete_window(self.master)
         return 'break'
@@ -134,13 +185,24 @@ class CharacterEditor(BaseEditor):
         self.selector.notify_document_changed()
         self.editor.notify_document_changed()
 
+    def notify_grid_changed(self):
+        self.menu.notify_grid_changed()
+        self.editor.notify_grid_changed()
+
     def notify_offset_changed(self):
         self.sidebar.notify_offset_changed()
         self.editor.notify_offset_changed()
 
+    def notify_scale_changed(self):
+        self.editor.notify_scale_changed()
+
     def set_offset(self, value: int):
         self._current_offset = value
         self.notify_offset_changed()
+
+    def set_scale(self, value: int):
+        self.scale = value
+        self.notify_scale_changed()
 
     def set_status(self, message):
         self.status.set_status(message)
@@ -150,6 +212,11 @@ class CharacterEditor(BaseEditor):
 
     def sync_offset(self, data):
         self.document.update_offset(self._current_offset, data)
+
+    def toggle_grid(self):
+        self.is_grid_enabled = not self.is_grid_enabled
+        self.notify_grid_changed()
+
 
 class EditingArea(ttk.Frame):
     NOGRID_Y_OFFSET = 2
@@ -170,7 +237,7 @@ class EditingArea(ttk.Frame):
         self.label.bind('<Button-1>', self.on_click)
         self.label.bind('<Button-3>', self.on_click_alt)
         self.label.bind('<B3-Motion>', self.on_click_alt)
-        self.notify_scale_changed(self.char_editor.scale)
+        self.notify_scale_changed()
 
     def __create(self):
         colour = self.__get_fill_colour()
@@ -217,11 +284,11 @@ class EditingArea(ttk.Frame):
             self.__clear()
         self.refresh()
 
-    def notify_grid_changed(self, grid_enabled):
+    def notify_grid_changed(self):
         self.__create()
         self.refresh()
 
-    def notify_scale_changed(self, scale_value):
+    def notify_scale_changed(self):
         self.__create()
         self.refresh()
 
@@ -338,9 +405,71 @@ class Menu(ttk.Frame):
         )
         btn.grid(row=0, column=self.__next_column())
 
-    # def notify_grid_changed(self, value):
-    #     img_name = 'grid-disabled' if value else 'grid-enabled'
-    #     self.button_grid.config(image=img_name)
+        ## Import
+        import_options = ttk.Menu(self)
+        import_options.add_command(label="Font", command=self.on_import_font)
+        import_options.add_command(label="Glyphs", command=self.on_import_glyphs)
+        btn = ttk.Menubutton(
+            master=self,
+            text="Import",
+            image='import',
+            compound=LEFT,
+            menu=import_options
+        )
+        btn.grid(row=0, column=self.__next_column())        
+
+        ## Export
+        btn = ttk.Button(
+            master=self,
+            text='Export',
+            image='export', 
+            compound=LEFT, 
+            command=self.char_editor.on_export
+        )
+        btn.grid(row=0, column=self.__next_column())
+
+        ## Configure scale
+        self.scale_variable = ttk.IntVar()
+        scale_options = ttk.Menu(self)
+        for scale_up in [16, 32, 48, 64, 96, 128]:
+            scale_options.add_radiobutton(
+                label=f"{scale_up}x", 
+                command=lambda scale_up=scale_up: self.char_editor.set_scale(scale_up), 
+                variable=self.scale_variable, 
+                value=scale_up)
+        self.scale_variable.set(self.char_editor.scale)
+        self.scale = ttk.Menubutton(
+            master=self,
+            text="Set scale",
+            image='set-scale',
+            compound=LEFT,
+            menu=scale_options
+        )
+        self.scale.grid(row=0, column=self.__next_column())
+
+        ## Enable display grid
+        self.button_grid = ttk.Button(
+            master=self, 
+            text='Grid', 
+            image='grid-enabled' if self.char_editor.is_grid_enabled else 'grid-disabled', 
+            compound=LEFT, 
+            command=self.char_editor.toggle_grid
+        )
+
+        ## About
+        about_options = ttk.Menu(self)
+        about_options.add_command(label="About", command=self.char_editor.on_open_about)
+        about_options.add_command(label="License", command=self.char_editor.on_open_license)
+        about_options.add_separator()
+        about_options.add_command(label="Keyboard", command=self.char_editor.on_open_keyboard)
+        btn = ttk.Menubutton(
+            master=self,
+            text="About",
+            image='about',
+            compound=LEFT,
+            menu=about_options
+        )
+        btn.grid(row=0, column=self.__next_column())        
 
     def __next_column(self) -> int:
         if self.__next_id is None:
@@ -348,6 +477,16 @@ class Menu(ttk.Frame):
         else:
             self.__next_id += 1
         return self.__next_id
+
+    def on_import_font(self):
+        self.char_editor.on_import(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
+
+    def on_import_glyphs(self):
+        self.char_editor.on_import(char_code_offset=ZXGlyph.CHAR_CODE_OFFSET)
+
+    def notify_grid_changed(self):
+        img_name = 'grid-enabled' if self.char_editor.is_grid_enabled else 'grid-disabled'
+        self.button_grid.config(image=img_name)
 
 
 class Selector(ttk.Frame):
