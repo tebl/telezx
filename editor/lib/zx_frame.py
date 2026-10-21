@@ -41,7 +41,7 @@ class ZXFrame(ZXToken):
     @classmethod
     def create_frame(cls, document_path):
         zx_frame = ZXFrame(init_attribute=ZXFrame.DEFAULT_ATTRIBUTE)
-        zx_frame.set_document(document_path)
+        zx_frame.set_path(document_path)
 
         # Black out areas expected to contain headers
         zx_frame.set_string(0, 0, ' '*ZXScreen.SCREEN_WIDTH_CHARS, char_attribute=cls.HEADER_ATTRIBUTE)

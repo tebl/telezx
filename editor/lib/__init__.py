@@ -1,3 +1,4 @@
+from .base_editor import BaseEditor
 from .base_document import BaseDocument
 from .name_tree_resolver import NameTreeResolver
 from .zx_attribute import ZXAttribute, ZXAttributeRGB

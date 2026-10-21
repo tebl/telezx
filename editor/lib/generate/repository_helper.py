@@ -26,12 +26,12 @@ class RepositoryHelper:
         if frame_path:
             return self.from_frame(frame_path, page_path)
         zx_token = ZXToken()
-        zx_token.set_document(page_path)
+        zx_token.set_path(page_path)
         return zx_token
 
     def from_frame(self, frame_path: Path, page_path: Path) -> ZXToken:
         zx_token = ZXToken.from_file(frame_path)
-        zx_token.set_document(page_path)
+        zx_token.set_path(page_path)
         return zx_token
 
     def relative_path(self, path: Path) -> Path:

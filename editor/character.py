@@ -10,6 +10,7 @@ def main():
     organization of the ZX Spectrum video memory, and can therefore either
     be exported directly to an SCR-file or transcoded into a SPECSCII file.
     '''
+    parser.add_argument('-d', '--debug', action='store_true', help="Enable debug statements")
     parser.add_argument('-v', '--version', action='store_true', help="Show version information")
     parser.add_argument('-t', '--themename', help="Specify theme")
     parser.add_argument('--list-themes', action='store_true', help="List theme options")
@@ -27,7 +28,7 @@ def main():
             app.style.theme_use(args.themename)
         else:
             print('WARNING: Invalid themename', args.themename)
-    editor = CharacterEditor(app)
+    editor = CharacterEditor(app, debug_enabled=args.debug)
     if args.path:
         try:
             editor.load_file(args.path)
@@ -37,7 +38,7 @@ def main():
         except FileNotFoundError as e:
             print('ERROR:', f'File {args.path} does not exist')
             exit(1)
-    app.protocol("WM_DELETE_WINDOW", lambda app=app: editor.on_quit(app))
+    app.protocol("WM_DELETE_WINDOW", lambda app=app: editor.on_delete_window(app))
     try:
         app.mainloop()
     except KeyboardInterrupt:

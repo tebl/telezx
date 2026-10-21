@@ -294,7 +294,7 @@ class ZXDocument:
         return True
 
     def to_dict(self) -> dict:
-        result = self.__yaml_defaults()
+        result = self._yaml_defaults()
         root = result[self.__class__.__name__]
         root['document_id'] = HexYAML(self.document_id)
         root['description'] = self.description
@@ -345,8 +345,8 @@ class ZXDocument:
     @classmethod
     def from_file(cls, repository: Path, document_path: Path) -> ZXDocument:
         ZXLogger.get_instance().debug('Loading document from', document_path)
-        data = cls.__yaml_defaults()
-        data = update_tree(data, cls.__get_yaml(document_path))
+        data = cls._yaml_defaults()
+        data = update_tree(data, cls._get_yaml(document_path))
         return cls.from_dict(repository, document_path, data)
 
     @classmethod
@@ -381,7 +381,7 @@ class ZXDocument:
                     pass
 
     @classmethod
-    def __yaml_defaults(cls) -> dict:
+    def _yaml_defaults(cls) -> dict:
         return {
             cls.__name__: {
                 'document_id':      0,
@@ -399,7 +399,7 @@ class ZXDocument:
         }
 
     @classmethod
-    def __get_yaml(cls, yaml_path) -> dict:
+    def _get_yaml(cls, yaml_path) -> dict:
         with open(yaml_path, 'r') as file:
             data = yaml.safe_load(file)
             if data is None or cls.__name__ not in data:

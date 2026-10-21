@@ -18,9 +18,9 @@ class ZXTokenConverter(BaseConverter):
 
     def save_as(self, output_path: Path) -> bool:
         previous_path = self.zx_token.document_path
-        self.zx_token.set_document(output_path)
+        self.zx_token.set_path(output_path)
         self.zx_token.save()
-        self.zx_token.set_document(previous_path)
+        self.zx_token.set_path(previous_path)
         return True
 
     def export_to(self, output_path: Path) -> bool:

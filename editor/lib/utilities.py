@@ -33,7 +33,7 @@ def argument_is_file(path) -> Path:
         raise ArgumentError(f'is not an existing file')
     return path
 
-def argument_is_document_id(value):
+def argument_is_document_id(value: str) -> int:
     '''
     Check that the supplied value appears to be an int between 0 and 9999
     '''
@@ -42,7 +42,7 @@ def argument_is_document_id(value):
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
-def argument_is_page_id(value):
+def argument_is_page_id(value: str) -> int:
     '''
     Check that the supplied value appears to be an int between 0 and 9999
     '''
@@ -51,13 +51,13 @@ def argument_is_page_id(value):
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
-def format_padded_id(value, width=4):
+def format_padded_id(value: int, width=4) -> str:
     '''
     Primarily used when working with document IDs
     '''
     return f'{value:0{width}X}'
 
-def format_padded_int(value, width=2):
+def format_padded_int(value: int, width=2) -> str:
     '''
     Primarily used when working with page IDs
     '''
@@ -79,13 +79,13 @@ def get_webclient_root() -> Path:
     '''
     return get_project_root().parent / 'webclient'
 
-def parse_asset_id(value):
+def parse_asset_id(value) -> int:
     return ensure_int(value, 0, 255, 16)
 
-def parse_document_id(value):
+def parse_document_id(value) -> int:
     return ensure_int(value, 0, 65535, 16)
 
-def parse_page_id(value):
+def parse_page_id(value) -> int:
     return ensure_int(value, 0, 99)
 
 def ensure_int(value: str, value_min: int, value_max: int, base: int=10) -> int:
@@ -160,13 +160,13 @@ class BinaryYAML(int):
 def hexed_yaml_presenter(dumper, data):
     return yaml.ScalarNode(
         'tag:yaml.org,2002:int', 
-        str(data) if data < 0 else hex(data)
+        str(data) if data < 0 else '0x' + format_padded_id(data, width=2)
     )
 
 def binary_yaml_presenter(dumper, data):
     return yaml.ScalarNode(
         'tag:yaml.org,2002:int', 
-        str(data) if data < 0 else bin(data)
+        str(data) if data < 0 else format(data, '#010b')
     )
 
 class QuotedYAML(str):

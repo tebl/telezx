@@ -1,4 +1,3 @@
-#!python3
 import numpy
 import traceback
 import string
@@ -11,10 +10,10 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import ZXAttributeRGB, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
+from .. import BaseEditor, ZXAttributeRGB, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities
 from .zx_font_definition import ZXFontDefinition
 
-class CharacterEditor(ttk.Frame):
+class CharacterEditor(BaseEditor):
     PROGRAM_TITLE = 'ZX Character Editor'
     PROGRAM_URL = 'https://github.com/tebl/telezx'
     PROGRAM_COPYRIGHT = "Copyright © 2026 Tor-Eirik Bakke Lunde"
@@ -33,12 +32,13 @@ class CharacterEditor(ttk.Frame):
 
         You should have received a copy of the GNU General Public License
         along with this program.  If not, see <https://www.gnu.org/licenses/>.'''
-    TITLEBAR_REFRESH = 250
+    
+    FILE_TYPE = 'ZXFont'
+    FILE_EXTENSION = '.zxfont'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pack(fill=BOTH, expand=YES)
-        self.__load_assets()
         self.attribute = ZXAttributeRGB(ink=ZXAttributeRGB.BLACK, paper=ZXAttributeRGB.WHITE)
         self.scale: int=48
         self.is_debug_enabled: bool=True
@@ -61,10 +61,15 @@ class CharacterEditor(ttk.Frame):
         self.status = Status(self, char_editor=self)
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
 
+        self.master.bind("<Control-KeyPress-n>", self.on_new)
+        self.master.bind("<Control-KeyPress-o>", self.on_open)
+        self.master.bind("<Control-KeyPress-s>", self.on_save)
+        self.master.bind("<Control-KeyPress-q>", self.on_quit)
+
         self.update_title_periodic()
 
-    def __load_assets(self):
-        image_files = {
+    def _load_assets(self):
+        return super()._load_assets({
             'new-project': 'zx-new.png',
             'open-project': 'zx-open.png',
             'save-project': 'zx-save.png',
@@ -74,27 +79,55 @@ class CharacterEditor(ttk.Frame):
             'export': 'zx-export.png',
             'about': 'zx-about.png',
             'logo': 'zx-logo.png'
-        }
+        })
 
-        self.photoimages = []        
-        img_path = utilities.get_project_root() / 'assets'
-        for key, val in image_files.items():
-            _path = img_path / val
-            self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
+    def _get_title(self):
+        return self.document.get_title()
 
-    def on_new(self):
+    def on_delete_window(self, root):
+        return super().on_delete_window(root)
+
+    def on_new(self, event=None):
+        if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
+            return
         self.document = ZXFontDefinition()
         self._current_offset = 0
+        # self.document.import_bin(utilities.get_project_root() / 'fonts'/ 'font_default.bin')
         self.notify_document_changed()
 
-    def on_open(self):
-        pass
+    def on_open(self, event=None):
+        try:
+            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[(self.FILE_TYPE, (f'*{self.FILE_EXTENSION}')), ("All files", "*.*")], multiple=False)
+            if filename:
+                if not self.document.has_changes() or self._allow_discard('Document unsaved') == 'OK':
+                    self.document = ZXFontDefinition.from_file(filename)
+                    self._current_offset = self.document.constrain_offset(self._current_offset)
+                    self.notify_document_changed()
+                    self.set_status(f'Document loaded: {self.document.document_path}')
+        except Exception as e:
+            traceback.print_exc()
+            Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
+            self.set_error(f'Load error: {e}')
+            print(e)
+        return 'break'
 
-    def on_save(self):
-        pass
+    def on_save(self, event=None):
+        if self.document.is_untitled():
+            try:
+                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[(self.FILE_TYPE, (f'*{self.FILE_EXTENSION}')), ("All files", "*.*")], defaultextension=self.FILE_EXTENSION, confirmoverwrite=True)
+                if not filename:
+                    return
+                self.document.document_path = filename
+            except Exception as e:
+                Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
+                return 'break'
+        self.document.save()
+        self.set_status(f'Document saved: {self.document.document_path}')
+        return 'break'
 
-    def on_quit(self, root):
-        root.destroy()
+    def on_quit(self, event=None):
+        self.on_delete_window(self.master)
+        return 'break'
 
     def notify_document_changed(self):
         self.sidebar.notify_document_changed()
@@ -109,23 +142,14 @@ class CharacterEditor(ttk.Frame):
         self._current_offset = value
         self.notify_offset_changed()
 
+    def set_status(self, message):
+        self.status.set_status(message)
+
     def get_current_offset(self) -> int:
         return self._current_offset
 
-    def update_offset(self, data):
+    def sync_offset(self, data):
         self.document.update_offset(self._current_offset, data)
-
-    def update_title_periodic(self):
-        self.update_title()
-        self.after(self.TITLEBAR_REFRESH, self.update_title_periodic)
-
-    def update_title(self):
-        self.master.title(
-            "{} ({})".format(
-                self.PROGRAM_TITLE, 
-                self.document.get_title()
-            )
-        )
 
 class EditingArea(ttk.Frame):
     NOGRID_Y_OFFSET = 2
@@ -157,7 +181,7 @@ class EditingArea(ttk.Frame):
             self.char_data[pos_y:] = numpy.unpackbits(packed)
 
     def to_data(self):
-        return [ numpy.packbits(v) for v in self.char_data ]
+        return [ numpy.packbits(v)[0] for v in self.char_data ]
 
     def __get_fill_colour(self):
         if self.char_editor.is_grid_enabled:
@@ -175,7 +199,10 @@ class EditingArea(ttk.Frame):
         return num_pixels
 
     def notify_document_changed(self):
-        self.__clear()
+        if self.char_editor.get_current_offset() is None:
+            self.__clear()
+        else:
+            self.notify_offset_changed()
 
     def __clear(self):
         self.char_data[:] = 0
@@ -221,7 +248,7 @@ class EditingArea(ttk.Frame):
 
     def __update_cell(self, pos_x: int, pos_y: int, value: int):
         self.char_data[pos_y][pos_x] = value
-        self.char_editor.update_offset(self.to_data())
+        self.char_editor.sync_offset(self.to_data())
         self.__refresh_cell(pos_x, pos_y)
         self.__flip_canvas()
 

@@ -53,7 +53,7 @@ class ZXToken:
         self.__clear_background()
         self.__clear_cells()
         self.__clear_fonts()
-        self.set_document(None)
+        self.set_path(None)
         self.changes: bool = False
 
     def __clear_background(self):
@@ -181,7 +181,7 @@ class ZXToken:
 
     def get_title(self):
         parts = ['*'] if self.has_changes() else []
-        if self.is_unnamed_document():
+        if self.is_untitled():
             parts.append('Untitled')
         else:
             parts.append(self.document_path)
@@ -195,7 +195,7 @@ class ZXToken:
     def has_changes(self):
         return self.changes
 
-    def is_unnamed_document(self):
+    def is_untitled(self):
         if self.document_path == None:
             return True
         return False
@@ -217,7 +217,7 @@ class ZXToken:
 
         # Clear and set as current file
         self.clear(root['attribute'])
-        self.set_document(document_path)
+        self.set_path(document_path)
 
         self.border = root['border'] if 'border' in root else 0
         if root['background']:
@@ -307,7 +307,7 @@ class ZXToken:
             self.changes = True
         return result
 
-    def set_document(self, document_path: Path):
+    def set_path(self, document_path: Path):
         self.document_path = document_path
 
     def set_inverted(self, char_x, char_y, char_inverted=UNDEFINED, sync_screen=True) -> bool:

@@ -1,7 +1,7 @@
 import numpy, string, typing
 from pathlib import Path
 from PIL import Image
-from .utilities import format_padded_id, BinaryYAML
+from .utilities import format_padded_id, BinaryYAML, HexYAML
 from .zx_screen import ZXScreen
 type UDG = list[int, int, int, int, int, int, int, int]
 
@@ -226,11 +226,11 @@ class ZXSymbol:
 
     @classmethod
     def generate_blank_glyph(cls):
-        return [0x0]*8
+        return numpy.zeros(shape=(cls.GLYPH_HEIGHT,), dtype=numpy.uint8)
 
     @classmethod
     def generate_placeholder_glyph(cls):
-        return [
+        return numpy.array([
             0b11111111,
             0b10000001,
             0b10100101,
@@ -239,7 +239,7 @@ class ZXSymbol:
             0b10011001,
             0b10000001,
             0b11111111
-        ]
+        ], dtype=numpy.uint8)
 
     @classmethod
     def empty_file(cls, rgb_fg: int=255, rgb_bg: int=0, generate_rgb: bool=False):
@@ -273,3 +273,8 @@ class CustomCharacter:
 
     def to_dict(self):
         return [ BinaryYAML(v) for v in self.data ]
+
+
+    @classmethod
+    def from_dict(cls, data: list[int]) -> typing.Self:
+        return CustomCharacter(numpy.array(data, dtype=numpy.uint8))

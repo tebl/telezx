@@ -522,7 +522,7 @@ class ZXEditor(ttk.Frame):
 
     def clicked_new(self, event=None):
         if self.zx_token.has_changes():
-            if not self.__allow_discard('Document unsaved') == 'OK':
+            if not self._allow_discard('Document unsaved') == 'OK':
                 return
         self.clear_state()
         self.zx_token.clear(ZXToken.DEFAULT_ATTRIBUTE)
@@ -533,14 +533,14 @@ class ZXEditor(ttk.Frame):
         self.update_title()
         return 'break'
 
-    def __allow_discard(self, title):
+    def _allow_discard(self, title):
         return Messagebox.okcancel(parent=self, title=title, message='Document has unsaved changes, do you want to discard these?')
 
     def clicked_open(self, event=None):
         try:
             filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], multiple=False)
             if filename:
-                if not self.zx_token.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
+                if not self.zx_token.has_changes() or self._allow_discard('Document unsaved') == 'OK':
                     self.zx_token.load(filename)
                     self.__load_font()
                     self.__load_glyph()
@@ -561,12 +561,12 @@ class ZXEditor(ttk.Frame):
         self.sidebar.characters.notify_glyph_changed()
 
     def clicked_save(self, event=None):
-        if self.zx_token.is_unnamed_document():
+        if self.zx_token.is_untitled():
             try:
                 filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], defaultextension='.zxtoken', confirmoverwrite=True)
                 if not filename:
                     return
-                self.zx_token.set_document(filename)
+                self.zx_token.set_path(filename)
             except Exception as e:
                 Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
         self.zx_token.save()
@@ -859,7 +859,7 @@ class ZXEditor(ttk.Frame):
             self.zx_token.set_cell(char_x_old, char_y_old)
 
     def on_quit(self, root):
-        if not self.zx_token.has_changes() or self.__allow_discard('Document unsaved') == 'OK':
+        if not self.zx_token.has_changes() or self._allow_discard('Document unsaved') == 'OK':
             root.destroy()
 
     def refresh_canvas(self):
