@@ -22,9 +22,6 @@ class ZXSymbol:
         self._rgb_bg = rgb_bg
         self._set_glyph_data(glyph_data)
 
-    # def __iter__(self):
-    #     return iter(self.pages)
-
     def _set_glyph_data(self, glyph_data: numpy.array):
         self._glyph_data = glyph_data
         self._mask_data = {}
@@ -277,4 +274,4 @@ class CustomCharacter:
 
     @classmethod
     def from_dict(cls, data: list[int]) -> typing.Self:
-        return CustomCharacter(numpy.array(data, dtype=numpy.uint8))
+        return cls(numpy.array(data, dtype=numpy.uint8))

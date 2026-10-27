@@ -1,6 +1,4 @@
-import numpy
-import traceback
-import string
+import numpy, traceback, string, typing
 from tkinter import filedialog
 from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.widgets import ToolTip
@@ -10,7 +8,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, ZXAttributeRGB, ZXScreen, ZXFont, ZXGlyph, ZXToken, utilities, LicenseDialog, AboutDialog, KeyboardDialog
+from .. import BaseEditor, ZXAttributeRGB, ZXFont, ZXGlyph, utilities, LicenseDialog, AboutDialog
 from .zx_font_definition import ZXFontDefinition
 from .editor_keyboard_dialog import EditorKeyboardDialog
 
@@ -59,10 +57,10 @@ class CharacterEditor(BaseEditor):
         self.selector = Selector(self, char_editor=self)
         self.selector.grid(row=1, column=0, rowspan=2, sticky=NSEW, padx=(10, 10), pady=(10, 10))
         self.sidebar = Sidebar(self, char_editor=self)
-        self.sidebar.grid(row=1, column=3, sticky=NSEW, padx=(10, 10), pady=(10, 10))
+        self.sidebar.grid(row=1, column=3, sticky=NE, padx=(10, 10), pady=(10, 10))
         self.editor = EditingArea(self, char_editor=self)
         self.editor.grid(row=1, column=1, sticky=NW)
-        self.status = Status(self, char_editor=self)
+        self.status = Status(self, char_editor=self) 
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
 
         self.master.bind("<Control-KeyPress-g>", self.on_toggle_grid)
@@ -70,6 +68,7 @@ class CharacterEditor(BaseEditor):
         self.master.bind("<Control-KeyPress-o>", self.on_open)
         self.master.bind("<Control-KeyPress-s>", self.on_save)
         self.master.bind("<Control-KeyPress-q>", self.on_quit)
+        self.master.bind("<Control-KeyPress-z>", self.on_undo)
 
         self.update_title_periodic()
 
@@ -84,7 +83,17 @@ class CharacterEditor(BaseEditor):
             'import': 'zx-import.png',
             'export': 'zx-export.png',
             'about': 'zx-about.png',
-            'logo': 'zx-logo.png'
+            'logo': 'zx-logo.png',
+            'function-invert': 'function-invert.png',
+            'function-revert': 'function-revert.png',
+            'function-clear': 'function-clear.png',
+            'function-flip': 'function-flip.png',
+            'function-mirror': 'function-mirror.png',
+            'function-undo': 'function-undo.png',
+            'function-shift-left': 'function-shift-left.png',
+            'function-shift-right': 'function-shift-right.png',
+            'function-shift-up': 'function-shift-up.png',
+            'function-shift-down': 'function-shift-down.png'
         })
 
     def _get_title(self):
@@ -95,6 +104,43 @@ class CharacterEditor(BaseEditor):
 
     def on_export(self, event=None):
         pass
+
+    def on_function_clear(self, event=None):
+        self.editor.on_function_clear(event)
+
+    def on_function_flip(self, event=None):
+        self.editor.on_function_flip(event)
+
+    def on_function_invert(self, event=None):
+        self.editor.on_function_invert(event)
+
+    def on_function_mirror(self, event=None):
+        self.editor.on_function_mirror(event)
+
+    def on_function_revert(self, event=None):
+        self.document.revert_offset(self.current_offset)
+        self.notify_offset_changed()
+
+    def on_function_revert_enabled(self) -> bool:
+        return self.document.can_revert_offset(self.current_offset)
+
+    def on_function_rotate_left(self, event=None):
+        self.editor.on_function_rotate_left(event)
+
+    def on_function_rotate_right(self, event=None):
+        self.editor.on_function_rotate_right(event)
+
+    def on_function_rotate_up(self, event=None):
+        self.editor.on_function_rotate_up(event)
+
+    def on_function_rotate_down(self, event=None):
+        self.editor.on_function_rotate_down(event)
+
+    def on_function_undo(self, event=None):
+        return self.on_undo(event)
+
+    def on_function_undo_enabled(self) -> bool:
+        return self.document.can_undo_offset(self.current_offset)
 
     def on_import(self, char_code_offset=ZXFont.CHAR_CODE_OFFSET):
         if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
@@ -169,6 +215,11 @@ class CharacterEditor(BaseEditor):
         self.on_delete_window(self.master)
         return 'break'
 
+    def on_undo(self, event=None):
+        self.document.undo_offset(self.current_offset)
+        self.notify_offset_changed()
+        return 'break'
+
     def notify_document_changed(self):
         self.sidebar.notify_document_changed()
         self.selector.notify_document_changed()
@@ -185,6 +236,13 @@ class CharacterEditor(BaseEditor):
     def notify_scale_changed(self):
         self.editor.notify_scale_changed()
 
+    def notify_state_changed(self):
+        '''
+        Called when information has been changed, mostly used in order to
+        update UI-element state for menus etc.
+        '''
+        self.sidebar.notify_state_changed()
+
     def set_scale(self, value: int):
         self.scale = value
         self.notify_scale_changed()
@@ -198,11 +256,15 @@ class CharacterEditor(BaseEditor):
 
     @current_offset.setter
     def current_offset(self, value: int):
+        if not self._current_offset == value:
+            self.sync_offset(self.editor.to_data(), create_undo=True)
         self._current_offset = value
         self.notify_offset_changed()
 
-    def sync_offset(self, data):
-        self.document.update_offset(self._current_offset, data)
+    def sync_offset(self, data, create_undo=False):
+        self.document.update_offset(self._current_offset, data, create_undo)
+        if create_undo:
+            self.notify_state_changed()
 
     def toggle_grid(self):
         self.is_grid_enabled = not self.is_grid_enabled
@@ -235,11 +297,12 @@ class EditingArea(ttk.Frame):
         self.pixel_data = numpy.full(shape=(self.__get_canvas_height(), self.__get_canvas_width(), 3), fill_value=colour, dtype=numpy.uint8)
 
     def from_data(self, character_data):
-        for pos_y, packed in enumerate(character_data):
-            self.char_data[pos_y:] = numpy.unpackbits(packed)
+        if type(character_data) is list:
+            character_data = numpy.array(character_data, dtype=numpy.uint8), 
+        self.char_data = numpy.unpackbits(character_data).reshape(8,8)
 
     def to_data(self):
-        return [ numpy.packbits(v)[0] for v in self.char_data ]
+        return numpy.packbits(self.char_data)
 
     def __get_fill_colour(self):
         if self.char_editor.is_grid_enabled:
@@ -292,6 +355,46 @@ class EditingArea(ttk.Frame):
         if event.x < self.pixel_data.shape[1] and event.y < self.pixel_data.shape[0]:
             char_x, char_y = self.get_screen_position(event.x, event.y)
             self.__update_cell(char_x, char_y, 0)
+
+    def on_function_clear(self, event=None):
+        self.char_data[:] = 0
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_invert(self, event=None):
+        self.char_data = numpy.logical_not(self.char_data).astype(int)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_flip(self, event=None):
+        self.char_data = numpy.flip(self.char_data, axis=0)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_mirror(self, event=None):
+        self.char_data = numpy.flip(self.char_data, axis=1)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_rotate_up(self, event=None):
+        self.char_data = numpy.roll(self.char_data, -1, 0)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_rotate_down(self, event=None):
+        self.char_data = numpy.roll(self.char_data, 1, 0)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_rotate_left(self, event=None):
+        self.char_data = numpy.roll(self.char_data, -1, 1)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_rotate_right(self, event=None):
+        self.char_data = numpy.roll(self.char_data, 1, 1)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
 
     def refresh(self):
         self.pixel_data[:] = self.__get_fill_colour()
@@ -351,7 +454,6 @@ class EditingArea(ttk.Frame):
         if char_y < 0 or char_y >= 8:
             char_y = -1
         return (char_x, char_y)
-
 
     def __flip_canvas(self):
         pil_img = Image.fromarray(self.pixel_data)
@@ -545,34 +647,79 @@ class Selector(ttk.Frame):
         self.char_editor.current_offset = values[0]
 
 
+type SidebarFunction = typing.Callable[[], None]
+type SidebarFunctionCheck = typing.Callable[[], bool]
+
 class Sidebar(ttk.Frame):
     char_editor: CharacterEditor
 
     def __init__(self, master, char_editor: CharacterEditor):
         super().__init__(master, style='dark', padding=(4, 4), borderwidth=1, relief='flat')
         self.char_editor = char_editor
+        self.section_padding = (4,4)
+        self.__next_row = 0
         self.__create_details()
+        self.__create_functions()
 
     def __create_details(self):
-        self.details = ttk.Frame(self)
-        self.details.grid(row=0, column=0, sticky=NW)
+        self.details = ttk.Frame(self, padding=(10, 10))
+        self.details.grid(row=0, column=0, sticky=EW)
         self.details.columnconfigure(1, weight=1)
 
-        padding = (4,4)
-        self.doc_type = ttk.Label(self.details, text='Definition type:', padding=padding, style='info')
+        self.doc_type = ttk.Label(self.details, text='Definition type:', padding=self.section_padding, style='info')
         self.doc_type.grid(row=0, column=0, sticky=W)
-        self.doc_type_value = ttk.Label(self.details, text=self.char_editor.document.get_type(), padding=padding)
+        self.doc_type_value = ttk.Label(self.details, text=self.char_editor.document.get_type(), padding=self.section_padding)
         self.doc_type_value.grid(row=0, column=1, sticky=EW)
         
-        self.doc_offset = ttk.Label(self.details, text='Base offset:', padding=padding, style='info')
+        self.doc_offset = ttk.Label(self.details, text='Base offset:', padding=self.section_padding, style='info')
         self.doc_offset.grid(row=1, column=0, sticky=W)
-        self.doc_offset_value = ttk.Label(self.details, text=self.char_editor.document.char_code_offset, padding=padding)
+        self.doc_offset_value = ttk.Label(self.details, text=self.char_editor.document.char_code_offset, padding=self.section_padding)
         self.doc_offset_value.grid(row=1, column=1, sticky=EW)
 
-        self.doc_selected = ttk.Label(self.details, text='Selected:', padding=padding, style='info')
+        self.doc_selected = ttk.Label(self.details, text='Selected:', padding=self.section_padding, style='info')
         self.doc_selected.grid(row=3, column=0, sticky=W)
-        self.doc_selected_value = ttk.Label(self.details, text=self.char_editor.current_offset, padding=padding)
+        self.doc_selected_value = ttk.Label(self.details, text=self.char_editor.current_offset, padding=self.section_padding)
         self.doc_selected_value.grid(row=3, column=1, sticky=EW)
+
+    def __create_functions(self):
+        self.functions = ttk.Frame(self, padding=(0, 0))
+        self.functions.grid(row=1, column=0, sticky=EW)
+
+        self.function_checks: list[tuple[ttk.Button, SidebarFunctionCheck]] = []
+        self.__create_button('Undo', 'function-undo', self.char_editor.on_function_undo, row=self.__next_row, column=0, check_func=self.char_editor.on_function_undo_enabled)
+        self.__create_button('Revert', 'function-revert', self.char_editor.on_function_revert, row=self.__next_row, column=1, check_func=self.char_editor.on_function_revert_enabled)
+        self.__next_row += 1
+        self.__create_button('Clear', 'function-clear', self.char_editor.on_function_clear, row=self.__next_row, column=0)
+        self.__create_button('Invert', 'function-invert', self.char_editor.on_function_invert, row=self.__next_row, column=1)
+        self.__next_row += 1
+        self.__create_button('Flip', 'function-flip', self.char_editor.on_function_flip, row=self.__next_row, column=0)
+        self.__create_button('Mirror', 'function-mirror', self.char_editor.on_function_mirror, row=self.__next_row, column=1)
+        self.__next_row += 1
+        self.__create_button('Shift Up', 'function-shift-up', self.char_editor.on_function_rotate_up, row=self.__next_row, column=0)
+        self.__create_button('Shift Down', 'function-shift-down', self.char_editor.on_function_rotate_down, row=self.__next_row, column=1)
+        self.__next_row += 1
+        self.__create_button('Shift Left', 'function-shift-left', self.char_editor.on_function_rotate_left, row=self.__next_row, column=0)
+        self.__create_button('Shift Right', 'function-shift-right', self.char_editor.on_function_rotate_right, row=self.__next_row, column=1)
+        self.__check_buttons()
+
+    def __create_button(self, text: str, image: str, func: SidebarFunction, row, column=0, style=None, check_func: SidebarFunctionCheck|None=None):
+        btn = ttk.Button(
+            master=self.functions, 
+            text=text,
+            image=image, 
+            compound=LEFT,
+            style='danger link' if not style else style,
+            padding=0,
+            command=func,
+            state='normal'
+        )
+        btn.grid(row=row, column=column, sticky=W, padx=10)
+        if check_func:
+            self.function_checks.append((btn, check_func))
+
+    def __check_buttons(self):
+        for button, check_func in self.function_checks:
+            button.configure(state='normal' if check_func() else 'disable')
 
     def notify_document_changed(self):
         self.doc_type_value.configure(text=self.char_editor.document.get_type())
@@ -581,6 +728,10 @@ class Sidebar(ttk.Frame):
 
     def notify_offset_changed(self):
         self.doc_selected_value.configure(text=self.char_editor.current_offset)
+        self.__check_buttons()
+
+    def notify_state_changed(self):
+        self.__check_buttons()
 
 class Status(ttk.Frame):
     char_editor: CharacterEditor
