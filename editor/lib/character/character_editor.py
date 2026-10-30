@@ -64,7 +64,7 @@ class CharacterEditor(BaseEditor):
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
 
         self.master.bind("<Control-KeyPress-g>", self.on_toggle_grid)
-        self.master.bind("<Control-KeyPress-n>", self.on_new)
+        self.master.bind("<Control-KeyPress-n>", self.on_create_font)
         self.master.bind("<Control-KeyPress-o>", self.on_open)
         self.master.bind("<Control-KeyPress-s>", self.on_save)
         self.master.bind("<Control-KeyPress-q>", self.on_quit)
@@ -142,6 +142,17 @@ class CharacterEditor(BaseEditor):
     def on_function_undo_enabled(self) -> bool:
         return self.document.can_undo_offset(self.current_offset)
 
+    def on_create(self, char_code_offset=ZXFont.CHAR_CODE_OFFSET):
+        if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
+            return
+        self.document = ZXFontDefinition(char_code_offset)
+        self._current_offset = 0
+        self.notify_document_changed()
+
+    def on_create_font(self, event=None):
+        self.on_create(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
+        return 'break'
+
     def on_import(self, char_code_offset=ZXFont.CHAR_CODE_OFFSET):
         if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
             return
@@ -157,13 +168,6 @@ class CharacterEditor(BaseEditor):
             self.set_error(f'Load error: {e}')
             print(e)
         return 'break'
-
-    def on_new(self, event=None):
-        if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
-            return
-        self.document = ZXFontDefinition()
-        self._current_offset = 0
-        self.notify_document_changed()
 
     def on_open(self, event=None):
         try:
@@ -469,12 +473,15 @@ class Menu(ttk.Frame):
         self.__next_id: int|None = None
 
         ## New...
-        btn = ttk.Button(
+        create_options = ttk.Menu(self)
+        create_options.add_command(label="Font", command=self.on_create_font)
+        create_options.add_command(label="Glyphs", command=self.on_create_glyphs)
+        btn = ttk.Menubutton(
             master=self,
             text='New...',
             image='new-project', 
             compound=LEFT, 
-            command=self.char_editor.on_new
+            menu=create_options
         )
         btn.grid(row=0, column=self.__next_column())
 
@@ -570,6 +577,12 @@ class Menu(ttk.Frame):
         else:
             self.__next_id += 1
         return self.__next_id
+
+    def on_create_font(self):
+        self.char_editor.on_create(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
+
+    def on_create_glyphs(self):
+        self.char_editor.on_create(char_code_offset=ZXGlyph.CHAR_CODE_OFFSET)
 
     def on_import_font(self):
         self.char_editor.on_import(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
