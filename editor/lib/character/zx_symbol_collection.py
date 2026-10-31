@@ -1,13 +1,32 @@
-import numpy, yaml, typing
+import numpy, yaml, typing, enum
+from abc import ABC, abstractmethod
 from pathlib import Path
 from .. import BaseDocument, ZXLogger, ZXFont, ZXGlyph, UDG, CustomCharacter, utilities
 type Symbols = list[ZXDefinitionCharacter]
 
-class ZXFontDefinition(BaseDocument):
+
+class ZXSymbolType(enum.Enum):
+    FONT = enum.auto()
+    GLYPH = enum.auto()
+    UDG = enum.auto()
+
+
+class ZXSymbolCollection(BaseDocument):
     def __init__(self, char_code_offset: int=ZXFont.CHAR_CODE_OFFSET, symbols: Symbols|None=None, debug_enabled: bool=False):
         super().__init__(debug_enabled)
         self._char_code_offset = char_code_offset
-        self.symbols: Symbols = [ ZXDefinitionCharacter() ] if symbols is None else symbols
+        self.symbols: Symbols = [] if symbols is None else symbols
+        self.__pad_symbols()
+        self.__truncate_symbols()
+
+    def __pad_symbols(self):
+        'Pad out missing offsets to full size'
+        for x in range(len(self.symbols), self.max_symbols()):
+            self.symbols.append(ZXDefinitionCharacter())
+
+    def __truncate_symbols(self):
+        'Truncate symbols by chopping off any extras'
+        self.symbols = self.symbols[0:self.max_symbols()]
 
     @property
     def char_code_offset(self):
@@ -40,7 +59,7 @@ class ZXFontDefinition(BaseDocument):
         if len(self.symbols) == 0:
             return None
         if len(self.symbols) < offset:
-            return 0
+            return (len(self.symbols) - 1)
         return offset
 
     def get_offset(self, offset: int):
@@ -58,16 +77,28 @@ class ZXFontDefinition(BaseDocument):
         for offset, symbol in enumerate(self.symbols):
             yield (offset, self.char_code_offset + offset, symbol)
 
-    def get_type(self):
-        if self.is_font():
-            return 'Characters'
-        return 'Glyphs'
+    @abstractmethod
+    def get_type_description(self):
+        ...
+
+    @classmethod
+    def get_type(cls, symbol_type: ZXSymbolType) -> ZXSymbolCollection:
+        match symbol_type:
+            case ZXSymbolType.FONT:
+                return ZXFontCollection
+            case ZXSymbolType.GLYPH:
+                return ZXGlyphCollection
+            case _:
+                raise ValueError(f'Unknown symbol type - {symbol_type}')
+
+    def is_type(self, symbol_type: ZXSymbolType) -> bool:
+        return isinstance(self, self.get_type(symbol_type))
 
     def is_font(self) -> bool:
-        return self.char_code_offset == ZXFont.CHAR_CODE_OFFSET
+        return False
 
     def is_glyphs(self) -> bool:
-        return not self.is_font()
+        return False
 
     def import_bin(self, file_path: Path):
         self.symbols = []
@@ -75,6 +106,8 @@ class ZXFontDefinition(BaseDocument):
         data = loader.from_file(path=file_path)
         for offset, data in data.symbols():
             self.symbols.append(ZXDefinitionCharacter(data))
+        self.__pad_symbols()
+        self.__truncate_symbols()
         self._changes = True
 
     def to_dict(self):
@@ -94,25 +127,94 @@ class ZXFontDefinition(BaseDocument):
         }
 
     @classmethod
-    def from_binary(cls, file_path: Path, char_code_offset: int=ZXFont.CHAR_CODE_OFFSET) -> typing.Self:
+    @abstractmethod
+    def get_char_code_offset(cls):
+        ...
+
+    @classmethod
+    def from_binary(cls, file_path: Path, symbol_type: ZXSymbolType) -> typing.Self:
         ZXLogger.get_instance().debug('Importing data from', file_path)
-        doc: ZXFontDefinition = ZXFontDefinition(char_code_offset)
+        doc: ZXSymbolCollection = ZXSymbolCollection.from_type(symbol_type)
         doc.import_bin(file_path)
         return doc
 
     @classmethod
     def from_dict(cls, data: dict[str, typing.Any]) -> typing.Any:
         root = super().from_dict(data)
-        return ZXFontDefinition(
+        return ZXSymbolCollection(
             char_code_offset=root['char_code_offset'],
             symbols=[ZXDefinitionCharacter.from_dict(v) for v in root['symbols']]
         )
+
+    @classmethod
+    def from_file(cls, document_path, symbol_type: ZXSymbolType):
+        return super().from_file(document_path)
+
+    @classmethod
+    def from_type(cls, symbol_type: ZXSymbolType, symbols: Symbols|None=None, debug_enabled: bool=False) -> typing.Self:
+        match symbol_type:
+            case ZXSymbolType.FONT:
+                return ZXFontCollection(symbols, debug_enabled)
+            case ZXSymbolType.GLYPH:
+                return ZXGlyphCollection(symbols, debug_enabled)
+            # case ZXSymbolTypes.TOKEN:
+            #     pass
+            case _:
+                raise ValueError(f'Unknown symbol type - {symbol_type}')
+
+    @abstractmethod
+    def max_symbols(cls):
+        ...
+
+    @classmethod
+    def max_offset(cls):
+        return (cls.max_symbols - 1)
+    
+
+class ZXFontCollection(ZXSymbolCollection):
+    def __init__(self, symbols=None, debug_enabled=False):
+        super().__init__(ZXFont.CHAR_CODE_OFFSET, symbols, debug_enabled)
+
+    def get_type_description(self):
+        return 'Characters'
+
+    def is_font(self):
+        return True
+
+    @classmethod
+    def get_char_code_offset(cls):
+        return ZXFont.CHAR_CODE_OFFSET
+
+    @classmethod
+    def max_symbols(cls):
+        return (ZXGlyph.CHAR_CODE_OFFSET - ZXFont.CHAR_CODE_OFFSET)
+
+
+class ZXGlyphCollection(ZXSymbolCollection):
+    def __init__(self, symbols=None, debug_enabled=False):
+        super().__init__(ZXGlyph.CHAR_CODE_OFFSET, symbols, debug_enabled)
+
+    def get_type_description(self):
+        return 'Glyphs'
+
+    def is_glyphs(self):
+        return True
+
+    @classmethod
+    def get_char_code_offset(cls):
+        return ZXGlyph.CHAR_CODE_OFFSET
+
+    @classmethod
+    def max_symbols(cls):
+        return 128
+
 
 class ZXDefinitionCharacter(CustomCharacter):
     def __init__(self, data: UDG|None=None):
         self.revert = self.sanitize_data(data) if data is not None else None
         self.undo: list[UndoData] = []
-        super().__init__(self.sanitize_data(data) if data is not None else None)
+        data = self.sanitize_data(self.generate_blank_glyph()) if data is None else data
+        super().__init__(self.sanitize_data(data))
 
     def update(self, data: UDG, create_undo: bool):
         data = self.sanitize_data(data)

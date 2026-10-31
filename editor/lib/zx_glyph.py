@@ -5,6 +5,8 @@ from .zx_symbol import ZXSymbol
 class ZXGlyph(ZXSymbol):
     CHAR_CODE_OFFSET = 0x80
     'Offset added to index to get character code'
+    GLYPH_OFFSET_EXT = 0x90
+    'Start of extended symbol set'
     GLYPH_OFFSET_UDG = 0xf0
     'Start of user definable graphics'
     GLYPH_LAST_SYMBOL = 0xff

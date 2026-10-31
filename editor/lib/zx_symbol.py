@@ -263,7 +263,7 @@ class CustomCharacter:
     @data.setter
     def data(self, data: UDG):
         if data is None:
-            data = ZXSymbol.generate_blank_glyph()
+            data = self.generate_blank_glyph()
         if not len(data) == 8:
             raise ValueError('Not 8x8 UDG')
         self._data = data
@@ -271,7 +271,10 @@ class CustomCharacter:
     def to_dict(self):
         return [ BinaryYAML(v) for v in self.data ]
 
-
     @classmethod
     def from_dict(cls, data: list[int]) -> typing.Self:
         return cls(numpy.array(data, dtype=numpy.uint8))
+
+    @classmethod
+    def generate_blank_glyph(cls):
+        return ZXSymbol.generate_blank_glyph()

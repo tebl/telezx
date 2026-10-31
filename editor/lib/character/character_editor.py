@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 from .. import BaseEditor, ZXAttributeRGB, ZXFont, ZXGlyph, utilities, LicenseDialog, AboutDialog
-from .zx_font_definition import ZXFontDefinition
+from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
 
 class CharacterEditor(BaseEditor):
@@ -32,10 +32,12 @@ class CharacterEditor(BaseEditor):
         You should have received a copy of the GNU General Public License
         along with this program.  If not, see <https://www.gnu.org/licenses/>.'''
     
-    FILE_TYPE = 'ZXFont'
-    FILE_EXTENSION = '.zxfont'
-    BINARY_TYPE = 'Binary'
-    BINARY_EXTENSION = '.bin'
+    FILE_FONT_TYPE = 'ZXFont'
+    FILE_FONT_EXTENSION = '.zxfont'
+    FILE_GLYPH_TYPE = 'ZXGlyph'
+    FILE_GLYPH_EXTENSION = '.zxglyph'
+    FILE_BINARY_TYPE = 'Binary'
+    FILE_BINARY_EXTENSION = '.bin'
 
 
     def __init__(self, *args, **kwargs):
@@ -46,7 +48,7 @@ class CharacterEditor(BaseEditor):
         self.is_debug_enabled: bool=True
         self.is_grid_enabled: bool=True
 
-        self.document = ZXFontDefinition()
+        self.document: ZXSymbolCollection = ZXFontCollection()
         self._current_offset: int=0
 
         self.rowconfigure(2, weight=1)
@@ -142,24 +144,28 @@ class CharacterEditor(BaseEditor):
     def on_function_undo_enabled(self) -> bool:
         return self.document.can_undo_offset(self.current_offset)
 
-    def on_create(self, char_code_offset=ZXFont.CHAR_CODE_OFFSET):
+    def on_create(self, symbol_type: ZXSymbolType):
         if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
             return
-        self.document = ZXFontDefinition(char_code_offset)
+        self.document = ZXSymbolCollection.from_type(symbol_type, debug_enabled=self.debug_enabled)
         self._current_offset = 0
         self.notify_document_changed()
 
     def on_create_font(self, event=None):
-        self.on_create(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
+        self.on_create(ZXSymbolType.FONT)
         return 'break'
 
-    def on_import(self, char_code_offset=ZXFont.CHAR_CODE_OFFSET):
+    def on_create_glyphs(self):
+        self.on_create(ZXSymbolType.GLYPH)
+        return 'break'
+
+    def on_import(self, symbol_type: ZXSymbolType):
         if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
             return
         try:
-            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[(self.BINARY_TYPE, (f'*{self.BINARY_EXTENSION}')), ("All files", "*.*")], multiple=False)
+            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[(self.FILE_BINARY_TYPE, (f'*{self.FILE_BINARY_EXTENSION}')), ("All files", "*.*")], multiple=False)
             if filename:
-                self.document = ZXFontDefinition.from_binary(filename, char_code_offset)
+                self.document = ZXSymbolCollection.from_binary(filename, symbol_type)
                 self.notify_document_changed()
                 self.set_status(f'Symbols loaded from {filename}')
         except Exception as e:
@@ -169,12 +175,26 @@ class CharacterEditor(BaseEditor):
             print(e)
         return 'break'
 
+    def on_import_font(self):
+        self.on_import(ZXSymbolType.FONT)
+        return 'break'
+
+    def on_import_glyphs(self):
+        self.on_import(ZXSymbolType.GLYPH)
+        return 'break'
+
     def on_open(self, event=None):
         try:
-            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[(self.FILE_TYPE, (f'*{self.FILE_EXTENSION}')), ("All files", "*.*")], multiple=False)
+            filename = filedialog.askopenfilename(parent=self, 
+                                                  title='Open project', 
+                                                  filetypes=[
+                                                      (self.FILE_FONT_TYPE, (f'*{self.FILE_FONT_EXTENSION}')), 
+                                                      (self.FILE_GLYPH_TYPE, (f'*{self.FILE_GLYPH_EXTENSION}')), 
+                                                      ("All files", "*.*")], 
+                                                  multiple=False)
             if filename:
                 if not self.document.has_changes() or self._allow_discard('Document unsaved') == 'OK':
-                    self.document = ZXFontDefinition.from_file(filename)
+                    self.document = ZXSymbolCollection.from_file(filename)
                     self._current_offset = self.document.constrain_offset(self._current_offset)
                     self.notify_document_changed()
                     self.set_status(f'Document loaded: {self.document.document_path}')
@@ -200,7 +220,7 @@ class CharacterEditor(BaseEditor):
     def on_save(self, event=None):
         if self.document.is_untitled():
             try:
-                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[(self.FILE_TYPE, (f'*{self.FILE_EXTENSION}')), ("All files", "*.*")], defaultextension=self.FILE_EXTENSION, confirmoverwrite=True)
+                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[(self.FILE_FONT_TYPE, (f'*{self.FILE_FONT_EXTENSION}')), ("All files", "*.*")], defaultextension=self.FILE_FONT_EXTENSION, confirmoverwrite=True)
                 if not filename:
                     return
                 self.document.document_path = filename
@@ -250,6 +270,9 @@ class CharacterEditor(BaseEditor):
     def set_scale(self, value: int):
         self.scale = value
         self.notify_scale_changed()
+
+    def set_error(self, message):
+        self.set_status(message)
 
     def set_status(self, message):
         self.status.set_status(message)
@@ -474,11 +497,11 @@ class Menu(ttk.Frame):
 
         ## New...
         create_options = ttk.Menu(self)
-        create_options.add_command(label="Font", command=self.on_create_font)
-        create_options.add_command(label="Glyphs", command=self.on_create_glyphs)
+        create_options.add_command(label="Font", command=self.char_editor.on_create_font)
+        create_options.add_command(label="Glyphs", command=self.char_editor.on_create_glyphs)
         btn = ttk.Menubutton(
             master=self,
-            text='New...',
+            text='New',
             image='new-project', 
             compound=LEFT, 
             menu=create_options
@@ -507,8 +530,8 @@ class Menu(ttk.Frame):
 
         ## Import
         import_options = ttk.Menu(self)
-        import_options.add_command(label="Font", command=self.on_import_font)
-        import_options.add_command(label="Glyphs", command=self.on_import_glyphs)
+        import_options.add_command(label="Font", command=self.char_editor.on_import_font)
+        import_options.add_command(label="Glyphs", command=self.char_editor.on_import_glyphs)
         btn = ttk.Menubutton(
             master=self,
             text="Import",
@@ -578,18 +601,6 @@ class Menu(ttk.Frame):
             self.__next_id += 1
         return self.__next_id
 
-    def on_create_font(self):
-        self.char_editor.on_create(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
-
-    def on_create_glyphs(self):
-        self.char_editor.on_create(char_code_offset=ZXGlyph.CHAR_CODE_OFFSET)
-
-    def on_import_font(self):
-        self.char_editor.on_import(char_code_offset=ZXFont.CHAR_CODE_OFFSET)
-
-    def on_import_glyphs(self):
-        self.char_editor.on_import(char_code_offset=ZXGlyph.CHAR_CODE_OFFSET)
-
     def notify_grid_changed(self):
         img_name = 'grid-enabled' if self.char_editor.is_grid_enabled else 'grid-disabled'
         self.button_grid.config(image=img_name)
@@ -605,7 +616,7 @@ class Selector(ttk.Frame):
         self.view.heading('Offset', text="Offset")
         self.view.heading('CharCode', text="Character")
         self.view.heading('ASCII', text="ASCII")
-        self.view.column('#0', width=80, anchor=W, stretch=False)
+        self.view.column('#0', width=90, anchor=W, stretch=False)
         self.view.column('Offset', width=50, anchor=E, stretch=False)
         self.view.column('CharCode', width=50, anchor=E, stretch=False)
         self.view.column('ASCII', width=50, anchor=CENTER, stretch=False)
@@ -628,17 +639,34 @@ class Selector(ttk.Frame):
 
     def notify_document_changed(self):
         self.clear()
-        if self.char_editor.document.is_font():
-            self.root = self.view.insert('', 'end', text='Characters', open=True)
+        if self.char_editor.document.is_type(ZXSymbolType.FONT):
+            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=False)
+            alpha = self.view.insert('', 'end', text='Letters', open=False)
+            numeric = self.view.insert('', 'end', text='Numbers', open=False)
             if self.char_editor.document.symbols:
                 for offset, char_code, symbol in self.char_editor.document.get_symbols():
                     ascii = ZXFont.get_comparable_ascii(char_code)
-                    self.view.insert(self.root, "end", values=(offset, char_code, ascii))
-        else:
-            self.root = self.view.insert('', 'end', text='Glyphs', open=True)
+                    parent = root
+                    if ascii in string.ascii_letters:
+                        parent = alpha
+                    elif ascii in string.digits:
+                        parent = numeric
+                    string.ascii_letters
+                    self.view.insert(parent, "end", values=(offset, char_code, ascii))
+        elif self.char_editor.document.is_type(ZXSymbolType.GLYPH):
+            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=False)
+            ext = self.view.insert('', 'end', text='Extended', open=False)
+            udg = self.view.insert('', 'end', text='UDG', open=False)
             if self.char_editor.document.symbols:
                 for offset, char_code, symbol in self.char_editor.document.get_symbols():
-                    self.view.insert(self.root, "end", values=(offset, char_code, ''))
+                    parent = root
+                    if char_code >= ZXGlyph.GLYPH_OFFSET_UDG:
+                        parent = udg
+                    elif char_code >= ZXGlyph.GLYPH_OFFSET_EXT:
+                        parent = ext
+                    self.view.insert(parent, "end", values=(offset, char_code, ''))
+        else:
+            raise ValueError('Unknown document type')
 
     def on_click(self, event=None):
         row = self.view.identify_row(event.y)
@@ -681,7 +709,7 @@ class Sidebar(ttk.Frame):
 
         self.doc_type = ttk.Label(self.details, text='Definition type:', padding=self.section_padding, style='info')
         self.doc_type.grid(row=0, column=0, sticky=W)
-        self.doc_type_value = ttk.Label(self.details, text=self.char_editor.document.get_type(), padding=self.section_padding)
+        self.doc_type_value = ttk.Label(self.details, text=self.char_editor.document.get_type_description(), padding=self.section_padding)
         self.doc_type_value.grid(row=0, column=1, sticky=EW)
         
         self.doc_offset = ttk.Label(self.details, text='Base offset:', padding=self.section_padding, style='info')
@@ -735,7 +763,7 @@ class Sidebar(ttk.Frame):
             button.configure(state='normal' if check_func() else 'disable')
 
     def notify_document_changed(self):
-        self.doc_type_value.configure(text=self.char_editor.document.get_type())
+        self.doc_type_value.configure(text=self.char_editor.document.get_type_description())
         self.doc_offset_value.configure(text=self.char_editor.document.char_code_offset)
         self.notify_offset_changed()
 
@@ -745,6 +773,7 @@ class Sidebar(ttk.Frame):
 
     def notify_state_changed(self):
         self.__check_buttons()
+
 
 class Status(ttk.Frame):
     char_editor: CharacterEditor
