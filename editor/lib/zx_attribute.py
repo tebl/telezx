@@ -4,6 +4,8 @@ from . import utilities
 class ZXAttribute:
     MIN = 0x00
     MAX = 0xff
+    RGB_BASE = 0xc0
+    RGB_FULL = 0xff
 
     # Attributes
     BLACK   = 0b00000000
@@ -103,6 +105,30 @@ class ZXAttribute:
             return getattr(self, func_name)(value)
         raise ValueError(f'Invalid function name {func_name}')
 
+    def to_rgb(self, is_on: bool, flash_cycle: bool=False):
+        base_colour = self.ink if is_on else self.paper
+        if self.is_flashing and flash_cycle:
+            base_colour = self.paper if is_on else self.ink
+        return self.colour_to_rgb(base_colour, self.is_bright)
+
+    @classmethod
+    def colour_to_rgb(cls, colour, is_bright):
+        base_value = cls.RGB_FULL if is_bright else cls.RGB_BASE
+        return [
+            ((colour >> 1) & 1)*base_value,  # red
+            ((colour >> 2) & 1)*base_value,  # green
+            (colour & 1)*base_value          # blue
+        ]
+
+    @classmethod
+    def from_value(cls, value: int) -> ZXAttribute:
+        return ZXAttribute(
+            is_flashing=cls.get_is_flashing_from(value),
+            is_bright=cls.get_is_bright_from(value),
+            ink=cls.get_ink_from(value),
+            paper=cls.get_paper_from(value)
+        )
+
     @classmethod
     def get_ink_from(cls, value: int) -> int:
         return int(value & 0b00000111) % (cls.WHITE + 1)
@@ -126,15 +152,6 @@ class ZXAttribute:
             (cls.BRIGHT if is_bright else 0x00) | 
             (paper << 3) |
             ink
-        )
-
-    @classmethod
-    def from_value(cls, value: int) -> ZXAttribute:
-        return ZXAttribute(
-            is_flashing=cls.get_is_flashing_from(value),
-            is_bright=cls.get_is_bright_from(value),
-            ink=cls.get_ink_from(value),
-            paper=cls.get_paper_from(value)
         )
 
     @classmethod
@@ -172,26 +189,3 @@ class ZXAttribute:
         if not colour in cls.COLOUR_TOKENS:
             raise ValueError(f'Invalid value {colour=}')
         return cls.COLOUR_TOKENS[colour]
-
-
-class ZXAttributeRGB(ZXAttribute):
-    RGB_BASE = 0xc0
-    RGB_FULL = 0xff
-
-    def __init__(self, is_flashing: bool=False, is_bright: bool=False, paper: int=ZXAttribute.BLACK, ink: int=ZXAttribute.WHITE):
-        super().__init__(is_flashing, is_bright, paper, ink)
-
-    def to_rgb(self, is_on: bool, flash_cycle: bool=False):
-        base_colour = self.ink if is_on else self.paper
-        if self.is_flashing and flash_cycle:
-            base_colour = self.paper if is_on else self.ink
-        return self.colour_to_rgb(base_colour, self.is_bright)
-
-    @classmethod
-    def colour_to_rgb(cls, colour, is_bright):
-        base_value = cls.RGB_FULL if is_bright else cls.RGB_BASE
-        return [
-            ((colour >> 1) & 1)*base_value,  # red
-            ((colour >> 2) & 1)*base_value,  # green
-            (colour & 1)*base_value          # blue
-        ]

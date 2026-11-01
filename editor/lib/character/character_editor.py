@@ -8,7 +8,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, ZXAttributeRGB, ZXFont, ZXGlyph, utilities, LicenseDialog, AboutDialog
+from .. import BaseEditor, ZXAttribute, ZXFont, ZXGlyph, utilities, LicenseDialog, AboutDialog
 from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
 from .symbol_type_dialog import SymbolTypeDialog
@@ -44,7 +44,7 @@ class CharacterEditor(BaseEditor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pack(fill=BOTH, expand=YES)
-        self.attribute = ZXAttributeRGB(ink=ZXAttributeRGB.BLACK, paper=ZXAttributeRGB.WHITE)
+        self.attribute = ZXAttribute(ink=ZXAttribute.BLACK, paper=ZXAttribute.WHITE)
         self.scale: int=48
         self.is_debug_enabled: bool=True
         self.is_grid_enabled: bool=True
