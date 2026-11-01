@@ -210,19 +210,38 @@ class CharacterEditor(BaseEditor):
                                                   multiple=False)
             if filename:
                 if not self.document.has_changes() or self._allow_discard('Document unsaved') == 'OK':
-                    self.document = self.__open_document(filename)
-                    self._current_offset = self.document.constrain_offset(self._current_offset)
-                    self.notify_document_changed()
-                    self.set_status(f'Document loaded: {self.document.document_path}')
+                    self.__load_from(filename)
+        except Exception as e:
+            traceback.print_exc()
+            Messagebox.show_error(parent=self, 
+                                  title='Load failed', 
+                                  message=f'Failed with error:\n{e}')
+            self.set_error(f'Load error: {e}')
+            print(e)
+        return 'break'
+
+    def __load_from(self, filename: Path):
+        self.document = self.__open_document(filename)
+        self._current_offset = self.document.constrain_offset(self._current_offset)
+        self.notify_document_changed()
+        self.set_status(f'Document loaded: {self.document.document_path}')
+
+    def __open_document(self, filename) -> ZXSymbolCollection:
+        return ZXSymbolCollection.get_implementation_for(filename).from_file(filename)
+
+    def load_file(self, filename: Path):
+        '''
+        Used when interactively loading a file from the shell. Will briefly
+        show an emty document before loading, but that's a glitch that we'll
+        ignore for now.
+        '''
+        try:
+            self.__load_from(filename)
         except Exception as e:
             traceback.print_exc()
             Messagebox.show_error(parent=self, title='Load failed', message=f'Failed with error:\n{e}')
             self.set_error(f'Load error: {e}')
             print(e)
-        return 'break'
-
-    def __open_document(self, filename) -> ZXSymbolCollection:
-        return ZXSymbolCollection.get_implementation_for(filename).from_file(filename)
 
     def on_open_about(self, event=None):
         AboutDialog(self).show()

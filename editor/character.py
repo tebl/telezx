@@ -6,15 +6,15 @@ from lib.character import CharacterEditor
 def main():
     parser = ArgumentParser()
     parser.description = '''
-    Editor used to edit ZXToken-pages. These reflect the internal memory
-    organization of the ZX Spectrum video memory, and can therefore either
-    be exported directly to an SCR-file or transcoded into a SPECSCII file.
+    Character editor used in order to work with standard 8x8 pixel fonts,
+    binary representation of the data can be imported and exported from
+    the application.
     '''
     parser.add_argument('-d', '--debug', action='store_true', help="Enable debug statements")
     parser.add_argument('-v', '--version', action='store_true', help="Show version information")
     parser.add_argument('-t', '--themename', help="Specify theme")
     parser.add_argument('--list-themes', action='store_true', help="List theme options")
-    parser.add_argument('path', nargs='?', help='Specify font-file to open')
+    parser.add_argument('path', nargs='?', help=f'Specify file to open ({CharacterEditor.FILE_FONT_EXTENSION} or {CharacterEditor.FILE_GLYPH_EXTENSION})')
 
     args = parser.parse_args()
     if args.version:
