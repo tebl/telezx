@@ -5,7 +5,9 @@ class ZXAttribute:
     MIN = 0x00
     MAX = 0xff
     RGB_BASE = 0xc0
+    'Used to represent standard colour intensity'
     RGB_FULL = 0xff
+    'Used for bright colours'
 
     # Attributes
     BLACK   = 0b00000000
