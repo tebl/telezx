@@ -106,7 +106,21 @@ class CharacterEditor(BaseEditor):
         return super().on_delete_window(root)
 
     def on_export(self, event=None):
-        pass
+        try:
+            filename = filedialog.asksaveasfilename(parent=self, 
+                                                    title='Export project', 
+                                                    filetypes=[
+                                                        (self.FILE_BINARY_TYPE, (f'*{self.FILE_BINARY_EXTENSION}')),
+                                                        ("All files", "*.*")], 
+                                                        defaultextension=self.FILE_BINARY_EXTENSION, 
+                                                        confirmoverwrite=True)
+            if not filename:
+                return
+            self.document.export_bin(file_path=filename)
+        except Exception as e:
+            Messagebox.show_error(parent=self, title='Failed to select file', message=f'Failed with error:\n{e}')
+            return 'break'
+
 
     def on_function_clear(self, event=None):
         self.editor.on_function_clear(event)
@@ -253,7 +267,8 @@ class CharacterEditor(BaseEditor):
         return 'break'
 
     def on_quit(self, event=None):
-        self.on_delete_window(self.master)
+        if not self.document.has_changes() or self._allow_discard('Document unsaved') == 'OK':
+            self.on_delete_window(self.master)
         return 'break'
 
     def on_undo(self, event=None):

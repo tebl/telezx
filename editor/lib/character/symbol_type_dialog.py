@@ -20,7 +20,7 @@ class SymbolTypeDialog(CustomDialog):
 
     def create_body(self, master):
         frame = ttk.Frame(master)
-        frame.pack(fill=X, expand=YES, padx=10, pady=(15, 20))
+        frame.pack(fill=X, expand=YES, padx=10, pady=(15, 5))
 
         # Ensures that we're always selecting the first option, but allow
         # updates to the value if we enconter one with the specified initial
@@ -36,7 +36,7 @@ class SymbolTypeDialog(CustomDialog):
                                     text=description, 
                                     value=document_type,
                                     variable=self.var_document)
-            radio.pack(anchor=W, padx=self.custom_pad_x)
+            radio.pack(anchor=W, padx=self.custom_pad_x, pady=0)
 
         if self.confirm_discard:
             confirm = ttk.Checkbutton(frame, 
@@ -44,35 +44,35 @@ class SymbolTypeDialog(CustomDialog):
                                     variable=self.var_confirm,
                                     bootstyle=DANGER,
                                     command=self.on_confirm)
-            confirm.pack(anchor=W, padx=self.custom_pad_x, pady=self.custom_pad_border)
+            confirm.pack(anchor=W, padx=self.custom_pad_x, pady=10)
 
         ttk.Separator(master).pack(fill=X, expand=True, pady=self.custom_pad_y)
         return frame
 
     def __options(self):
-        return (
-            (ZXFontCollection.__name__, ZXFontCollection.get_type_description()),
-            (ZXGlyphCollection.__name__, ZXGlyphCollection.get_type_description())
-        )
+        for collection in [ZXFontCollection, ZXGlyphCollection]:
+            yield (collection.__name__, collection.get_type_description())
 
     def create_buttonbox(self, master):
         frame = ttk.Frame(master)
-        frame.pack(fill=X, expand=YES, pady=(self.custom_pad_y, self.custom_pad_border))
+        frame.pack(fill=X, expand=YES)
 
-        self.btn_cancel = ttk.Button(frame, 
-                                text='Cancel',
-                                width=6,
-                                bootstyle=PRIMARY,
-                                command=self.on_cancel)
-        self.btn_cancel.pack(side=RIGHT, padx=self.custom_pad_x)
-
+        btn_padx = (0, 5)
+        btn_pady = (0, 5)
         self.btn_ok = ttk.Button(frame, 
                             text='OK',
                             width=6,
                             bootstyle=self.__btn_ok_style(),
                             command=self.on_ok)
-        self.btn_ok.pack(side=RIGHT, padx=self.custom_pad_x)
+        self.btn_ok.pack(side=RIGHT, padx=btn_padx, pady=btn_pady)
         self.btn_ok.focus_set()
+
+        self.btn_cancel = ttk.Button(frame, 
+                                text='Cancel',
+                                width=6,
+                                bootstyle=SECONDARY,
+                                command=self.on_cancel)
+        self.btn_cancel.pack(side=RIGHT, padx=btn_padx, pady=btn_pady)
 
     def __btn_ok_style(self):
         return SECONDARY if self.confirm_discard and not self.var_confirm.get() else PRIMARY

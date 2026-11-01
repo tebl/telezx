@@ -6,6 +6,8 @@ from .zx_screen import ZXScreen
 type UDG = list[int, int, int, int, int, int, int, int]
 
 class ZXSymbol:
+    CHAR_CODE_OFFSET = 0
+    'Offset added to index to get character code'
     GLYPH_WIDTH = 8
     GLYPH_HEIGHT = 8
 
