@@ -607,6 +607,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.char_editor.toggle_grid
         )
+        self.button_grid.grid(row=0, column=self.__next_column())
 
         ## About
         about_options = ttk.Menu(self)
