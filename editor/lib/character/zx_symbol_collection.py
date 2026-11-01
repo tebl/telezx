@@ -77,8 +77,9 @@ class ZXSymbolCollection(BaseDocument):
         for offset, symbol in enumerate(self.symbols):
             yield (offset, self.char_code_offset + offset, symbol)
 
+    @classmethod
     @abstractmethod
-    def get_type_description(self):
+    def get_type_description(cls):
         ...
 
     @classmethod
@@ -113,7 +114,6 @@ class ZXSymbolCollection(BaseDocument):
     def to_dict(self):
         result = self._yaml_defaults()
         root = result[self.__class__.__name__]
-        root['char_code_offset'] = self.char_code_offset
         root['symbols'] = [s.to_dict() for s in self.symbols]
         return result
 
@@ -121,7 +121,6 @@ class ZXSymbolCollection(BaseDocument):
     def _yaml_defaults(cls):
         return {
             cls.__name__: {
-                'char_code_offset': ZXFont.CHAR_CODE_OFFSET,
                 'symbols': []
             }
         }
@@ -134,33 +133,58 @@ class ZXSymbolCollection(BaseDocument):
     @classmethod
     def from_binary(cls, file_path: Path, symbol_type: ZXSymbolType) -> typing.Self:
         ZXLogger.get_instance().debug('Importing data from', file_path)
-        doc: ZXSymbolCollection = ZXSymbolCollection.from_type(symbol_type)
+        doc: ZXSymbolCollection = ZXSymbolCollection.create_from_type(symbol_type=symbol_type)
         doc.import_bin(file_path)
         return doc
 
     @classmethod
-    def from_dict(cls, data: dict[str, typing.Any]) -> typing.Any:
+    def from_dict(cls, data: dict[str, typing.Any], debug_enabled: bool=False) -> typing.Any:
         root = super().from_dict(data)
-        return ZXSymbolCollection(
-            char_code_offset=root['char_code_offset'],
-            symbols=[ZXDefinitionCharacter.from_dict(v) for v in root['symbols']]
+        return cls(
+            symbols=[ZXDefinitionCharacter.from_dict(v) for v in root['symbols']],
+            debug_enabled=debug_enabled
         )
 
     @classmethod
-    def from_file(cls, document_path, symbol_type: ZXSymbolType):
-        return super().from_file(document_path)
+    def get_subclass_matching(cls, symbol_type: ZXSymbolType|None=None, type_string: str|None=None):
+        if symbol_type is not None:
+            return cls.get_subclass_matching_type(symbol_type)
+        if type_string is not None:
+            return cls.get_subclass_matching_str(type_string)
+        raise ValueError(f'No identifier parameters specified!')
 
     @classmethod
-    def from_type(cls, symbol_type: ZXSymbolType, symbols: Symbols|None=None, debug_enabled: bool=False) -> typing.Self:
+    def get_subclass_matching_str(cls, type_string: str) -> typing.Type[ZXSymbolCollection]:
+        match type_string:
+            case ZXFontCollection.__name__:
+                return ZXFontCollection
+            case ZXGlyphCollection.__name__:
+                return ZXGlyphCollection
+            case _:
+                raise ValueError(f'Unknown symbol type - {type_string}')
+
+    @classmethod
+    def get_subclass_matching_type(cls, symbol_type: ZXSymbolType) -> typing.Type[ZXSymbolCollection]:
         match symbol_type:
-            case ZXSymbolType.FONT:
-                return ZXFontCollection(symbols, debug_enabled)
-            case ZXSymbolType.GLYPH:
-                return ZXGlyphCollection(symbols, debug_enabled)
-            # case ZXSymbolTypes.TOKEN:
-            #     pass
+            case ZXFontCollection.__name__:
+                return ZXFontCollection
+            case ZXGlyphCollection.__name__:
+                return ZXGlyphCollection
             case _:
                 raise ValueError(f'Unknown symbol type - {symbol_type}')
+
+    @classmethod
+    def get_implementation_for(cls, document_path) -> ZXSymbolCollection:
+        symbol_type_string = cls.peek_filetype(document_path)
+        return cls.get_subclass_matching_str(type_string=symbol_type_string)
+
+    @classmethod
+    def create_from_type(cls, symbol_type: ZXSymbolType, symbols: Symbols|None=None, debug_enabled: bool=False) -> typing.Self:
+        return cls.get_subclass_matching_type(symbol_type)(symbols=symbols, debug_enabled=debug_enabled)
+
+    @classmethod
+    def create_from_str(cls, symbol_type: str, symbols: Symbols|None=None, debug_enabled: bool=False) -> typing.Self:
+        return cls.get_subclass_matching_str(type_string=symbol_type)(symbols=symbols, debug_enabled=debug_enabled)
 
     @abstractmethod
     def max_symbols(cls):
@@ -175,15 +199,16 @@ class ZXFontCollection(ZXSymbolCollection):
     def __init__(self, symbols=None, debug_enabled=False):
         super().__init__(ZXFont.CHAR_CODE_OFFSET, symbols, debug_enabled)
 
-    def get_type_description(self):
-        return 'Characters'
-
     def is_font(self):
         return True
 
     @classmethod
     def get_char_code_offset(cls):
         return ZXFont.CHAR_CODE_OFFSET
+
+    @classmethod
+    def get_type_description(cls):
+        return 'Characters'
 
     @classmethod
     def max_symbols(cls):
@@ -194,15 +219,16 @@ class ZXGlyphCollection(ZXSymbolCollection):
     def __init__(self, symbols=None, debug_enabled=False):
         super().__init__(ZXGlyph.CHAR_CODE_OFFSET, symbols, debug_enabled)
 
-    def get_type_description(self):
-        return 'Glyphs'
-
     def is_glyphs(self):
         return True
 
     @classmethod
     def get_char_code_offset(cls):
         return ZXGlyph.CHAR_CODE_OFFSET
+
+    @classmethod
+    def get_type_description(self):
+        return 'Glyphs'
 
     @classmethod
     def max_symbols(cls):

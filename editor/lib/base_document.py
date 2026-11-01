@@ -81,9 +81,21 @@ class BaseDocument(ABC):
         return doc
 
     @classmethod
+    def peek_filetype(cls, document_path: Path) -> str:
+        data = cls._read_yaml(document_path)
+        if data is None or not len(data) == 1:
+            raise ValueError("does not look like a TeleZX-file")
+        for key in data.keys():
+            return key
+
+    @classmethod
     def _get_yaml(cls, yaml_path) -> dict[str, typing.Any]:
+        data = cls._read_yaml(yaml_path)
+        if data is None or cls.__name__ not in data:
+            raise ValueError("does not look like a {}-file".format(cls.__name__))
+        return data
+
+    @classmethod
+    def _read_yaml(cls, yaml_path) -> dict[str, typing.Any]:
         with open(yaml_path, 'r') as file:
-            data = yaml.safe_load(file)
-            if data is None or cls.__name__ not in data:
-                raise ValueError("does not look like a {}-file".format(cls.__name__))
-            return data
+            return yaml.safe_load(file)

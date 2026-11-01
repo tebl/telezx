@@ -11,6 +11,7 @@ from PIL import Image, ImageTk
 from .. import BaseEditor, ZXAttributeRGB, ZXFont, ZXGlyph, utilities, LicenseDialog, AboutDialog
 from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
+from .symbol_type_dialog import SymbolTypeDialog
 
 class CharacterEditor(BaseEditor):
     PROGRAM_TITLE = 'ZX Character Editor'
@@ -66,7 +67,7 @@ class CharacterEditor(BaseEditor):
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
 
         self.master.bind("<Control-KeyPress-g>", self.on_toggle_grid)
-        self.master.bind("<Control-KeyPress-n>", self.on_create_font)
+        self.master.bind("<Control-KeyPress-n>", self.on_new)
         self.master.bind("<Control-KeyPress-o>", self.on_open)
         self.master.bind("<Control-KeyPress-s>", self.on_save)
         self.master.bind("<Control-KeyPress-q>", self.on_quit)
@@ -144,26 +145,26 @@ class CharacterEditor(BaseEditor):
     def on_function_undo_enabled(self) -> bool:
         return self.document.can_undo_offset(self.current_offset)
 
-    def on_create(self, symbol_type: ZXSymbolType):
-        if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
-            return
-        self.document = ZXSymbolCollection.from_type(symbol_type, debug_enabled=self.debug_enabled)
-        self._current_offset = 0
-        self.notify_document_changed()
-
-    def on_create_font(self, event=None):
-        self.on_create(ZXSymbolType.FONT)
-        return 'break'
-
-    def on_create_glyphs(self):
-        self.on_create(ZXSymbolType.GLYPH)
-        return 'break'
+    def on_new(self, event=None):
+        result = SymbolTypeDialog.get_result(self, 
+                                             title='Select project type', 
+                                             selected=self.document.__class__.__name__, 
+                                             confirm_discard=self.document.has_changes())
+        if result is not None:
+            self.document = ZXSymbolCollection.create_from_str(symbol_type=result)
+            self._current_offset = 0
+            self.notify_document_changed()
 
     def on_import(self, symbol_type: ZXSymbolType):
         if self.document.has_changes() and not self._allow_discard('Document unsaved') == 'OK':
             return
         try:
-            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[(self.FILE_BINARY_TYPE, (f'*{self.FILE_BINARY_EXTENSION}')), ("All files", "*.*")], multiple=False)
+            filename = filedialog.askopenfilename(parent=self, 
+                                                  title='Import character set', 
+                                                  filetypes=[
+                                                      (self.FILE_BINARY_TYPE, (f'*{self.FILE_BINARY_EXTENSION}')), 
+                                                      ("All files", "*.*")], 
+                                                      multiple=False)
             if filename:
                 self.document = ZXSymbolCollection.from_binary(filename, symbol_type)
                 self.notify_document_changed()
@@ -188,13 +189,14 @@ class CharacterEditor(BaseEditor):
             filename = filedialog.askopenfilename(parent=self, 
                                                   title='Open project', 
                                                   filetypes=[
+                                                      ('TeleZX', (f'*{self.FILE_FONT_EXTENSION} *{self.FILE_GLYPH_EXTENSION}')), 
                                                       (self.FILE_FONT_TYPE, (f'*{self.FILE_FONT_EXTENSION}')), 
                                                       (self.FILE_GLYPH_TYPE, (f'*{self.FILE_GLYPH_EXTENSION}')), 
                                                       ("All files", "*.*")], 
                                                   multiple=False)
             if filename:
                 if not self.document.has_changes() or self._allow_discard('Document unsaved') == 'OK':
-                    self.document = ZXSymbolCollection.from_file(filename)
+                    self.document = self.__open_document(filename)
                     self._current_offset = self.document.constrain_offset(self._current_offset)
                     self.notify_document_changed()
                     self.set_status(f'Document loaded: {self.document.document_path}')
@@ -204,6 +206,9 @@ class CharacterEditor(BaseEditor):
             self.set_error(f'Load error: {e}')
             print(e)
         return 'break'
+
+    def __open_document(self, filename) -> ZXSymbolCollection:
+        return ZXSymbolCollection.get_implementation_for(filename).from_file(filename)
 
     def on_open_about(self, event=None):
         AboutDialog(self).show()
@@ -220,7 +225,14 @@ class CharacterEditor(BaseEditor):
     def on_save(self, event=None):
         if self.document.is_untitled():
             try:
-                filename = filedialog.asksaveasfilename(parent=self, title='Save project', filetypes=[(self.FILE_FONT_TYPE, (f'*{self.FILE_FONT_EXTENSION}')), ("All files", "*.*")], defaultextension=self.FILE_FONT_EXTENSION, confirmoverwrite=True)
+                description, extension = self.__get_dialog_filetypes()
+                filename = filedialog.asksaveasfilename(parent=self, 
+                                                        title='Save project', 
+                                                        filetypes=[
+                                                            (description, (f'*{extension}')),
+                                                            ("All files", "*.*")], 
+                                                            defaultextension=extension, 
+                                                            confirmoverwrite=True)
                 if not filename:
                     return
                 self.document.document_path = filename
@@ -230,6 +242,11 @@ class CharacterEditor(BaseEditor):
         self.document.save()
         self.set_status(f'Document saved: {self.document.document_path}')
         return 'break'
+
+    def __get_dialog_filetypes(self) -> tuple[str, str]:
+        if self.document.is_type(ZXSymbolType.GLYPH):
+            return (self.FILE_GLYPH_TYPE, self.FILE_GLYPH_EXTENSION)
+        return (self.FILE_FONT_TYPE, self.FILE_FONT_EXTENSION)
 
     def on_toggle_grid(self, event=None):
         self.toggle_grid()
@@ -496,15 +513,12 @@ class Menu(ttk.Frame):
         self.__next_id: int|None = None
 
         ## New...
-        create_options = ttk.Menu(self)
-        create_options.add_command(label="Font", command=self.char_editor.on_create_font)
-        create_options.add_command(label="Glyphs", command=self.char_editor.on_create_glyphs)
-        btn = ttk.Menubutton(
+        btn = ttk.Button(
             master=self,
-            text='New',
+            text='New...',
             image='new-project', 
             compound=LEFT, 
-            menu=create_options
+            command=self.char_editor.on_new
         )
         btn.grid(row=0, column=self.__next_column())
 
@@ -640,9 +654,9 @@ class Selector(ttk.Frame):
     def notify_document_changed(self):
         self.clear()
         if self.char_editor.document.is_type(ZXSymbolType.FONT):
-            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=False)
-            alpha = self.view.insert('', 'end', text='Letters', open=False)
-            numeric = self.view.insert('', 'end', text='Numbers', open=False)
+            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=True)
+            alpha = self.view.insert('', 'end', text='Letters', open=True)
+            numeric = self.view.insert('', 'end', text='Numbers', open=True)
             if self.char_editor.document.symbols:
                 for offset, char_code, symbol in self.char_editor.document.get_symbols():
                     ascii = ZXFont.get_comparable_ascii(char_code)
@@ -654,8 +668,8 @@ class Selector(ttk.Frame):
                     string.ascii_letters
                     self.view.insert(parent, "end", values=(offset, char_code, ascii))
         elif self.char_editor.document.is_type(ZXSymbolType.GLYPH):
-            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=False)
-            ext = self.view.insert('', 'end', text='Extended', open=False)
+            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=True)
+            ext = self.view.insert('', 'end', text='Extended', open=True)
             udg = self.view.insert('', 'end', text='UDG', open=False)
             if self.char_editor.document.symbols:
                 for offset, char_code, symbol in self.char_editor.document.get_symbols():
