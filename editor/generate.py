@@ -274,10 +274,15 @@ def cmd_pages(args, parser: ArgumentParser):
     if changes:
         print_document_details(document, registry, 'changed')
 
+    # Open up symbol editor if requested
+    if args.glyphs:
+        print('Opening character editor:')
+        __open_editor(args, parser, 'character.py', page)
+
     # Open up asset editor if requested
     if args.editor:
-        print('Opening asset editor:')
-        __open_editor(args, parser, page)
+        print('Opening document editor:')
+        __open_editor(args, parser, 'editor.py', page)
 
     # Export document upon request
     if args.export:
@@ -298,9 +303,9 @@ def __update_page(args, parser: ArgumentParser, document: ZXDocument, page: ZXPa
     # editing files directly. Sorry about that.
     return False
 
-def __open_editor(args, parser: ArgumentParser, page: ZXPage):
+def __open_editor(args, parser: ArgumentParser, script_name: str, page: ZXPage):
     if isinstance(page, ZXPage_Token):
-        subprocess.run([sys.executable, (utilities.get_project_root() / 'editor.py'), page.zxtoken_path])
+        subprocess.run([sys.executable, (utilities.get_project_root() / script_name), page.zxtoken_path])
         return
     parser.error(f'No asset editor for {page}')
 
@@ -683,8 +688,9 @@ def main():
     group.add_argument('--set-scr-author', type=str, default='', help="The SCR about field for author")
     group.add_argument('--set-scr-source', type=str, default='', help="The SCR about field for source")
     group.add_argument('--set-scr-license', type=str, default='', help="The SCR about field for license")
-    group.add_argument('-e', '--editor', action='store_true', help="Open asset editor")
-    group.add_argument('--export', action='store_true', help="Export affected document")
+    group.add_argument('-e', '--editor', action='store_true', help="Open document editor")
+    group.add_argument('-g', '--glyphs', action='store_true', help="Open character editor")
+    group.add_argument('-x', '--export', action='store_true', help="Export affected document")
     parser_page.set_defaults(function=cmd_pages)
 
     parser_registry = subparsers.add_parser('registry', help='Manage registry')
