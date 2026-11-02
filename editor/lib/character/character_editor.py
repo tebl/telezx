@@ -8,7 +8,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, ZXAttribute, ZXFont, ZXGlyph, utilities, LicenseDialog, AboutDialog
+from .. import BaseEditor, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog
 from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
 from .symbol_type_dialog import SymbolTypeDialog
@@ -203,9 +203,10 @@ class CharacterEditor(BaseEditor):
             filename = filedialog.askopenfilename(parent=self, 
                                                   title='Open project', 
                                                   filetypes=[
-                                                      ('TeleZX', (f'*{self.FILE_FONT_EXTENSION} *{self.FILE_GLYPH_EXTENSION}')), 
+                                                      ('TeleZX', (f'*{self.FILE_FONT_EXTENSION} *{self.FILE_GLYPH_EXTENSION} *{ZXToken.FILE_EXTENSION}')), 
                                                       (self.FILE_FONT_TYPE, (f'*{self.FILE_FONT_EXTENSION}')), 
                                                       (self.FILE_GLYPH_TYPE, (f'*{self.FILE_GLYPH_EXTENSION}')), 
+                                                      (ZXToken.DOCUMENT_TYPE, (f'*{ZXToken.FILE_EXTENSION}')), 
                                                       ("All files", "*.*")], 
                                                   multiple=False)
             if filename:
@@ -692,28 +693,31 @@ class Selector(ttk.Frame):
             root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=True)
             alpha = self.view.insert('', 'end', text='Letters', open=True)
             numeric = self.view.insert('', 'end', text='Numbers', open=True)
-            if self.char_editor.document.symbols:
-                for offset, char_code, symbol in self.char_editor.document.get_symbols():
-                    ascii = ZXFont.get_comparable_ascii(char_code)
-                    parent = root
-                    if ascii in string.ascii_letters:
-                        parent = alpha
-                    elif ascii in string.digits:
-                        parent = numeric
-                    string.ascii_letters
-                    self.view.insert(parent, "end", values=(offset, char_code, ascii))
+            for offset, char_code, symbol in self.char_editor.document.get_symbols():
+                ascii = ZXFont.get_comparable_ascii(char_code)
+                parent = root
+                if ascii in string.ascii_letters:
+                    parent = alpha
+                elif ascii in string.digits:
+                    parent = numeric
+                string.ascii_letters
+                self.view.insert(parent, "end", values=(offset, char_code, ascii))
         elif self.char_editor.document.is_type(ZXSymbolType.GLYPH):
             root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=True)
             ext = self.view.insert('', 'end', text='Extended', open=True)
             udg = self.view.insert('', 'end', text='UDG', open=False)
-            if self.char_editor.document.symbols:
-                for offset, char_code, symbol in self.char_editor.document.get_symbols():
-                    parent = root
-                    if char_code >= ZXGlyph.GLYPH_OFFSET_UDG:
-                        parent = udg
-                    elif char_code >= ZXGlyph.GLYPH_OFFSET_EXT:
-                        parent = ext
-                    self.view.insert(parent, "end", values=(offset, char_code, ''))
+            for offset, char_code, symbol in self.char_editor.document.get_symbols():
+                parent = root
+                if char_code >= ZXGlyph.GLYPH_OFFSET_UDG:
+                    parent = udg
+                elif char_code >= ZXGlyph.GLYPH_OFFSET_EXT:
+                    parent = ext
+                self.view.insert(parent, "end", values=(offset, char_code, ''))
+        elif self.char_editor.document.is_type(ZXSymbolType.UDG):
+            root = self.view.insert('', 'end', text=self.char_editor.document.get_type_description(), open=True)
+            for offset, char_code, symbol in self.char_editor.document.get_symbols():
+                parent = root
+                self.view.insert(parent, "end", values=(offset, char_code, ''))
         else:
             raise ValueError('Unknown document type')
 
@@ -763,7 +767,7 @@ class Sidebar(ttk.Frame):
         
         self.doc_offset = ttk.Label(self.details, text='Base offset:', padding=self.section_padding, style='info')
         self.doc_offset.grid(row=1, column=0, sticky=W)
-        self.doc_offset_value = ttk.Label(self.details, text=self.char_editor.document.char_code_offset, padding=self.section_padding)
+        self.doc_offset_value = ttk.Label(self.details, text=self.char_editor.document.get_char_code_offset(), padding=self.section_padding)
         self.doc_offset_value.grid(row=1, column=1, sticky=EW)
 
         self.doc_selected = ttk.Label(self.details, text='Selected:', padding=self.section_padding, style='info')
@@ -813,7 +817,7 @@ class Sidebar(ttk.Frame):
 
     def notify_document_changed(self):
         self.doc_type_value.configure(text=self.char_editor.document.get_type_description())
-        self.doc_offset_value.configure(text=self.char_editor.document.char_code_offset)
+        self.doc_offset_value.configure(text=self.char_editor.document.get_char_code_offset())
         self.notify_offset_changed()
 
     def notify_offset_changed(self):

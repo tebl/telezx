@@ -223,7 +223,7 @@ class ZXToken:
         if root['background']:
             self.set_background(root['background'])
         self.set_selected_font(root['font'])
-        self.__load_custom_characters(root['custom_characters'])
+        self.set_custom_characters(root['custom_characters'])
         self.set_selected_glyph(root['glyph'])
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
@@ -254,7 +254,7 @@ class ZXToken:
             raise ValueError("does not look like a {}-file".format(self.DOCUMENT_TYPE))
         return data
 
-    def __load_custom_characters(self, character_data: list):
+    def set_custom_characters(self, character_data: list):
         self.custom_characters = []
         for idx, cc_data in enumerate(character_data):
             self.custom_characters.append(CustomCharacter(cc_data))

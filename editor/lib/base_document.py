@@ -58,7 +58,7 @@ class BaseDocument(ABC):
 
     @classmethod
     @abstractmethod
-    def from_dict(cls, data: dict[str, typing.Any]) -> typing.Any:
+    def from_dict(cls, data: dict[str, typing.Any], debug_enabled: bool=False) -> typing.Any:
         '''
         Create object from the supplied dictionary. Parent implementation will
         apply basic structure validation, and will return the expected root
@@ -71,12 +71,13 @@ class BaseDocument(ABC):
         return data[cls.__name__]
 
     @classmethod
-    def from_file(cls, document_path: Path) -> typing.Self:
+    def from_file(cls, document_path: Path, debug_enabled: bool=False) -> typing.Self:
         ZXLogger.get_instance().debug('Loading document from', document_path)
         data = cls._yaml_defaults()
         data = utilities.update_tree(data, cls._get_yaml(document_path))
 
-        doc: typing.Self = cls.from_dict(data)
+        doc: typing.Self = cls.from_dict(data,
+                                         debug_enabled=debug_enabled)
         doc.document_path = document_path
         return doc
 

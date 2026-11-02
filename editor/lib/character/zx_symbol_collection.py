@@ -1,7 +1,7 @@
 import numpy, yaml, typing, enum
 from abc import ABC, abstractmethod
 from pathlib import Path
-from .. import BaseDocument, ZXLogger, ZXFont, ZXGlyph, ZXSymbol, UDG, CustomCharacter, utilities
+from .. import BaseDocument, ZXLogger, ZXToken, ZXFont, ZXGlyph, ZXSymbol, UDG, CustomCharacter, utilities
 type Symbols = list[ZXDefinitionCharacter]
 
 
@@ -12,9 +12,8 @@ class ZXSymbolType(enum.Enum):
 
 
 class ZXSymbolCollection(BaseDocument):
-    def __init__(self, char_code_offset: int=ZXFont.CHAR_CODE_OFFSET, symbols: Symbols|None=None, debug_enabled: bool=False):
+    def __init__(self, symbols: Symbols|None=None, debug_enabled: bool=False):
         super().__init__(debug_enabled)
-        self._char_code_offset = char_code_offset
         self.symbols: Symbols = [] if symbols is None else symbols
         self.__pad_symbols()
         self.__truncate_symbols()
@@ -27,10 +26,6 @@ class ZXSymbolCollection(BaseDocument):
     def __truncate_symbols(self):
         'Truncate symbols by chopping off any extras'
         self.symbols = self.symbols[0:self.max_symbols()]
-
-    @property
-    def char_code_offset(self):
-        return self._char_code_offset
 
     def can_revert_offset(self, offset: int) -> bool:
         return self.get_offset(offset).revert is not None
@@ -70,34 +65,26 @@ class ZXSymbolCollection(BaseDocument):
     def update_offset(self, offset: int, data: UDG, create_undo: bool):
         if offset < 0 or offset >= len(self.symbols):
             raise ValueError('offset overflow')
-        self._changes = True
-        self.symbols[offset].update(data, create_undo)
+        if self.symbols[offset].update(data, create_undo):
+            self._changes = True
 
     def get_symbols(self):
         for offset, symbol in enumerate(self.symbols):
-            yield (offset, self.char_code_offset + offset, symbol)
+            yield (offset, self.get_char_code_offset() + offset, symbol)
 
     def is_type(self, symbol_type: ZXSymbolType) -> bool:
-        return isinstance(self, self.get_type(symbol_type))
-
-    def is_font(self) -> bool:
-        return False
-
-    def is_glyphs(self) -> bool:
-        return False
+        return isinstance(self, self.get_subclass_matching_type(symbol_type))
 
     def import_bin(self, file_path: Path):
         self.symbols = []
-        loader = ZXFont if self.is_font() else ZXGlyph
-        data = loader.from_file(path=file_path)
-        for offset, data in data.symbols():
+        loader = ZXFont if self.is_type(ZXSymbolType.FONT) else ZXGlyph
+        for offset, data in loader.from_file(path=file_path).symbols():
             self.symbols.append(ZXDefinitionCharacter(data))
         self.__pad_symbols()
         self.__truncate_symbols()
         self._changes = True
 
     def export_bin(self, file_path: Path):
-        print('export', file_path)
         output = ZXSymbol.empty_file()
         for symbol in self.symbols:
             output.add_symbol(symbol.data)
@@ -134,7 +121,8 @@ class ZXSymbolCollection(BaseDocument):
 
     @classmethod
     def from_dict(cls, data: dict[str, typing.Any], debug_enabled: bool=False) -> typing.Any:
-        root = super().from_dict(data)
+        root = super().from_dict(data, 
+                                 debug_enabled=debug_enabled)
         return cls(
             symbols=[ZXDefinitionCharacter.from_dict(v) for v in root['symbols']],
             debug_enabled=debug_enabled
@@ -142,7 +130,7 @@ class ZXSymbolCollection(BaseDocument):
 
     @classmethod
     @abstractmethod
-    def get_char_code_offset(cls):
+    def get_char_code_offset(cls) -> int:
         ...
 
     @classmethod
@@ -160,8 +148,10 @@ class ZXSymbolCollection(BaseDocument):
                 return ZXFontCollection
             case ZXGlyphCollection.__name__:
                 return ZXGlyphCollection
+            case ZXToken.__name__:
+                return ZXUDGCollection
             case _:
-                raise ValueError(f'Unknown symbol type - {type_string}')
+                raise ValueError(f'Unknown project type ({type_string})')
 
     @classmethod
     def get_subclass_matching_type(cls, symbol_type: ZXSymbolType) -> typing.Type[ZXSymbolCollection]:
@@ -170,76 +160,111 @@ class ZXSymbolCollection(BaseDocument):
                 return ZXFontCollection
             case ZXSymbolType.GLYPH:
                 return ZXGlyphCollection
+            case ZXSymbolType.UDG:
+                return ZXUDGCollection
             case _:
-                raise ValueError(f'Unknown symbol type - {symbol_type}')
+                raise ValueError(f'Unknown project type ({symbol_type})')
 
     @classmethod
-    def get_implementation_for(cls, document_path) -> ZXSymbolCollection:
+    def get_implementation_for(cls, document_path: Path) -> ZXSymbolCollection:
+        '''
+        Try to parse TeleZX-document (all of them YAML), looking for the
+        document type embedded as a single root-element.
+        '''
         symbol_type_string = cls.peek_filetype(document_path)
         return cls.get_subclass_matching_str(type_string=symbol_type_string)
 
     @classmethod
     @abstractmethod
-    def get_type_description(cls):
+    def get_type_description(cls) -> str:
         ...
-
-    @classmethod
-    def get_type(cls, symbol_type: ZXSymbolType) -> ZXSymbolCollection:
-        match symbol_type:
-            case ZXSymbolType.FONT:
-                return ZXFontCollection
-            case ZXSymbolType.GLYPH:
-                return ZXGlyphCollection
-            case _:
-                raise ValueError(f'Unknown symbol type - {symbol_type}')
 
     @abstractmethod
-    def max_symbols(cls):
+    def max_symbols(cls) -> int:
         ...
 
     @classmethod
-    def max_offset(cls):
+    def max_offset(cls) -> int:
         return (cls.max_symbols - 1)
     
 
 class ZXFontCollection(ZXSymbolCollection):
-    def __init__(self, symbols=None, debug_enabled=False):
-        super().__init__(ZXFont.CHAR_CODE_OFFSET, symbols, debug_enabled)
-
-    def is_font(self):
-        return True
+    def __init__(self, symbols: Symbols=None, debug_enabled: bool=False):
+        super().__init__(symbols, debug_enabled)
 
     @classmethod
-    def get_char_code_offset(cls):
+    def get_char_code_offset(cls) -> int:
         return ZXFont.CHAR_CODE_OFFSET
 
     @classmethod
-    def get_type_description(cls):
+    def get_type_description(cls) -> str:
         return 'Characters'
 
     @classmethod
-    def max_symbols(cls):
+    def max_symbols(cls) -> int:
         return (ZXGlyph.CHAR_CODE_OFFSET - ZXFont.CHAR_CODE_OFFSET)
 
 
 class ZXGlyphCollection(ZXSymbolCollection):
-    def __init__(self, symbols=None, debug_enabled=False):
-        super().__init__(ZXGlyph.CHAR_CODE_OFFSET, symbols, debug_enabled)
-
-    def is_glyphs(self):
-        return True
+    def __init__(self, symbols: Symbols=None, debug_enabled: bool=False):
+        super().__init__(symbols, debug_enabled)
 
     @classmethod
-    def get_char_code_offset(cls):
+    def get_char_code_offset(cls) -> int:
         return ZXGlyph.CHAR_CODE_OFFSET
 
     @classmethod
-    def get_type_description(self):
+    def get_type_description(self) -> str:
         return 'Glyphs'
 
     @classmethod
-    def max_symbols(cls):
+    def max_symbols(cls) -> int:
         return 128
+
+
+class ZXUDGCollection(ZXSymbolCollection):
+    '''
+    Works with custom characters embedded as part of a ZXToken-document, with
+    functionality mostly proxied across instead by overriding
+    ZXSymbolCollection functionality. Note that the document is always expected
+    to exist beforehand.
+    '''
+    def __init__(self, symbols: Symbols=None, debug_enabled: bool=False):
+        super().__init__(symbols, debug_enabled)
+
+    def save(self) -> bool:
+        if not self.document_path:
+            raise Exception('No document set')
+        zx_token = ZXToken.from_file(self.document_path)
+        zx_token.set_custom_characters(character_data=[v.data for v in self.symbols])
+        zx_token.save()
+        self._changes = False
+        return True
+
+    @classmethod
+    def from_dict(cls, data: dict[str, typing.Any], debug_enabled: bool=False) -> typing.Any:
+        raise NotImplementedError('functionality not available')
+
+    @classmethod
+    def from_file(cls, document_path: Path, debug_enabled: bool=False) -> typing.Self:
+        zx_token = ZXToken.from_file(document_path)
+
+        doc = ZXUDGCollection([ZXDefinitionCharacter(entry.data) for entry in zx_token.custom_characters],
+                              debug_enabled)
+        doc.document_path = document_path
+        return doc
+
+    @classmethod
+    def get_char_code_offset(cls) -> int:
+        return ZXGlyph.GLYPH_OFFSET_UDG
+
+    @classmethod
+    def get_type_description(self) -> str:
+        return 'UDG'
+
+    @classmethod
+    def max_symbols(cls) -> int:
+        return 256 - ZXGlyph.GLYPH_OFFSET_UDG
 
 
 class ZXDefinitionCharacter(CustomCharacter):
@@ -249,11 +274,13 @@ class ZXDefinitionCharacter(CustomCharacter):
         data = self.sanitize_data(self.generate_blank_glyph()) if data is None else data
         super().__init__(self.sanitize_data(data))
 
-    def update(self, data: UDG, create_undo: bool):
+    def update(self, data: UDG, create_undo: bool) -> bool:
         data = self.sanitize_data(data)
         if create_undo:
             self.__create_undo(self.data)
+        changes = (not self.data == data)
         self.data = data
+        return changes
 
     def __create_undo(self, data: UDG):
         if len(self.undo) and self.undo[-1].matches(data):
@@ -263,6 +290,7 @@ class ZXDefinitionCharacter(CustomCharacter):
     @classmethod
     def sanitize_data(cls, data: UDG):
         return [int(v) for v in data]
+
 
 class UndoData:
     def __init__(self, data: UDG):
