@@ -14,7 +14,7 @@ from .copy_operation import CopyData, CopyOperation
 from .undo_operation import UndoOperation
 from .screen_region import CellDirection, ScreenNavigator, CellDirection, ScreenRegion, ScreenCoordinate
 from .editor_keyboard_dialog import EditorKeyboardDialog
-from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities
+from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities, CellCopy
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -56,7 +56,8 @@ class ZXEditor(ttk.Frame):
         self.is_bell_enabled = True
         self.is_grid_enabled = True
         self.is_sticky_enabled = False
-        self.is_insertion_enabled = False
+        self.is_insertion_enabled = True
+        self.is_squash_whitespace_enabled = True
 
         self.cursor = ScreenCoordinate(0, 0)
         self.region_screen = ScreenRegion.full()
@@ -880,7 +881,8 @@ class ZXEditor(ttk.Frame):
         self.main.notify_cursor_changed()
         self.status.notify_cursor_changed()
 
-    def insert_character(self, char_code):        
+    def insert_character(self, char_code):
+        # if self.is_insertion_enabled and self.region_highlight:
         if not self.is_insertion_enabled or not self.region_highlight:
             self.create_undo_region(ScreenRegion.from_coordinate(self.cursor))
             changed = False
@@ -894,10 +896,13 @@ class ZXEditor(ttk.Frame):
                 self.zx_token.sync_cell(self.cursor.char_x, self.cursor.char_y)
             ScreenNavigator.next(self.cursor, self.__get_cursor_region())
         else:
-            self.__insert_character(char_code, self.region_highlight)
+            self.__im_insert_character(char_code, self.region_highlight)
         self.refresh_editor()
 
-    def __insert_character(self, char_code, region: ScreenRegion):
+    def __im_insert_character(self, char_code, region: ScreenRegion):
+        '''
+        Insert character from a valid starting point when using insertion mode.
+        '''
         if self.__can_shift(region):
             self.create_undo_region(region)
             self.__shift_cells(region)
@@ -918,14 +923,32 @@ class ZXEditor(ttk.Frame):
             self.set_error('Not enough space!')
 
     def __shift_cells(self, region: ScreenRegion):
+        '''
+        Shift cells by moving content one cell to the right, making space for
+        new content at cursor position.
+        
+        Note that when in insertion mode we'll try to end early by consuming
+        empty space at the end of lines within the current region. This will
+        allow us to space out contents without shifting any subsequent lines.
+        As we don't really have a concept of newlines, we will not however be
+        able to provide the reverse operation (__unshift_cells) as we wouldn't
+        know the reason for inserting the spaces and the purpose they serve in
+        the text.
+        '''
         ScreenNavigator.force_inside_region(self.cursor, region)
-        generator = region.cells(from_direction=CellDirection.NORTH, reverse=True)
+        backup: dict[tuple[int, int], CellCopy] = {}
+        for coord in region.cells(from_direction=CellDirection.NORTH, start_at=self.cursor):
+            backup[(coord.char_x, coord.char_y)] = self.zx_token.get_cell(coord.char_x, coord.char_y)
+
+        generator = region.cells(from_direction=CellDirection.NORTH, start_at=self.cursor)
         previous = next(generator)
         for coord in generator:
-            contents = self.zx_token.get_cell(coord.char_x, coord.char_y)
-            self.zx_token.set_cell(previous.char_x, previous.char_y, cell_copy=contents)
-            if self.cursor.equals(coord.char_x, coord.char_y):
-                return
+            self.zx_token.set_cell(coord.char_x, coord.char_y, cell_copy=backup[(previous.char_x, previous.char_y)])
+
+            if self.is_squash_whitespace_enabled:
+                if coord.char_x == region.coord_end.char_x:
+                    if backup[(coord.char_x, coord.char_y)].is_empty(whitespace_is_empty=False):
+                        break
             previous = coord
 
     def __unshift_cells(self, cursor: ScreenCoordinate, region: ScreenRegion):
@@ -937,8 +960,8 @@ class ZXEditor(ttk.Frame):
         generator = region.cells(from_direction=CellDirection.NORTH, start_at=self.cursor)
         previous = next(generator)
         for coord in generator:
-            contents = self.zx_token.get_cell(coord.char_x, coord.char_y)
-            self.zx_token.set_cell(previous.char_x, previous.char_y, cell_copy=contents)
+            cell_data = self.zx_token.get_cell(coord.char_x, coord.char_y)
+            self.zx_token.set_cell(previous.char_x, previous.char_y, cell_copy=cell_data)
             previous = coord
         self.zx_token.set_cell(region.coord_end.char_x, region.coord_end.char_y)
 

@@ -408,6 +408,18 @@ class CellCopy:
             return [self.UNDEFINED]
         return tokens
 
+    def is_empty(self, whitespace_is_empty: bool=True) -> bool:
+        '''
+        Easily check whether a cell is considered empty, mainly by checking
+        that a character is present. Use parameter to specify whether cells
+        containing whitespace should also be considered empty. 
+        '''
+        if self.char_code < 0:
+            return True
+        if whitespace_is_empty and ZXFont.is_whitespace(self.char_code):
+            return True
+        return False
+
     @classmethod
     def from_values(cls, char_code=ZXToken.UNDEFINED, char_attribute=ZXToken.UNDEFINED, char_inverted=ZXToken.UNDEFINED) -> CellCopy:
         return cls(char_code, char_attribute, char_inverted)
