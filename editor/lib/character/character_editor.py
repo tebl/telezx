@@ -8,7 +8,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog
+from .. import BaseEditor, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, SelectAttributeDialog
 from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
 from .symbol_type_dialog import SymbolTypeDialog
@@ -87,6 +87,7 @@ class CharacterEditor(BaseEditor):
             'export': 'zx-export.png',
             'about': 'zx-about.png',
             'logo': 'zx-logo.png',
+            'attribute': 'zx-attribute.png',
             'function-invert': 'function-invert.png',
             'function-revert': 'function-revert.png',
             'function-clear': 'function-clear.png',
@@ -248,6 +249,12 @@ class CharacterEditor(BaseEditor):
         AboutDialog(self).show()
         return 'break'
 
+    def on_attribute_attribute(self, event=None):
+        value = SelectAttributeDialog.get_result(self, 'Screen attribute', current=self.attribute)
+        if value is not None:
+            self.attribute = value
+        self.notify_attribute_changed()
+
     def on_open_license(self, event=None):
         LicenseDialog(self).show()
         return 'break'
@@ -295,6 +302,9 @@ class CharacterEditor(BaseEditor):
         self.document.undo_offset(self.current_offset)
         self.notify_offset_changed()
         return 'break'
+
+    def notify_attribute_changed(self):
+        self.editor.notify_attribute_changed()
 
     def notify_document_changed(self):
         self.sidebar.notify_document_changed()
@@ -397,6 +407,9 @@ class EditingArea(ttk.Frame):
         num_pixels = 8*self.char_editor.scale
         num_pixels += 8
         return num_pixels
+
+    def notify_attribute_changed(self):
+        self.refresh()
 
     def notify_document_changed(self):
         if self.char_editor.current_offset is None:
@@ -628,6 +641,16 @@ class Menu(ttk.Frame):
             command=self.char_editor.toggle_grid
         )
         self.button_grid.grid(row=0, column=self.__next_column())
+
+        ## Configure attribute
+        self.button_attribute = ttk.Button(
+            master=self, 
+            text='Attribute', 
+            image='attribute', 
+            compound=LEFT, 
+            command=self.char_editor.on_attribute_attribute
+        )
+        self.button_attribute.grid(row=0, column=self.__next_column())
 
         ## About
         about_options = ttk.Menu(self)

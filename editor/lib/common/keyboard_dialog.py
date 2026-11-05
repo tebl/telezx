@@ -12,12 +12,6 @@ class KeyboardDialog(CustomDialog):
     def __init__(self, master):
         super().__init__(master, title="Keyboard")
 
-    @abstractmethod
-    def create_body(self, master):
-        main = ttk.Frame(master)
-        main.pack()
-        return main
-
     def _create_section(self, title: str, parent: ttk.Frame, grid_row: int, grid_column: int, items: list, key_width: int=50, spacer_width: int=10):
         content = ttk.Frame(parent)
         content.grid(row=grid_row, column=grid_column, sticky=NW)

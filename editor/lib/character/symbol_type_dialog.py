@@ -14,13 +14,9 @@ class SymbolTypeDialog(CustomDialog):
         self.confirm_discard = confirm_discard
         self.var_document = ttk.StringVar()
         self.var_confirm = ttk.BooleanVar(value=False)
-        self.custom_pad_y = 3
-        self.custom_pad_x = 10
-        self.custom_pad_border = 15
 
     def create_body(self, master):
-        frame = ttk.Frame(master)
-        frame.pack(fill=X, expand=YES, padx=10, pady=(15, 5))
+        frame = super().create_body(master)
 
         # Ensures that we're always selecting the first option, but allow
         # updates to the value if we enconter one with the specified initial
