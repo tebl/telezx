@@ -72,6 +72,9 @@ def get_project_root() -> Path:
     '''
     return Path(__file__).parent.parent
 
+def get_version() -> str:
+    return 'TeleZX v0.1'
+
 def get_webclient_root() -> Path:
     '''
     Same as above, except we're returning the path of where the webclient

@@ -107,6 +107,15 @@ class ZXAttribute:
             return getattr(self, func_name)(value)
         raise ValueError(f'Invalid function name {func_name}')
 
+    def to_border(self) -> int:
+        '''
+        Get value suitable for use as border. Should return the value in place
+        of current ink, but everything else will be zeroed out though the
+        client would have to mask these to avoid flipping MIC and EAR ports at
+        the same time.
+        '''
+        return self.to_value(ink=self.ink)
+
     def to_rgb(self, is_on: bool, flash_cycle: bool=False):
         base_colour = self.ink if is_on else self.paper
         if self.is_flashing and flash_cycle:

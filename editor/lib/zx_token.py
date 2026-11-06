@@ -46,9 +46,13 @@ class ZXToken:
     def __exit__(self, exc_type, exc, tb):
         self.save()
 
-    def clear(self, attribute):
+    @property
+    def current_attribute(self) -> int:
+        return self._current_attribute
+
+    def clear(self, attribute: int):
         self.border: int=0
-        self.current_attribute: int = attribute
+        self._current_attribute: int = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
         self.__clear_cells()
@@ -260,6 +264,11 @@ class ZXToken:
             self.custom_characters.append(CustomCharacter(cc_data))
 
     def render_cells(self):
+        '''
+        Render cell contents into screen memory, essentially overwriting all
+        of it so use sparingly (or when figuring out affected areas is harder
+        and your CPU probably isn't doing much anyway).
+        '''
         for char_y in range(ZXScreen.SCREEN_HEIGHT_CHARS):
             for char_x in range(ZXScreen.SCREEN_WIDTH_CHARS):
                 self.__lookup_cell(char_x, char_y).sync_cell_to_screen(self)
@@ -294,6 +303,15 @@ class ZXToken:
             cell.sync_cell_to_screen(self)
             self.changes = True
         return result
+
+    def set_current_attribute(self, value: int=DEFAULT_ATTRIBUTE):
+        '''
+        Update current attribute, ie. the one that's used when we've got
+        content without any attribute information.
+        '''
+        self._current_attribute = value
+        self.changes = True
+        self.render_cells()
 
     def set_string(self, start_x, start_y, string, char_attribute=UNSPECIFIED, char_inverted=UNSPECIFIED) -> bool:
         position = ZXScreenIterator(start_x, start_y, allow_looping=True)

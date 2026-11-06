@@ -12,6 +12,9 @@ class LicenseDialog(CustomDialog):
         super().__init__(master, title="License")
 
     def create_body(self, master):
+        lbl = ttk.Label(master, image='logo', justify=CENTER)
+        lbl.pack(expand=True, padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
+
         lbl = ttk.Label(master, text=self.master.PROGRAM_TITLE, justify=CENTER)
         lbl.pack(padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
 

@@ -1,6 +1,7 @@
 from ttkbootstrap.constants import *
 import ttkbootstrap as ttk
 
+from .. import utilities
 from .custom_dialog import CustomDialog
 
 
@@ -13,7 +14,7 @@ class AboutDialog(CustomDialog):
         lbl = ttk.Label(master, image='logo', justify=CENTER)
         lbl.pack(expand=True, padx=self.custom_pad_x, pady=(self.custom_pad_border, self.custom_pad_y))
 
-        lbl = ttk.Label(master, text=self.master.PROGRAM_TITLE)
+        lbl = ttk.Label(master, text=f'{self.master.PROGRAM_TITLE} ({utilities.get_version()})')
         lbl.pack(padx=self.custom_pad_x, pady=self.custom_pad_y)
 
         lbl = ttk.Label(master, text=self.master.PROGRAM_COPYRIGHT)

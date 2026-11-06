@@ -9,9 +9,14 @@ from .. import ZXAttribute, ZXToken, ZXFont
 from .custom_dialog import CustomDialog
 
 class SelectAttributeDialog(CustomDialog):
-    def __init__(self, master, title, current: ZXAttribute=None):
+    def __init__(self, master, title, current: ZXAttribute=None, enable_preview: bool=True, enable_ink: bool=True, enable_paper: bool=True, enable_bright: bool=True, enable_flash: bool=True):
         super().__init__(master, title=title)
-        self.attribute = ZXAttribute.from_value(int(current) if current else ZXToken.DEFAULT_ATTRIBUTE)
+        self.attribute = self.__extract_attribute(current)
+        self.enable_preview = enable_preview
+        self.enable_ink = enable_ink
+        self.enable_paper = enable_paper
+        self.enable_bright = enable_bright
+        self.enable_flash = enable_flash
         self.next_row = 0
 
     def create_body(self, master):
@@ -21,28 +26,32 @@ class SelectAttributeDialog(CustomDialog):
         self.var_bright = ttk.BooleanVar(value=self.attribute.is_bright)
         self.var_flash = ttk.BooleanVar(value=self.attribute.is_flashing)
 
-        self.lbl_preview = ttk.Label(frame)
-        self.preview = AttributePreview(self.lbl_preview, self.attribute)
-        self.__place_widget(frame, self.lbl_preview, 'Preview')
-
-        self.btn_ink = self.__create_colour_select(frame, 'Ink', self.var_ink, self.attribute.ink)
-        self.btn_ink.bind('<<ComboboxSelected>>', self.__on_update_ink)
-        self.btn_paper = self.__create_colour_select(frame, 'Paper', self.var_paper, self.attribute.paper)
-        self.btn_paper.bind('<<ComboboxSelected>>', self.__on_update_paper)
-        self.__place_widget(
-            frame,
-            ttk.Checkbutton(frame, 
-                            text='Bright', 
-                            variable=self.var_bright,
-                            command=self.__on_update_bright,
-                            bootstyle='square toggle'))
-        self.__place_widget(
-            frame,
-            ttk.Checkbutton(frame, 
-                            text='Flashing', 
-                            variable=self.var_flash, 
-                            command=self.__on_update_flash,
-                            bootstyle='square toggle'))
+        if self.enable_preview:
+            self.lbl_preview = ttk.Label(frame)
+            self.preview = AttributePreview(self.lbl_preview, self.attribute)
+            self.__place_widget(frame, self.lbl_preview, 'Preview')
+        if self.enable_ink:
+            self.btn_ink = self.__create_colour_select(frame, 'Ink', self.var_ink, self.attribute.ink)
+            self.btn_ink.bind('<<ComboboxSelected>>', self.__on_update_ink)
+        if self.enable_paper:
+            self.btn_paper = self.__create_colour_select(frame, 'Paper', self.var_paper, self.attribute.paper)
+            self.btn_paper.bind('<<ComboboxSelected>>', self.__on_update_paper)
+        if self.enable_bright:
+            self.__place_widget(
+                frame,
+                ttk.Checkbutton(frame, 
+                                text='Bright', 
+                                variable=self.var_bright,
+                                command=self.__on_update_bright,
+                                bootstyle='square toggle'))
+        if self.enable_flash:
+            self.__place_widget(
+                frame,
+                ttk.Checkbutton(frame, 
+                                text='Flashing', 
+                                variable=self.var_flash, 
+                                command=self.__on_update_flash,
+                                bootstyle='square toggle'))
 
         ttk.Separator(master).pack(fill=X, expand=True, pady=self.custom_pad_y)
         return frame
@@ -86,7 +95,8 @@ class SelectAttributeDialog(CustomDialog):
         self.__on_changes()
 
     def __on_changes(self):
-        self.preview.refresh()
+        if self.enable_preview:
+            self.preview.refresh()
 
     def create_buttonbox(self, master):
         frame = ttk.Frame(master)
@@ -118,12 +128,34 @@ class SelectAttributeDialog(CustomDialog):
         self.close()
 
     @classmethod
-    def get_result(cls, master, title: str, current: ZXAttribute|None=None) -> typing.Any:
+    def __extract_attribute(cls, current: ZXAttribute|int|None) -> ZXAttribute:
+        if current is None:
+            return ZXAttribute.from_value(ZXToken.DEFAULT_ATTRIBUTE)
+        return ZXAttribute.from_value(int(current))
+
+    @classmethod
+    def select_attribute(cls, master, title: str, current: ZXAttribute|None=None, enable_preview: bool=True, enable_ink: bool=True, enable_paper: bool=True, enable_bright: bool=True, enable_flash: bool=True) -> typing.Any:
         dialog = cls(master, 
                      title=title, 
-                     current=current)
+                     current=current,
+                     enable_preview=enable_preview,
+                     enable_ink=enable_ink,
+                     enable_paper=enable_paper,
+                     enable_bright=enable_bright,
+                     enable_flash=enable_flash)
         dialog.show(wait_for_result=True)
         return dialog.result
+
+    @classmethod
+    def select_border(cls, master, title: str, current: ZXAttribute|None=None, enable_preview: bool=True):
+        current = cls.__extract_attribute(current)
+        return cls.select_attribute(master=master, 
+                                 title=title, 
+                                 current=ZXAttribute(paper=current.paper),
+                                 enable_preview=enable_preview,
+                                 enable_ink=False,
+                                 enable_flash=False,
+                                 enable_bright=False)
 
 
 class AttributePreview:
@@ -149,7 +181,7 @@ class AttributePreview:
     def __get_rgb(self):
         rgb_data = self.zx_token.to_rgb()
 
-        # Forget everything after line 10
+        # Conveniently forget everything after line 10
         rgb_data = rgb_data[0:(10*8)]
 
         if not self.scale_value == 1:

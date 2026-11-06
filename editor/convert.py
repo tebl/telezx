@@ -2,7 +2,7 @@
 import subprocess, sys
 from argparse import ArgumentParser, ArgumentError, ArgumentTypeError, Action
 from pathlib import Path
-from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities, VERSION
+from lib import ZXScreen, ZXDocument, ZXToken, ZXPage, ZXPage_Overlay, ZXPage_Token, ZXRegistry, ZXRegistryTag, ZXLogger, utilities
 from lib.convert import ATRConverter, S81Converter, TKNConverter, ZXTokenConverter
 
 def cmd_53c(args, parser: ArgumentParser):
@@ -42,7 +42,7 @@ def main():
     parser.description = '''
     Tools to convert TeleZX-related content
     '''
-    parser.add_argument('-v', '--version', action='version', version=VERSION, help="Show version information")
+    parser.add_argument('-v', '--version', action='version', version=utilities.get_version(), help="Show version information")
     parser.add_argument('-d', '--debug', action='store_true', help="Enable debug statements")
     subparsers = parser.add_subparsers(required=True, dest='command')
 

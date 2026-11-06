@@ -14,7 +14,7 @@ from .copy_operation import CopyData, CopyOperation
 from .undo_operation import UndoOperation
 from .screen_region import CellDirection, ScreenNavigator, CellDirection, ScreenRegion, ScreenCoordinate
 from .editor_keyboard_dialog import EditorKeyboardDialog
-from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities, CellCopy
+from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities, CellCopy, BaseMenu, SelectAttributeDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -456,6 +456,20 @@ class ZXEditor(ttk.Frame):
         self.menu.notify_grid_changed(self.is_grid_enabled)
         if event is not None:
             self.main.focus_set()
+        return 'break'
+
+    def clicked_select_attribute(self, event=None):
+        attribute = SelectAttributeDialog.select_attribute(self, 'Set document attribute', current=self.zx_token.current_attribute)
+        if attribute is not None:
+            self.zx_token.set_current_attribute(int(attribute))
+            self.refresh_canvas()
+        return 'break'
+
+    def clicked_select_border(self, event=None):
+        attribute: ZXAttribute = SelectAttributeDialog.select_border(self, 'Set document border', current=self.zx_token.border)
+        if attribute is not None:
+            self.zx_token.border = attribute.to_border()
+            self.refresh_canvas()
         return 'break'
 
     def clicked_save_screenshot(self, event=None):
@@ -1102,6 +1116,8 @@ class ZXEditor(ttk.Frame):
             'new-project': 'zx-new.png',
             'open-project': 'zx-open.png',
             'save-project': 'zx-save.png',
+            'properties': 'zx-properties.png',
+            'settings': 'zx-settings.png',
             'set-background': 'zx-background.png',
             'set-scale': 'zx-scale.png',
             'grid-enabled': 'zx-grid.png',
@@ -1118,9 +1134,9 @@ class ZXEditor(ttk.Frame):
             self.photoimages.append(ttk.PhotoImage(name=key, file=_path))
 
 
-class Menu(ttk.Frame):
+class Menu(BaseMenu):
     def __init__(self, master, zx_editor: ZXEditor):
-        super().__init__(master, style='primary.TFrame')
+        super().__init__(master)
         self.zx_editor = zx_editor
 
         ## New...
@@ -1131,7 +1147,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.zx_editor.clicked_new
         )
-        btn.grid(row=0, column=0)
+        btn.grid(row=0, column=self._next_column())
 
         ## Open...
         btn = ttk.Button(
@@ -1141,7 +1157,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.zx_editor.clicked_open
         )
-        btn.grid(row=0, column=1)
+        btn.grid(row=0, column=self._next_column())
 
         ## Save
         btn = ttk.Button(
@@ -1151,17 +1167,37 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.zx_editor.clicked_save
         )
-        btn.grid(row=0, column=2)
+        btn.grid(row=0, column=self._next_column())
 
-        ## Open SCR...
-        btn = ttk.Button(
-            master=self, 
-            text='Background', 
-            image='set-background', 
-            compound=LEFT, 
-            command=self.zx_editor.clicked_background
+        ## File properties
+        properties_options = ttk.Menu(self)
+        properties_options.add_command(label="Attribute", command=self.zx_editor.clicked_select_attribute)
+        properties_options.add_command(label="Border", command=self.zx_editor.clicked_select_border)
+        properties_options.add_separator()
+        properties_options.add_command(label="Background", command=self.zx_editor.clicked_background)
+        btn = ttk.Menubutton(
+            master=self,
+            text="Properties",
+            image='properties',
+            compound=LEFT,
+            menu=properties_options
         )
-        btn.grid(row=0, column=3)
+        btn.grid(row=0, column=self._next_column())
+
+        ## Export options
+        export_options = ttk.Menu(self)
+        export_options.add_command(label="SCR", command=self.zx_editor.clicked_export_scr)
+        export_options.add_command(label="SPECSCII", command=self.zx_editor.clicked_export_specscii)
+        export_options.add_separator()
+        export_options.add_command(label="Screenshot", command=self.zx_editor.clicked_save_screenshot)
+        btn = ttk.Menubutton(
+            master=self,
+            text="Export",
+            image='export',
+            compound=LEFT,
+            menu=export_options
+        )
+        btn.grid(row=0, column=self._next_column())
 
         ## configure scale
         self.scale_variable = ttk.IntVar()
@@ -1180,7 +1216,7 @@ class Menu(ttk.Frame):
             compound=LEFT,
             menu=scale_options
         )
-        self.scale.grid(row=0, column=4)
+        self.scale.grid(row=0, column=self._next_column())
 
         ## Enable display grid
         self.button_grid = ttk.Button(
@@ -1190,22 +1226,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.zx_editor.clicked_grid
         )
-        self.button_grid.grid(row=0, column=5)
-
-        ## Export options
-        export_options = ttk.Menu(self)
-        export_options.add_command(label="SCR", command=self.zx_editor.clicked_export_scr)
-        export_options.add_command(label="SPECSCII", command=self.zx_editor.clicked_export_specscii)
-        export_options.add_separator()
-        export_options.add_command(label="Screenshot", command=self.zx_editor.clicked_save_screenshot)
-        btn = ttk.Menubutton(
-            master=self,
-            text="Export",
-            image='export',
-            compound=LEFT,
-            menu=export_options
-        )
-        btn.grid(row=0, column=6)        
+        self.button_grid.grid(row=0, column=self._next_column())
 
         ## About options
         about_options = ttk.Menu(self)
@@ -1220,7 +1241,7 @@ class Menu(ttk.Frame):
             compound=LEFT,
             menu=about_options
         )
-        btn.grid(row=0, column=7)        
+        btn.grid(row=0, column=self._next_column())
 
     def notify_grid_changed(self, value):
         img_name = 'grid-disabled' if value else 'grid-enabled'

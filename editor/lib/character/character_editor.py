@@ -8,7 +8,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, SelectAttributeDialog
+from .. import BaseEditor, BaseMenu, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, SelectAttributeDialog
 from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
 from .symbol_type_dialog import SymbolTypeDialog
@@ -249,8 +249,8 @@ class CharacterEditor(BaseEditor):
         AboutDialog(self).show()
         return 'break'
 
-    def on_attribute_attribute(self, event=None):
-        value = SelectAttributeDialog.get_result(self, 'Screen attribute', current=self.attribute)
+    def on_display_attribute(self, event=None):
+        value = SelectAttributeDialog.select_attribute(self, 'Select display attribute', current=self.attribute)
         if value is not None:
             self.attribute = value
         self.notify_attribute_changed()
@@ -554,11 +554,10 @@ class EditingArea(ttk.Frame):
         self.image = tk_img
 
 
-class Menu(ttk.Frame):
+class Menu(BaseMenu):
     def __init__(self, master, char_editor: CharacterEditor):
-        super().__init__(master, style='primary.TFrame')
+        super().__init__(master)
         self.char_editor = char_editor
-        self.__next_id: int|None = None
 
         ## New...
         btn = ttk.Button(
@@ -568,7 +567,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.char_editor.on_new
         )
-        btn.grid(row=0, column=self.__next_column())
+        btn.grid(row=0, column=self._next_column())
 
         ## Open...
         btn = ttk.Button(
@@ -578,7 +577,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.char_editor.on_open
         )
-        btn.grid(row=0, column=self.__next_column())
+        btn.grid(row=0, column=self._next_column())
 
         ## Save
         btn = ttk.Button(
@@ -588,7 +587,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.char_editor.on_save
         )
-        btn.grid(row=0, column=self.__next_column())
+        btn.grid(row=0, column=self._next_column())
 
         ## Import
         import_options = ttk.Menu(self)
@@ -601,7 +600,7 @@ class Menu(ttk.Frame):
             compound=LEFT,
             menu=import_options
         )
-        btn.grid(row=0, column=self.__next_column())        
+        btn.grid(row=0, column=self._next_column())        
 
         ## Export
         btn = ttk.Button(
@@ -611,7 +610,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.char_editor.on_export
         )
-        btn.grid(row=0, column=self.__next_column())
+        btn.grid(row=0, column=self._next_column())
 
         ## Configure scale
         self.scale_variable = ttk.IntVar()
@@ -630,7 +629,7 @@ class Menu(ttk.Frame):
             compound=LEFT,
             menu=scale_options
         )
-        self.scale.grid(row=0, column=self.__next_column())
+        self.scale.grid(row=0, column=self._next_column())
 
         ## Enable display grid
         self.button_grid = ttk.Button(
@@ -640,7 +639,7 @@ class Menu(ttk.Frame):
             compound=LEFT, 
             command=self.char_editor.toggle_grid
         )
-        self.button_grid.grid(row=0, column=self.__next_column())
+        self.button_grid.grid(row=0, column=self._next_column())
 
         ## Configure attribute
         self.button_attribute = ttk.Button(
@@ -648,9 +647,9 @@ class Menu(ttk.Frame):
             text='Attribute', 
             image='attribute', 
             compound=LEFT, 
-            command=self.char_editor.on_attribute_attribute
+            command=self.char_editor.on_display_attribute
         )
-        self.button_attribute.grid(row=0, column=self.__next_column())
+        self.button_attribute.grid(row=0, column=self._next_column())
 
         ## About
         about_options = ttk.Menu(self)
@@ -665,14 +664,7 @@ class Menu(ttk.Frame):
             compound=LEFT,
             menu=about_options
         )
-        btn.grid(row=0, column=self.__next_column())        
-
-    def __next_column(self) -> int:
-        if self.__next_id is None:
-            self.__next_id = 0
-        else:
-            self.__next_id += 1
-        return self.__next_id
+        btn.grid(row=0, column=self._next_column())        
 
     def notify_grid_changed(self):
         img_name = 'grid-enabled' if self.char_editor.is_grid_enabled else 'grid-disabled'
