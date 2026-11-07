@@ -1,7 +1,9 @@
+import typing
+from abc import ABC, abstractmethod
 from typing import Any, Self
 from . import utilities
 
-class ZXAttribute:
+class BaseAttribute(ABC):
     MIN = 0x00
     MAX = 0xff
     RGB_BASE = 0xc0
@@ -18,8 +20,6 @@ class ZXAttribute:
     CYAN    = 0b00000101
     YELLOW  = 0b00000110
     WHITE   = 0b00000111
-    FLASH   = 0b10000000
-    BRIGHT  = 0b01000000
     COLOURS = {
         'BLACK': BLACK,
         'BLUE': BLUE,
@@ -31,7 +31,54 @@ class ZXAttribute:
         'WHITE': WHITE
     }
     COLOUR_TOKENS = {v: k for k, v in COLOURS.items()}
-    ATTRIBUTES = COLOURS | {
+
+    def __init__(self):
+        pass
+
+    def __int__(self):
+        return self.to_int()
+
+    def __index__(self):
+        return self.to_int()
+
+    def __str__(self):
+        return ' '.join(self.tokenise(self.to_int()))
+
+    @abstractmethod
+    def to_int(self) -> int:
+        ...
+
+    @classmethod
+    @abstractmethod
+    def from_value(cls, value: int) -> typing.Self:
+        ...
+
+    @classmethod
+    @abstractmethod
+    def tokenise(cls, attribute_value: int) -> list[str]:
+        ...
+
+    @classmethod
+    def tokenise_attribute(cls, value: int):
+        '''
+        Note that the function takes the numerical value of a token, not an
+        attribute value.
+        '''
+        if not value in cls.ATTRIBUTE_TOKENS:
+            raise ValueError(f'Invalid attribute {value=}')
+        return cls.ATTRIBUTE_TOKENS[value]
+
+    @classmethod
+    def tokenise_colour(cls, colour: int) -> str:
+        if not colour in cls.COLOUR_TOKENS:
+            raise ValueError(f'Invalid value {colour=}')
+        return cls.COLOUR_TOKENS[colour]
+
+
+class ZXAttribute(BaseAttribute):
+    FLASH   = 0b10000000
+    BRIGHT  = 0b01000000
+    ATTRIBUTES = BaseAttribute.COLOURS | {
         'FLASH': FLASH,
         'BRIGHT': BRIGHT
     }
@@ -42,23 +89,18 @@ class ZXAttribute:
     is_bright: bool
     is_flashing: bool
 
-    def __init__(self, is_flashing: bool=False, is_bright: bool=False, paper: int=BLACK, ink: int=WHITE):
+    def __init__(self, is_flashing: bool=False, is_bright: bool=False, paper: int=BaseAttribute.BLACK, ink: int=BaseAttribute.WHITE):
+        super().__init__()
         self.ink = ink
         self.paper = paper
         self.is_bright = bool(is_bright)
         self.is_flashing = bool(is_flashing)
 
-    def __int__(self):
+    def to_int(self) -> int:
         return self.to_value(is_flashing=self.is_flashing,
                              is_bright=self.is_bright,
                              paper=self.paper,
                              ink=self.ink)
-
-    def __index__(self):
-        return self.__int__()
-
-    def __str__(self):
-        return ' '.join(self.tokenise(int(self)))
 
     @property
     def ink(self):
@@ -107,15 +149,6 @@ class ZXAttribute:
             return getattr(self, func_name)(value)
         raise ValueError(f'Invalid function name {func_name}')
 
-    def to_border(self) -> int:
-        '''
-        Get value suitable for use as border. Should return the value in place
-        of current ink, but everything else will be zeroed out though the
-        client would have to mask these to avoid flipping MIC and EAR ports at
-        the same time.
-        '''
-        return self.to_value(ink=self.ink)
-
     def to_rgb(self, is_on: bool, flash_cycle: bool=False):
         base_colour = self.ink if is_on else self.paper
         if self.is_flashing and flash_cycle:
@@ -157,7 +190,7 @@ class ZXAttribute:
         return bool((value & cls.BRIGHT) == cls.BRIGHT)
 
     @classmethod
-    def to_value(cls, is_flashing=False, is_bright=False, paper=BLACK, ink=WHITE) -> int:
+    def to_value(cls, is_flashing=False, is_bright=False, paper=BaseAttribute.BLACK, ink=BaseAttribute.WHITE) -> int:
         return (
             (cls.FLASH if is_flashing else 0x00) | 
             (cls.BRIGHT if is_bright else 0x00) | 
@@ -166,7 +199,7 @@ class ZXAttribute:
         )
 
     @classmethod
-    def tokenise(cls, attribute_value: int):
+    def tokenise(cls, attribute_value: int) -> list[str]:
         '''
         Create string representation of each part of the attribute, mainly
         useful for logging purposes as anything graphical would be able to
@@ -185,18 +218,75 @@ class ZXAttribute:
         parts.append('paper')
         return parts
 
-    @classmethod
-    def tokenise_attribute(cls, value: int):
+
+class ZXBorder(BaseAttribute):
+    ENABLED = 0b10000000
+    ATTRIBUTES = BaseAttribute.COLOURS | {
+        'ENABLED': ENABLED
+    }
+    ATTRIBUTE_TOKENS = {v: k for k, v in ATTRIBUTES.items()}
+
+    is_enabled: bool
+    border: int
+
+    def __init__(self, is_enabled: bool=False, border: int=BaseAttribute.WHITE):
+        super().__init__()
+        self.is_enabled = is_enabled
+        self.border = border
+
+    @property
+    def border(self):
+        return self._border
+
+    @border.setter
+    def border(self, value: int):
+        self._border = (value & 0b00000111)
+
+    def get_border(self, default: int=BaseAttribute.WHITE) -> int:
         '''
-        Note that the function takes the numerical value of a token, not an
-        attribute value.
+        Retrieves border value if enabled, returning default value if not
+        (mainly used for rendering). For the value itself, see border.
         '''
-        if not value in cls.ATTRIBUTE_TOKENS:
-            raise ValueError(f'Invalid attribute {value=}')
-        return cls.ATTRIBUTE_TOKENS[value]
+        return self.border if self.is_enabled else default
+
+    def to_int(self):
+        return self.to_value(is_enabled=self.is_enabled, 
+                             border=self.border)
 
     @classmethod
-    def tokenise_colour(cls, colour: int):
-        if not colour in cls.COLOUR_TOKENS:
-            raise ValueError(f'Invalid value {colour=}')
-        return cls.COLOUR_TOKENS[colour]
+    def from_value(cls, value: int) -> ZXBorder:
+        return ZXBorder(
+            is_enabled=cls.get_is_enabled_from(value),
+            border=cls.get_border_from(value)
+        )
+
+    @classmethod
+    def to_value(cls, is_enabled: bool=False, border: int=BaseAttribute.WHITE) -> int:
+        return (
+            (cls.ENABLED if is_enabled else 0x00) | 
+            border
+        )
+
+    @classmethod
+    def get_border_from(cls, value: int) -> int:
+        return (value & 0b00000111)
+
+    @classmethod
+    def get_is_enabled_from(cls, value: int) -> bool:
+        return bool((value & cls.ENABLED) == cls.ENABLED)
+
+    @classmethod
+    def tokenise(cls, attribute_value: int) -> list[str]:
+        '''
+        Create string representation of each part of the attribute, mainly
+        useful for logging purposes as anything graphical would be able to
+        display this more nicely.
+        '''
+        zx_border = cls.from_value(attribute_value)
+        parts = []
+        if not zx_border.is_enabled:
+            parts.append('DEFAULT')
+        else:
+            parts.append(cls.tokenise_colour(zx_border.border))
+        parts.append('border')
+        return parts

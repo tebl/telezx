@@ -14,7 +14,7 @@ from .copy_operation import CopyData, CopyOperation
 from .undo_operation import UndoOperation
 from .screen_region import CellDirection, ScreenNavigator, CellDirection, ScreenRegion, ScreenCoordinate
 from .editor_keyboard_dialog import EditorKeyboardDialog
-from .. import ZXAttribute, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities, CellCopy, BaseMenu, SelectAttributeDialog
+from .. import ZXAttribute, ZXBorder, ZXScreen, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, utilities, CellCopy, BaseMenu, SelectAttributeDialog, SelectBorderDialog
 
 class ZXEditor(ttk.Frame):
     PROGRAM_TITLE = 'ZX Editor'
@@ -459,16 +459,16 @@ class ZXEditor(ttk.Frame):
         return 'break'
 
     def clicked_select_attribute(self, event=None):
-        attribute = SelectAttributeDialog.select_attribute(self, 'Set document attribute', current=self.zx_token.current_attribute)
+        attribute = SelectAttributeDialog.prompt_value(self, 'Set document attribute', current=self.zx_token.current_attribute, border=self.zx_token.border)
         if attribute is not None:
             self.zx_token.set_current_attribute(int(attribute))
             self.refresh_canvas()
         return 'break'
 
     def clicked_select_border(self, event=None):
-        attribute: ZXAttribute = SelectAttributeDialog.select_border(self, 'Set document border', current=self.zx_token.border)
-        if attribute is not None:
-            self.zx_token.border = attribute.to_border()
+        border: ZXBorder = SelectBorderDialog.prompt_value(self, 'Set document border', current=self.zx_token.current_attribute, border=self.zx_token.border)
+        if border is not None:
+            self.zx_token.border = border
             self.refresh_canvas()
         return 'break'
 

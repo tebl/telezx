@@ -5,7 +5,7 @@ from PIL import Image
 from typing import Optional
 from pathlib import Path
 from .coordinate import Coordinate
-from .zx_attribute import ZXAttribute
+from .zx_attribute import ZXAttribute, ZXBorder
 from .zx_screen import ZXScreen, ZXScreenIterator
 from .zx_symbol import ZXSymbol, CustomCharacter, UDG
 from .zx_font import ZXFont
@@ -21,6 +21,7 @@ class ZXToken:
     DEFAULT_INK = ZXAttribute.BLACK
     DEFAULT_PAPER = ZXAttribute.WHITE
     DEFAULT_ATTRIBUTE = ZXAttribute.to_value(ink=DEFAULT_INK, paper=DEFAULT_PAPER)
+    DEFAULT_BORDER = ZXBorder.to_value()
     HEADER_ATTRIBUTE = ZXAttribute.to_value(ink=ZXAttribute.BLACK, paper=ZXAttribute.BLACK)
     DEFAULT_FONT = 'font_default'
     DEFAULT_GLYPH = 'font_glyphs'
@@ -50,8 +51,17 @@ class ZXToken:
     def current_attribute(self) -> int:
         return self._current_attribute
 
+    @property
+    def border(self) -> ZXBorder:
+        return self._border
+
+    @border.setter
+    def border(self, value: ZXBorder):
+        self._border = value
+        self.changes = True
+
     def clear(self, attribute: int):
-        self.border: int=0
+        self.border: ZXBorder = ZXBorder()
         self._current_attribute: int = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
@@ -223,7 +233,7 @@ class ZXToken:
         self.clear(root['attribute'])
         self.set_path(document_path)
 
-        self.border = root['border'] if 'border' in root else 0
+        self.border = ZXBorder.from_value(root['border'] if 'border' in root else 0)
         if root['background']:
             self.set_background(root['background'])
         self.set_selected_font(root['font'])
@@ -375,7 +385,7 @@ class ZXToken:
         root = result[self.DOCUMENT_TYPE]
         root['attribute'] = HexYAML(self.current_attribute)
         root['background'] = self.__get_relative_path(self.background_path)
-        root['border'] = HexYAML(self.border)
+        root['border'] = HexYAML(int(self.border))
         root['font'] = self.font_name
         root['custom_characters'] = [ cc.to_dict() for cc in self.custom_characters]
         root['glyph'] = self.glyph_name
@@ -694,7 +704,7 @@ class TokenFormatter:
 
     def write_formatted(self, specscii_path):
         with open(specscii_path, 'wb') as file:
-            self._write_border(file, self.zx_token.border)
+            self._write_border(file, int(self.zx_token.border))
             self._write_custom_characters(file)
             self._write_formatted_cells(file)
 
@@ -745,7 +755,12 @@ class TokenFormatter:
         is interpreted by TeleZX as enable with the three lower three bits
         specifying colour.
 
-        The lowest three bits specify the border colour; a zero in bit 3 activates the MIC output, whilst a one in bit 4 activates the EAR output and the internal speaker. However, the EAR and MIC sockets are connected only by resistors, so activating one activates the other; the EAR is generally used for output as it produces a louder sound. The upper two bits are unused.
+        The lowest three bits specify the border colour; a zero in bit 3
+        activates the MIC output, whilst a one in bit 4 activates the EAR
+        output and the internal speaker. However, the EAR and MIC sockets are
+        connected only by resistors, so activating one activates the other;
+        the EAR is generally used for output as it produces a louder sound.
+        The upper two bits are unused.
         '''
         assert value >= ZXAttribute.MIN and value <= ZXAttribute.MAX
         if self.last_border is None and not self._border_enabled(value):

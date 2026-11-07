@@ -250,7 +250,7 @@ class CharacterEditor(BaseEditor):
         return 'break'
 
     def on_display_attribute(self, event=None):
-        value = SelectAttributeDialog.select_attribute(self, 'Select display attribute', current=self.attribute)
+        value = SelectAttributeDialog.prompt_value(self, 'Select display attribute', current=self.attribute)
         if value is not None:
             self.attribute = value
         self.notify_attribute_changed()

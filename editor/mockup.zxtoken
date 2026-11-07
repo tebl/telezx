@@ -1,7 +1,7 @@
 ZXToken:
     attribute: 0x38
     background: null
-    border: 0x0
+    border: 0x80
     cells:
         0:
             0:
@@ -3101,20 +3101,20 @@ ZXToken:
                 inverted: -1
     custom_characters:
     -   - 0b10101010
-        - 0b1010101
+        - 0b01010101
         - 0b10101010
-        - 0b1010101
+        - 0b01010101
         - 0b10101010
-        - 0b1010101
+        - 0b01010101
         - 0b10101010
-        - 0b1010101
-    -   - 0b1010101
+        - 0b01010101
+    -   - 0b01010101
         - 0b10101010
-        - 0b1010101
+        - 0b01010101
         - 0b10101010
-        - 0b1010101
+        - 0b01010101
         - 0b10101010
-        - 0b1010101
+        - 0b01010101
         - 0b10101010
     font: font_default
     glyph: font_glyphs

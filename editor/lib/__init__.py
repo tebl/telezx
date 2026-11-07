@@ -1,7 +1,7 @@
 from .base_editor import BaseEditor
 from .base_document import BaseDocument
 from .name_tree_resolver import NameTreeResolver
-from .zx_attribute import ZXAttribute
+from .zx_attribute import ZXAttribute, ZXBorder
 from .zx_symbol import ZXSymbol, CustomCharacter, UDG
 from .zx_glyph import ZXGlyph
 from .zx_font import ZXFont
@@ -14,6 +14,6 @@ from .zx_registry import ZXRegistry, ZXRegistryEntry, ZXRegistryTag
 from .zx_logger import ZXLogger
 from .utilities import update_tree
 from .generate import RepositoryHelper, RegistryHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
-from .common import BaseMenu, CustomDialog, AboutDialog, KeyboardDialog, LicenseDialog, SelectAttributeDialog
+from .common import BaseMenu, CustomDialog, AboutDialog, KeyboardDialog, LicenseDialog, SelectAttributeDialog, SelectBorderDialog
 from .editor import ZXEditor, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenCoordinate, ScreenNavigator, ScreenRegion
 from .convert import ATRConverter, TKNConverter, ZXTokenConverter, S81Converter
