@@ -55,13 +55,8 @@ class ZXToken:
     def border(self) -> ZXBorder:
         return self._border
 
-    @border.setter
-    def border(self, value: ZXBorder):
-        self._border = value
-        self.changes = True
-
     def clear(self, attribute: int):
-        self.border: ZXBorder = ZXBorder()
+        self._border: ZXBorder = ZXBorder()
         self._current_attribute: int = attribute
         self.zx_screen.clear_memory(set_attribute=attribute)
         self.__clear_background()
@@ -233,7 +228,7 @@ class ZXToken:
         self.clear(root['attribute'])
         self.set_path(document_path)
 
-        self.border = ZXBorder.from_value(root['border'] if 'border' in root else 0)
+        self._border = ZXBorder.from_value(root['border'] if 'border' in root else 0)
         if root['background']:
             self.set_background(root['background'])
         self.set_selected_font(root['font'])
@@ -313,6 +308,10 @@ class ZXToken:
             cell.sync_cell_to_screen(self)
             self.changes = True
         return result
+
+    def set_border(self, zx_border: ZXBorder):
+        self._border = zx_border
+        self.changes = True
 
     def set_current_attribute(self, value: int=DEFAULT_ATTRIBUTE):
         '''

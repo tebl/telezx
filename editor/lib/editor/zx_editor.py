@@ -468,7 +468,7 @@ class ZXEditor(ttk.Frame):
     def clicked_select_border(self, event=None):
         border: ZXBorder = SelectBorderDialog.prompt_value(self, 'Set document border', current=self.zx_token.current_attribute, border=self.zx_token.border)
         if border is not None:
-            self.zx_token.border = border
+            self.zx_token.set_border(zx_border=border)
             self.refresh_canvas()
         return 'break'
 
