@@ -8,7 +8,7 @@ import ttkbootstrap as ttk
 from pathlib import Path
 from PIL import Image, ImageTk
 
-from .. import BaseEditor, BaseMenu, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, SelectAttributeDialog
+from .. import BaseEditor, BaseMenu, ZXAttribute, ZXFont, ZXGlyph, ZXToken, LicenseDialog, AboutDialog, SelectAttributeDialog, UDG, utilities
 from .zx_symbol_collection import ZXFontCollection, ZXGlyphCollection, ZXSymbolCollection, ZXSymbolType
 from .editor_keyboard_dialog import EditorKeyboardDialog
 from .symbol_type_dialog import SymbolTypeDialog
@@ -49,6 +49,7 @@ class CharacterEditor(BaseEditor):
         self.is_debug_enabled: bool=True
         self.is_grid_enabled: bool=True
 
+        self.copied_data: numpy.typing.NDArray[numpy.uint8]|None=None
         self.document: ZXSymbolCollection = ZXFontCollection()
         self._current_offset: int=0
 
@@ -66,11 +67,14 @@ class CharacterEditor(BaseEditor):
         self.status = Status(self, char_editor=self) 
         self.status.grid(row=3, column=0, columnspan=4, sticky=EW)
 
+        self.master.bind("<Control-KeyPress-c>", self.on_copy)
+        self.master.bind("<Control-KeyPress-C>", self.on_copy_text)
         self.master.bind("<Control-KeyPress-g>", self.on_toggle_grid)
         self.master.bind("<Control-KeyPress-n>", self.on_new)
         self.master.bind("<Control-KeyPress-o>", self.on_open)
-        self.master.bind("<Control-KeyPress-s>", self.on_save)
         self.master.bind("<Control-KeyPress-q>", self.on_quit)
+        self.master.bind("<Control-KeyPress-s>", self.on_save)
+        self.master.bind("<Control-KeyPress-v>", self.on_paste)
         self.master.bind("<Control-KeyPress-z>", self.on_undo)
 
         self.update_title_periodic()
@@ -88,12 +92,16 @@ class CharacterEditor(BaseEditor):
             'about': 'zx-about.png',
             'logo': 'zx-logo.png',
             'attribute': 'zx-attribute.png',
+            'function-copy': 'function-copy.png',
+            'function-paste': 'function-paste.png',
             'function-invert': 'function-invert.png',
             'function-revert': 'function-revert.png',
             'function-clear': 'function-clear.png',
             'function-flip': 'function-flip.png',
             'function-mirror': 'function-mirror.png',
             'function-undo': 'function-undo.png',
+            'function-rotate-left': 'function-rotate-left.png',
+            'function-rotate-right': 'function-rotate-right.png',
             'function-shift-left': 'function-shift-left.png',
             'function-shift-right': 'function-shift-right.png',
             'function-shift-up': 'function-shift-up.png',
@@ -105,6 +113,30 @@ class CharacterEditor(BaseEditor):
 
     def on_delete_window(self, root):
         return super().on_delete_window(root)
+
+    def on_copy(self, event=None):
+        self.copied_data = self.editor.to_data()
+        self.set_status(f'Copy {self.__data_to_text(self.copied_data)}')
+        self.notify_state_changed()
+
+    def on_copy_text(self, event=None):
+        result = self.__data_to_text(self.editor.to_data())
+        self.clipboard_clear()
+        self.clipboard_append(result)
+        self.set_status('Copied to clipboard')
+
+    def __data_to_text(self, data: numpy.typing.NDArray[numpy.uint8]):
+        data = ', '.join([utilities.format_padded_id(v, width=2, add_prefix=True) for v in data])
+        return f'[{data}]'
+
+    def on_paste(self, event=None):
+        if self.copied_data is not None:
+            self.editor.from_data(self.copied_data)
+            self.editor.refresh()
+            self.set_status(f'Paste {self.__data_to_text(self.copied_data)}')
+
+    def on_paste_enabled(self) -> bool:
+        return self.copied_data is not None
 
     def on_export(self, event=None):
         try:
@@ -148,11 +180,17 @@ class CharacterEditor(BaseEditor):
     def on_function_rotate_right(self, event=None):
         self.editor.on_function_rotate_right(event)
 
-    def on_function_rotate_up(self, event=None):
-        self.editor.on_function_rotate_up(event)
+    def on_function_shift_left(self, event=None):
+        self.editor.on_function_shift_left(event)
 
-    def on_function_rotate_down(self, event=None):
-        self.editor.on_function_rotate_down(event)
+    def on_function_shift_right(self, event=None):
+        self.editor.on_function_shift_right(event)
+
+    def on_function_shift_up(self, event=None):
+        self.editor.on_function_shift_up(event)
+
+    def on_function_shift_down(self, event=None):
+        self.editor.on_function_shift_down(event)
 
     def on_function_undo(self, event=None):
         return self.on_undo(event)
@@ -385,12 +423,12 @@ class EditingArea(ttk.Frame):
         colour = self.__get_fill_colour()
         self.pixel_data = numpy.full(shape=(self.__get_canvas_height(), self.__get_canvas_width(), 3), fill_value=colour, dtype=numpy.uint8)
 
-    def from_data(self, character_data):
+    def from_data(self, character_data: UDG|numpy.typing.NDArray[numpy.uint8]):
         if type(character_data) is list:
             character_data = numpy.array(character_data, dtype=numpy.uint8), 
         self.char_data = numpy.unpackbits(character_data).reshape(8,8)
 
-    def to_data(self):
+    def to_data(self) -> numpy.typing.NDArray[numpy.uint8]:
         return numpy.packbits(self.char_data)
 
     def __get_fill_colour(self):
@@ -468,22 +506,32 @@ class EditingArea(ttk.Frame):
         self.char_editor.sync_offset(self.to_data(), create_undo=True)
         self.refresh()
 
-    def on_function_rotate_up(self, event=None):
-        self.char_data = numpy.roll(self.char_data, -1, 0)
-        self.char_editor.sync_offset(self.to_data(), create_undo=True)
-        self.refresh()
-
-    def on_function_rotate_down(self, event=None):
-        self.char_data = numpy.roll(self.char_data, 1, 0)
-        self.char_editor.sync_offset(self.to_data(), create_undo=True)
-        self.refresh()
-
     def on_function_rotate_left(self, event=None):
-        self.char_data = numpy.roll(self.char_data, -1, 1)
+        self.char_data = numpy.rot90(self.char_data, 1)
         self.char_editor.sync_offset(self.to_data(), create_undo=True)
         self.refresh()
 
     def on_function_rotate_right(self, event=None):
+        self.char_data = numpy.rot90(self.char_data, -1)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_shift_up(self, event=None):
+        self.char_data = numpy.roll(self.char_data, -1, 0)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_shift_down(self, event=None):
+        self.char_data = numpy.roll(self.char_data, 1, 0)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_shift_left(self, event=None):
+        self.char_data = numpy.roll(self.char_data, -1, 1)
+        self.char_editor.sync_offset(self.to_data(), create_undo=True)
+        self.refresh()
+
+    def on_function_shift_right(self, event=None):
         self.char_data = numpy.roll(self.char_data, 1, 1)
         self.char_editor.sync_offset(self.to_data(), create_undo=True)
         self.refresh()
@@ -795,6 +843,9 @@ class Sidebar(ttk.Frame):
         self.functions.grid(row=1, column=0, sticky=EW)
 
         self.function_checks: list[tuple[ttk.Button, SidebarFunctionCheck]] = []
+        self.__create_button('Copy', 'function-copy', self.char_editor.on_copy, row=self.__next_row, column=0)
+        self.__create_button('Paste', 'function-paste', self.char_editor.on_paste, row=self.__next_row, column=1, check_func=self.char_editor.on_paste_enabled)
+        self.__next_row += 1
         self.__create_button('Undo', 'function-undo', self.char_editor.on_function_undo, row=self.__next_row, column=0, check_func=self.char_editor.on_function_undo_enabled)
         self.__create_button('Revert', 'function-revert', self.char_editor.on_function_revert, row=self.__next_row, column=1, check_func=self.char_editor.on_function_revert_enabled)
         self.__next_row += 1
@@ -804,11 +855,14 @@ class Sidebar(ttk.Frame):
         self.__create_button('Flip', 'function-flip', self.char_editor.on_function_flip, row=self.__next_row, column=0)
         self.__create_button('Mirror', 'function-mirror', self.char_editor.on_function_mirror, row=self.__next_row, column=1)
         self.__next_row += 1
-        self.__create_button('Shift Up', 'function-shift-up', self.char_editor.on_function_rotate_up, row=self.__next_row, column=0)
-        self.__create_button('Shift Down', 'function-shift-down', self.char_editor.on_function_rotate_down, row=self.__next_row, column=1)
+        self.__create_button('Rotate Left', 'function-rotate-left', self.char_editor.on_function_rotate_left, row=self.__next_row, column=0)
+        self.__create_button('Rotate Right', 'function-rotate-right', self.char_editor.on_function_rotate_right, row=self.__next_row, column=1)
         self.__next_row += 1
-        self.__create_button('Shift Left', 'function-shift-left', self.char_editor.on_function_rotate_left, row=self.__next_row, column=0)
-        self.__create_button('Shift Right', 'function-shift-right', self.char_editor.on_function_rotate_right, row=self.__next_row, column=1)
+        self.__create_button('Shift Up', 'function-shift-up', self.char_editor.on_function_shift_up, row=self.__next_row, column=0)
+        self.__create_button('Shift Down', 'function-shift-down', self.char_editor.on_function_shift_down, row=self.__next_row, column=1)
+        self.__next_row += 1
+        self.__create_button('Shift Left', 'function-shift-left', self.char_editor.on_function_shift_left, row=self.__next_row, column=0)
+        self.__create_button('Shift Right', 'function-shift-right', self.char_editor.on_function_shift_right, row=self.__next_row, column=1)
         self.__check_buttons()
 
     def __create_button(self, text: str, image: str, func: SidebarFunction, row, column=0, style=None, check_func: SidebarFunctionCheck|None=None):

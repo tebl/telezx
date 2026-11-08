@@ -51,10 +51,12 @@ def argument_is_page_id(value: str) -> int:
     except ValueError:
         raise ArgumentError(f'Does not look like a valid document id')
 
-def format_padded_id(value: int, width=4) -> str:
+def format_padded_id(value: int, width: int=4, add_prefix: bool=False) -> str:
     '''
     Primarily used when working with document IDs
     '''
+    if add_prefix:
+        return f'0x{value:0{width}X}'
     return f'{value:0{width}X}'
 
 def format_padded_int(value: int, width=2) -> str:
