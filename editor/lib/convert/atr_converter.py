@@ -5,6 +5,12 @@ from .zx_token_converter import ZXTokenConverter
 from .. import ZXScreen, ZXScreenIterator, ZXFont, ZXToken
 
 class ATRConverter(BaseConverter):
+    '''
+    Support for working with 53c-formatted images, mainly a chunky attribute-
+    based image format that replaces the bits used for flashing with one that
+    instead indicates that a cell should be displayed using an alternating bit
+    pattern.
+    '''
     BLENDED = 0b10000000
     'Replaces the blinking bit'
     BLENDED_CHAR_CODE = 144

@@ -655,7 +655,7 @@ class TokenFormatter:
     Everything from 0x20 (ASCII-space character) and upwards should match
     standard characters up to 0x7F, and glyphs reserved from 0x80 up until
     0xFF. The stuff below is up to the program to define, but to avoid some
-    headache it should overlap with known parts of SpecCSCII.
+    headache it should overlap with known parts of SpecSCII.
 
     TeleZX sets aside glyphs in the region of 0xF0 up to 0xFF for custom
     glyphs for a specific page. SET_GLYPH takes 8 bytes for a 8x8 UDG, defined

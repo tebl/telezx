@@ -16,4 +16,4 @@ from .utilities import update_tree
 from .generate import RepositoryHelper, RegistryHelper, DocumentHelper, AssetHelper, TransformationHelper, TransformationFormatError
 from .common import BaseMenu, CustomDialog, AboutDialog, KeyboardDialog, LicenseDialog, SelectAttributeDialog, SelectBorderDialog
 from .editor import ZXEditor, CopyOperation, CopyData, UndoOperation, CellDirection, ScreenCoordinate, ScreenNavigator, ScreenRegion
-from .convert import ATRConverter, TKNConverter, ZXTokenConverter, S81Converter
+from .convert import ATRConverter, SCRConverter, TKNConverter, ZXTokenConverter, S81Converter

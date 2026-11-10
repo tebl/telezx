@@ -24,7 +24,7 @@ class ZXTokenConverter(BaseConverter):
         return True
 
     def export_to(self, output_path: Path) -> bool:
-        if not output_path.suffix in self.get_export_suffixes(include_period=True):
+        if not output_path.suffix in self.get_export_suffixes(leading_period=True):
             raise RuntimeError(f'Unknown suffix - {output_path.suffix}')
         match output_path.suffix:
             case self.EXTENSION_TXT:
@@ -102,7 +102,7 @@ class ZXTokenConverter(BaseConverter):
         return ZXToken.FILE_EXTENSION
 
     @classmethod
-    def get_export_suffixes(cls, include_period: bool=True, include_graphical: bool=True, include_text: bool=True) -> list[str]:
+    def get_export_suffixes(cls, leading_period: bool=True, include_graphical: bool=True, include_text: bool=True) -> list[str]:
         extensions = []
         if include_graphical:
             extensions.append(ZXToken.FILE_EXTENSION)
@@ -115,4 +115,4 @@ class ZXTokenConverter(BaseConverter):
         if include_text:
             extensions.append('.txt')
             extensions.append('.yaml')
-        return [ v[1:] if not include_period else v for v in extensions]
+        return [ v[1:] if not leading_period else v for v in extensions]
