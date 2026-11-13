@@ -6,3 +6,5 @@ __pycache__
 *.tkn
 *.specscii
 editor/pages.txt
+editor/screenshots.sh
+editor/_screenshots
