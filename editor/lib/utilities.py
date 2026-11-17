@@ -13,7 +13,7 @@ def argument_is_attribute(value) -> int:
     try:
         return ensure_int(value, 0, 255, base=0)
     except ValueError:
-        raise ArgumentError(f'Does not look like a valid document id')
+        raise ArgumentError(f'Does not look like a valid attribute')
 
 def argument_is_dir(path) -> Path:
     '''

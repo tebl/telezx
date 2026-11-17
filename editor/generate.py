@@ -242,6 +242,7 @@ def cmd_pages(args, parser: ArgumentParser):
         scr_about['license'] = args.set_scr_license
         page = helper.create_overlay(document, args.create_overlay, scr_about, path_hint=args.path_hint)
         print_page_details(page, 'created')
+        __create_preview(repository, page)
         changes = True
 
     if args.copy_token:
@@ -291,6 +292,11 @@ def cmd_pages(args, parser: ArgumentParser):
         registry.save()
 
     print('Done.')
+
+def __create_preview(repository: Path, page: ZXPage):
+    helper = TransformationHelper(repository)
+    if helper.open_page(page):
+        helper.create_preview()
 
 def __suggest_scr_source(asset_path: Path):
     return asset_path.name
@@ -528,8 +534,7 @@ def cmd_transform(args, parser: ArgumentParser):
     if changes:
         helper.save()
 
-    if args.preview:
-        print('Creating preview:')
+    if not args.skip_preview:
         helper.create_preview()
 
     print('Done.')
@@ -727,14 +732,14 @@ def main():
     parser_transform.add_argument('-r', '--repository', type=utilities.argument_is_dir, default=__get_default_repository(), help="Set path to repository")
     parser_transform.add_argument('-f', '--document-id', type=utilities.argument_is_document_id, required=True, help="Specify document ID")
     parser_transform.add_argument('-p', '--page-id', type=utilities.argument_is_page_id, required=True, help="Open page ID")
-    parser_transform.add_argument('--preview', action='store_true', help="Create preview image")
+    parser_transform.add_argument('--skip-preview', action='store_true', help="Skip creation of preview image")
     parser_transform.add_argument('--restore', action='store_true', help="Restore original file")
     parser_transform.add_argument('--clear-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
     parser_transform.add_argument('--delete-line', type=check_argument_screen_line, action='extend', nargs='*', help="Clear the specified line")
     parser_transform.add_argument('--clear-xy', nargs='*', action=ValidatedCoordinateAction, help="Clear character X1 Y1 ... Xn Yn")
     parser_transform.add_argument('--scroll', nargs='*', action=ValidatedScrollAction, help="Scroll the screen, '0 -1' to scroll up")
     group = parser_transform.add_argument_group('Set transformation parameters')
-    group.add_argument('--with-attribute', type=utilities.argument_is_attribute, default=None, help="Attribute value used")
+    group.add_argument('--with-attribute', type=utilities.argument_is_attribute, default=0, help="Attribute value used")
     parser_transform.set_defaults(function=cmd_transform)
 
     args = parser.parse_args()
