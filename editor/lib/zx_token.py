@@ -36,6 +36,7 @@ class ZXToken:
 
     def __init__(self, init_attribute: int|None=None, debug_enabled: bool=False):
         self.debug_enabled = debug_enabled
+        self.document_path: Path|None = None
         self.zx_screen = ZXScreen()
         self.custom_characters: list[CustomCharacter] = []
         init_attribute = self.DEFAULT_ATTRIBUTE if init_attribute is None else init_attribute

@@ -551,7 +551,7 @@ class ZXEditor(ttk.Frame):
 
     def clicked_open(self, event=None):
         try:
-            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], multiple=False)
+            filename = filedialog.askopenfilename(parent=self, title='Open project', filetypes=[("ZXToken", ('*.zxtoken')), ("All files", "*.*")], multiple=False, initialdir=self.__get_initial_directory())
             if filename:
                 if not self.zx_token.has_changes() or self._allow_discard('Document unsaved') == 'OK':
                     self.zx_token.load(filename)
@@ -566,6 +566,11 @@ class ZXEditor(ttk.Frame):
             print(e)
         self.refresh_canvas()
         return 'break'
+
+    def __get_initial_directory(self):
+        if self.zx_token.is_untitled():
+            return None
+        return Path(self.zx_token.document_path).parent
 
     def __load_font(self):
         self.sidebar.characters.notify_font_changed()
