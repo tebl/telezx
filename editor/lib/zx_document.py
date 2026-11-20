@@ -502,7 +502,7 @@ class ZXPage:
         file.write('\n')
 
     def get_export_path(self, output_base: Path, page_idx: int, file_extension):
-        return output_base.with_suffix('.{}{}'.format(format_padded_int(page_idx, width=2), file_extension))
+        return output_base.with_suffix('.{}{}'.format(format_padded_id(page_idx, width=2), file_extension))
 
     def to_dict(self, page_idx) -> dict:
         return { self.__class__.__name__: {} }
