@@ -87,6 +87,7 @@ class ZXEditor(ttk.Frame):
         self.__load_font()
         self.__load_glyph()
 
+        self.master.bind("<Control-KeyPress-a>", self.clicked_highlight_all)
         self.master.bind("<Control-KeyPress-n>", self.clicked_new)
         self.master.bind("<Control-KeyPress-o>", self.clicked_open)
         self.master.bind("<Control-KeyPress-s>", self.clicked_save)
@@ -675,6 +676,15 @@ class ZXEditor(ttk.Frame):
         self.set_sticky(not self.is_sticky_enabled)
         if event is not None:
             self.main.focus_set()
+        return 'break'
+
+    def clicked_highlight_all(self, event=None):
+        '''
+        Set highlight to entire screen.
+        '''
+        self.region_highlight = ScreenRegion.full()
+        self.main.notify_cursor_changed()
+        self.status.notify_cursor_changed()
         return 'break'
 
     def clicked_unselect_highlight(self, event=None):
